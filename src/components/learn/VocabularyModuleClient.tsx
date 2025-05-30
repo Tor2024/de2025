@@ -14,7 +14,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, ArrowLeft, ArrowRight, XCircle, Eye, EyeOff } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -32,9 +32,6 @@ const baseEnTranslations: Record<string, string> = {
   topicPlaceholder: "E.g., Travel, Food, Business",
   getWordsButton: "Get Words",
   resultsTitlePrefix: "Vocabulary Flashcards for:",
-  wordHeader: "Word",
-  translationHeader: "Translation",
-  exampleSentenceHeader: "Example Sentence",
   noWordsGenerated: "No words were generated for this topic. Try a different one.",
   toastSuccessTitle: "Vocabulary List Generated!",
   toastSuccessDescriptionTemplate: "Word list for \"{topic}\" is ready.",
@@ -43,13 +40,16 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
   noExampleSentence: "No example sentence provided.",
-  previousButton: "Previous",
-  nextButton: "Next",
   showDetailsButton: "Show Details",
   hideDetailsButton: "Hide Details",
   currentCardOfTotal: "Card {current} of {total}",
   noWordsForFlashcards: "No words generated for this topic to display as flashcards.",
   clearResultsButton: "Clear Results",
+  previousButton: "Previous",
+  nextButton: "Next",
+  wordHeader: "Word",
+  translationHeader: "Translation",
+  exampleSentenceHeader: "Example Sentence",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -59,9 +59,6 @@ const baseRuTranslations: Record<string, string> = {
   topicPlaceholder: "Напр., Путешествия, Еда, Бизнес",
   getWordsButton: "Получить слова",
   resultsTitlePrefix: "Карточки со словами по теме:",
-  wordHeader: "Слово",
-  translationHeader: "Перевод",
-  exampleSentenceHeader: "Пример предложения",
   noWordsGenerated: "Для этой темы слова не были сгенерированы. Попробуйте другую.",
   toastSuccessTitle: "Список слов создан!",
   toastSuccessDescriptionTemplate: "Список слов для темы \"{topic}\" готов.",
@@ -70,13 +67,16 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
   noExampleSentence: "Пример предложения не предоставлен.",
-  previousButton: "Назад",
-  nextButton: "Вперед",
   showDetailsButton: "Показать детали",
   hideDetailsButton: "Скрыть детали",
   currentCardOfTotal: "Карточка {current} из {total}",
   noWordsForFlashcards: "Для этой темы не сгенерировано слов для отображения в виде карточек.",
   clearResultsButton: "Очистить результаты",
+  previousButton: "Назад",
+  nextButton: "Вперед",
+  wordHeader: "Слово",
+  translationHeader: "Перевод",
+  exampleSentenceHeader: "Пример предложения",
 };
 
 const generateTranslations = () => {
