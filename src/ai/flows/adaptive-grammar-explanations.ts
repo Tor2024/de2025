@@ -48,7 +48,7 @@ export async function adaptiveGrammarExplanations(input: AdaptiveGrammarExplanat
 
 const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
   name: 'adaptiveGrammarExplanationsPrompt',
-  input: {schema: AdaptiveGrammarExplanationsInputSchema}, // The prompt definition still uses the original schema
+  input: {schema: AdaptiveGrammarExplanationsInputSchema}, 
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
   prompt: `You are an expert language tutor, specializing in grammar explanations.
 
@@ -80,7 +80,7 @@ Module: {{{firstPastErrorModule}}}, Context: {{{firstPastErrorContext}}}, User a
 
 Your task:
 1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
-2.  If the {{{userPastErrors}}} are provided (and accessible in the `userPastErrors` variable above) and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
+2.  If the {{{userPastErrors}}} are provided (and accessible in the userPastErrors variable above) and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
 3.  Generate a list of **Practice Tasks** (usually 2-3 tasks). These tasks should:
     *   Follow the structured format described in "Practice Task Structure" above.
     *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}} and be extremely clear.
@@ -133,3 +133,4 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output;
   }
 );
+
