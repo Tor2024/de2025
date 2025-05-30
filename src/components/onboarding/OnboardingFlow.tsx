@@ -63,10 +63,11 @@ const baseEnTranslations: Record<string, string> = {
   submitButton: "Generate My Plan & Start Learning!",
   generatingPlanButton: "Generating Plan...",
   stepDescription: "Step {current} of {total}",
-  setupCompleteTitle: "Setup Complete!",
-  setupCompleteDescription: "Your personalized learning roadmap has been generated.",
+  setupCompleteTitle: "Setup Complete, {userName}!",
+  setupCompleteDescription: "Your personalized learning roadmap has been generated. Happy learning!",
   errorTitle: "Error",
   errorDescription: "Failed to complete setup. Please try again.",
+  fallbackLearnerName: "Learner", // Added for consistency, might be used in toast
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -88,10 +89,11 @@ const baseRuTranslations: Record<string, string> = {
   submitButton: "Создать мой план и начать обучение!",
   generatingPlanButton: "Генерация плана...",
   stepDescription: "Шаг {current} из {total}",
-  setupCompleteTitle: "Настройка завершена!",
-  setupCompleteDescription: "Ваш персональный план обучения был создан.",
+  setupCompleteTitle: "Настройка завершена, {userName}!",
+  setupCompleteDescription: "Ваш персональный план обучения создан. Приятного обучения!",
   errorTitle: "Ошибка",
   errorDescription: "Не удалось завершить настройку. Пожалуйста, попробуйте снова.",
+  fallbackLearnerName: "Ученик",
 };
 
 const generateTranslations = () => {
@@ -115,12 +117,12 @@ export function OnboardingFlow() {
   const [isLoading, setIsLoading] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
   
-  const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch, getValues } = useForm<OnboardingFormData>({
+  const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     mode: "onChange", 
     defaultValues: {
-      interfaceLanguage: 'en',
-      proficiencyLevel: 'A1-A2', 
+      interfaceLanguage: 'en', 
+      proficiencyLevel: 'A1-A2',
     },
   });
   
@@ -159,7 +161,7 @@ export function OnboardingFlow() {
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage,
         targetLanguage: data.targetLanguage,
-        proficiencyLevel: data.proficiencyLevel,
+        proficiencyLevel: data.proficiencyLevel, // User specified proficiency
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
@@ -167,7 +169,7 @@ export function OnboardingFlow() {
       
       const newProgress: UserProgress = {
         ...initialUserProgress, 
-        learningRoadmap: roadmapOutput as LearningRoadmap,
+        learningRoadmap: roadmapOutput as LearningRoadmap, // Cast is safe due to schema alignment
       };
 
       setUserData({
@@ -175,10 +177,14 @@ export function OnboardingFlow() {
           progress: newProgress,
       });
 
+      const toastTitle = (currentTranslations.setupCompleteTitle || "Setup Complete, {userName}!")
+        .replace('{userName}', settingsData.userName || currentTranslations.fallbackLearnerName || 'Learner');
+      
       toast({
-        title: currentTranslations.setupCompleteTitle,
+        title: toastTitle,
         description: currentTranslations.setupCompleteDescription,
       });
+
     } catch (error) {
       console.error("Onboarding error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
