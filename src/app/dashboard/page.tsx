@@ -217,7 +217,7 @@ export default function DashboardPage() {
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
         </div>
       </AppShell>
     );
@@ -228,7 +228,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
         </div>
       </AppShell>
     );
@@ -249,7 +249,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 md:p-6 lg:p-8">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3">
             <RoadmapDisplay
@@ -313,7 +313,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {appModulesConfig.map((mod) => (
               <ModuleLinkCard
-                key={mod.id} // Use a unique id from the config
+                key={mod.id} 
                 title={t(mod.titleKey, mod.defaultTitle)}
                 description={t(mod.descriptionKey, mod.defaultDescription)}
                 href={mod.href}

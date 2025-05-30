@@ -196,11 +196,11 @@ export function ListeningModuleClient() {
   }, []);
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
@@ -255,7 +255,7 @@ export function ListeningModuleClient() {
   const hasQuestions = listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -426,4 +426,3 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-
