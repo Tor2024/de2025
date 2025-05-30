@@ -20,7 +20,9 @@ import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } fro
 
 
 const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
-export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>;
+// This local type alias is fine if only used here, but AppInterfaceLanguage from @/lib/types is the canonical one.
+// For schema definition, z.enum(interfaceLanguageCodes) is correct.
+// export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>; // Not exported if not needed externally from this file
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),
@@ -37,6 +39,7 @@ const AdaptiveGrammarExplanationsOutputSchema = z.object({
 });
 export type AdaptiveGrammarExplanationsOutput = z.infer<typeof AdaptiveGrammarExplanationsOutputSchema>;
 
+// Exported wrapper function
 export async function adaptiveGrammarExplanations(input: AdaptiveGrammarExplanationsInput): Promise<AdaptiveGrammarExplanationsOutput> {
   return adaptiveGrammarExplanationsFlow(input);
 }
@@ -69,7 +72,7 @@ Explanation: [Your explanation here]
 Practice Tasks:
 - Task 1
 - Task 2
-...`, 
+...`,
 });
 
 const adaptiveGrammarExplanationsFlow = ai.defineFlow(
@@ -78,18 +81,11 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     inputSchema: AdaptiveGrammarExplanationsInputSchema,
     outputSchema: AdaptiveGrammarExplanationsOutputSchema,
   },
-  async input => {
-    // Ensure the input types from the app match the flow's expected types
-    const typedInput: AdaptiveGrammarExplanationsInput = {
-        ...input,
-        interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage, 
-        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, 
-    };
-    const {output} = await prompt(typedInput);
+  async (input: AdaptiveGrammarExplanationsInput) => {
+    const {output} = await prompt(input);
     if (!output) {
         throw new Error("AI failed to generate grammar explanation. Output was null.");
     }
     return output;
   }
 );
-

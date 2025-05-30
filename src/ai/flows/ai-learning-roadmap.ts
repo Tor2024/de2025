@@ -16,8 +16,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { interfaceLanguageCodes, targetLanguageNames, proficiencyLevels } from '@/lib/types';
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel, TargetLanguage as AppTargetLanguage } from '@/lib/types';
-
+import type { Lesson } from '@/lib/types'; // Ensure Lesson type is imported if its structure is complex
 
 const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   interfaceLanguage: z
@@ -26,7 +25,7 @@ const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user wants to study (e.g., German, English). The actual learning content and concepts in the roadmap (e.g., grammar rules, vocabulary themes) should be for this language.'),
   proficiencyLevel: z
     .enum(proficiencyLevels)
-    .describe('The user-selected current/starting proficiency level (e.g., A1-A2, B1-B2, C1-C2). The generated roadmap must still cover all levels from A0/A1 to C2, but this input provides context for the user\'s starting point.'),
+    .describe('The user-selected current/starting proficiency level (e.g., A1-A2, B1-B2, C1-C2). The generated roadmap must still cover all levels from A0/A1 to C2, but this input provides context for the user\'s starting point and may influence the introduction or initial focus of the comprehensive plan.'),
   personalGoal: z.string().describe('The personal goal of the user (e.g., Pass B2 TELC exam).'),
 });
 
@@ -53,16 +52,11 @@ export type GeneratePersonalizedLearningRoadmapOutput = z.infer<
   typeof GeneratePersonalizedLearningRoadmapOutputSchema
 >;
 
+// Exported wrapper function
 export async function generatePersonalizedLearningRoadmap(
   input: GeneratePersonalizedLearningRoadmapInput
 ): Promise<GeneratePersonalizedLearningRoadmapOutput> {
-   const typedInput: GeneratePersonalizedLearningRoadmapInput = {
-      ...input,
-      interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage,
-      targetLanguage: input.targetLanguage as AppTargetLanguage,
-      proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel,
-  };
-  return generatePersonalizedLearningRoadmapFlow(typedInput);
+  return generatePersonalizedLearningRoadmapFlow(input);
 }
 
 const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
@@ -90,9 +84,9 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
 
   CONTENT AND STRUCTURE OF LESSONS:
   *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided '{{{proficiencyLevel}}}' indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
-  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar). Strive to incorporate practical application exercises for each skill within a lesson.
+  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar). Strive to incorporate practical application exercises for each skill within a lesson. For example, a lesson on "Travel" for A2 German could include: Vocabulary (words for booking, transport), Grammar (Perfekt for past trips), Listening (dialogue at a train station), Reading (a short travel blog post), Writing (email to a hotel), Speaking (role-play buying a ticket).
   *   **Thematic/Functional Context**: Whenever possible, frame lessons or modules within a thematic (e.g., "Travel", "Work", "Hobbies") or functional (e.g., "Making appointments", "Expressing opinions") context. This makes learning more engaging.
-  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления" (if interface language is Russian for German target).
+  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления" (if interface language is Russian for German target). Each topic string should clearly indicate what aspect of the target language it covers (e.g., "Лексика:", "Грамматика:", "Аудирование:", "Практика говорения:", "Культурная заметка:").
   *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
 
   EXAMPLE (if interfaceLanguage='ru', targetLanguage='German', proficiencyLevel='A1-A2'):
@@ -292,5 +286,3 @@ const generatePersonalizedLearningRoadmapFlow = ai.defineFlow(
     return output;
   }
 );
-
-    

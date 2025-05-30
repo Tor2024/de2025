@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels } from '@/lib/types';
+import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels as appProficiencyLevels } from '@/lib/types';
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel, GermanWritingTaskType } from '@/lib/types';
 
 
@@ -22,7 +22,7 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
-  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
+  proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
@@ -32,15 +32,9 @@ const AIPoweredWritingAssistanceOutputSchema = z.object({
 });
 export type AIPoweredWritingAssistanceOutput = z.infer<typeof AIPoweredWritingAssistanceOutputSchema>;
 
+// Exported wrapper function
 export async function aiPoweredWritingAssistance(input: AIPoweredWritingAssistanceInput): Promise<AIPoweredWritingAssistanceOutput> {
-  // Ensure the proficiencyLevel from app matches the flow's expected type
-    const typedInput: AIPoweredWritingAssistanceInput = {
-        ...input,
-        interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage,
-        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, 
-        writingTaskType: input.writingTaskType as GermanWritingTaskType | undefined,
-    };
-  return aiPoweredWritingAssistanceFlow(typedInput);
+  return aiPoweredWritingAssistanceFlow(input);
 }
 
 const writingAssistantPrompt = ai.definePrompt({
@@ -163,7 +157,7 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     inputSchema: AIPoweredWritingAssistanceInputSchema,
     outputSchema: AIPoweredWritingAssistanceOutputSchema,
   },
-  async input => {
+  async (input: AIPoweredWritingAssistanceInput) => {
     const {output} = await writingAssistantPrompt(input);
     if (!output) {
         throw new Error("AI failed to generate writing assistance. Output was null.");
@@ -171,4 +165,3 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     return output;
   }
 );
-
