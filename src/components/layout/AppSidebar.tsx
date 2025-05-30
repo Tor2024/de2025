@@ -52,8 +52,8 @@ const mainNavItemDefinitions: NavItemDef[] = [
     icon: mod.icon,
     labelKey: mod.titleKey,
     defaultLabel: mod.defaultTitle,
-    tooltipKey: mod.tooltipKey,
-    defaultTooltip: mod.defaultTooltip,
+    tooltipKey: mod.tooltipKey, // Use dedicated tooltipKey
+    defaultTooltip: mod.defaultTooltip, // Use dedicated defaultTooltip
     disabled: mod.disabled,
   })),
 ];
@@ -242,3 +242,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
