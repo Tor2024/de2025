@@ -48,7 +48,7 @@ export async function adaptiveGrammarExplanations(input: AdaptiveGrammarExplanat
 
 const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
   name: 'adaptiveGrammarExplanationsPrompt',
-  input: {schema: AdaptiveGrammarExplanationsInputSchema},
+  input: {schema: AdaptiveGrammarExplanationsInputSchema}, // The prompt definition still uses the original schema
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
   prompt: `You are an expert language tutor, specializing in grammar explanations.
 
@@ -71,11 +71,16 @@ Grammar Topic: {{{grammarTopic}}}
 Proficiency Level: {{{proficiencyLevel}}}
 Learning Goal: {{{learningGoal}}}
 User's Past Errors (if any, pay attention to those relevant to the current Grammar Topic):
-Module: {{userPastErrors.split('\n')[0]?.split(',')[0]?.split(':')[1]?.trim() || 'N/A'}}, Context: {{userPastErrors.split('\n')[0]?.split(',')[1]?.split(':')[1]?.trim() || 'N/A'}}, User attempt: {{userPastErrors.split('\n')[0]?.split(',')[2]?.split(':')[1]?.trim() || 'N/A'}}, Correct: {{userPastErrors.split('\n')[0]?.split(',')[3]?.split(':')[1]?.trim() || 'N/A'}}
+{{#if firstPastErrorModule}}
+Module: {{{firstPastErrorModule}}}, Context: {{{firstPastErrorContext}}}, User attempt: {{{firstPastErrorUserAttempt}}}, Correct: {{{firstPastErrorCorrect}}}
+(Full error list: {{{userPastErrors}}})
+{{else}}
+(No specific past error details provided for quick reference, but consider the general list if available: {{{userPastErrors}}})
+{{/if}}
 
 Your task:
 1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
-2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
+2.  If the {{{userPastErrors}}} are provided (and accessible in the `userPastErrors` variable above) and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
 3.  Generate a list of **Practice Tasks** (usually 2-3 tasks). These tasks should:
     *   Follow the structured format described in "Practice Task Structure" above.
     *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}} and be extremely clear.
@@ -96,14 +101,35 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     outputSchema: AdaptiveGrammarExplanationsOutputSchema,
   },
   async (input: AdaptiveGrammarExplanationsInput) => {
-    const {output} = await adaptiveGrammarExplanationsPrompt(input);
+    const promptData: Record<string, any> = { ...input };
+
+    // Initialize default values for parsed error fields
+    promptData.firstPastErrorModule = 'N/A';
+    promptData.firstPastErrorContext = 'N/A';
+    promptData.firstPastErrorUserAttempt = 'N/A';
+    promptData.firstPastErrorCorrect = 'N/A';
+
+    if (input.userPastErrors && input.userPastErrors !== "No past errors recorded.") {
+      const firstErrorLine = input.userPastErrors.split('\n')[0];
+      if (firstErrorLine) {
+        const parts = firstErrorLine.split(',').map(p => p.trim());
+        
+        const extractValue = (fullString: string | undefined, keyName: string) => {
+          if (!fullString || !fullString.startsWith(keyName + ':')) return 'N/A';
+          return fullString.substring(keyName.length + 1).trim() || 'N/A';
+        };
+        
+        promptData.firstPastErrorModule = extractValue(parts[0], 'Module');
+        promptData.firstPastErrorContext = extractValue(parts[1], 'Context');
+        promptData.firstPastErrorUserAttempt = extractValue(parts[2], 'User attempt');
+        promptData.firstPastErrorCorrect = extractValue(parts[3], 'Correct');
+      }
+    }
+
+    const {output} = await adaptiveGrammarExplanationsPrompt(promptData);
     if (!output) {
         throw new Error("AI failed to generate grammar explanation. Output was null.");
     }
     return output;
   }
 );
-
-// Ensure ProficiencyLevelSchema is NOT exported from this file if it's not an async function or type.
-// The PracticeTaskSchema is defined above and used in AdaptiveGrammarExplanationsOutputSchema.
-// The type PracticeTask (inferred from PracticeTaskSchema) IS exported, which is allowed.
