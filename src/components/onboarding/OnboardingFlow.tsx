@@ -97,10 +97,11 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    let base = baseEnTranslations;
-    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    // For other languages not explicitly defined, default to English
-    translations[code] = base;
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
   });
   return translations;
 };
@@ -119,14 +120,12 @@ export function OnboardingFlow() {
     mode: "onChange", 
     defaultValues: {
       interfaceLanguage: 'en',
-      proficiencyLevel: 'A1-A2',
+      proficiencyLevel: 'A1-A2', 
     },
   });
   
-  // Determine UI language based on form selection; default to 'en' if selection is not yet valid for translations object
-  const selectedInterfaceLanguage = watch("interfaceLanguage") as keyof typeof pageTranslations;
-  const uiLang = pageTranslations[selectedInterfaceLanguage] ? selectedInterfaceLanguage : 'en';
-  const currentTranslations = pageTranslations[uiLang] || pageTranslations.en;
+  const selectedInterfaceLanguage = watch("interfaceLanguage") as InterfaceLanguage;
+  const currentTranslations = pageTranslations[selectedInterfaceLanguage as keyof typeof pageTranslations] || pageTranslations.en;
 
   const steps = [
     { id: 1, titleKey: "step1Title", fields: ["userName", "interfaceLanguage"] },
@@ -151,16 +150,16 @@ export function OnboardingFlow() {
     try {
       const settingsData: UserSettings = {
         userName: data.userName,
-        interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
-        targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
+        interfaceLanguage: data.interfaceLanguage,
+        targetLanguage: data.targetLanguage,
+        proficiencyLevel: data.proficiencyLevel,
         goal: data.goal,
       };
 
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
-        interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
-        targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel, // User's starting/current level
+        interfaceLanguage: data.interfaceLanguage,
+        targetLanguage: data.targetLanguage,
+        proficiencyLevel: data.proficiencyLevel,
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
@@ -288,7 +287,7 @@ export function OnboardingFlow() {
   };
 
   const stepTitle = currentTranslations[steps[currentStep].titleKey] || `Step ${currentStep + 1} Title`;
-  const stepDescription = (currentTranslations.stepDescription || "Step {current} of {total}")
+  const stepDescriptionText = (currentTranslations.stepDescription || "Step {current} of {total}")
     .replace("{current}", (currentStep + 1).toString())
     .replace("{total}", steps.length.toString());
 
@@ -300,7 +299,7 @@ export function OnboardingFlow() {
              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">{stepTitle}</span>
           </CardTitle>
           <CardDescription className="text-center">
-            {stepDescription}
+            {stepDescriptionText}
           </CardDescription>
            <div className="w-full bg-muted rounded-full h-1.5 mt-2">
              <div className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out" style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}></div>
