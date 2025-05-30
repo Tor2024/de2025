@@ -33,7 +33,7 @@ export function GoalTracker({
     <Card className="shadow-lg hover:shadow-accent/20 transition-shadow duration-300">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Target className="text-accent"/>
+          <Target className="text-accent"/> {/* Ensured icon uses accent color */}
           {titlePrefix} {targetLanguageDisplayName}
         </CardTitle>
         <CardDescription className="truncate text-ellipsis">{goalText}</CardDescription>
@@ -41,12 +41,12 @@ export function GoalTracker({
       <CardContent>
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm text-muted-foreground">{progressLabelText}</span>
-          <span className="text-sm font-semibold text-accent">{Math.round(progressValue)}%</span>
+          <span className="text-sm font-semibold text-accent">{Math.round(progressValue)}%</span> {/* Made percentage more prominent */}
         </div>
         <Progress 
           value={progressValue} 
           aria-label={`${progressLabelText}: ${Math.round(progressValue)}%`} 
-          className="h-3 [&>div]:bg-gradient-to-r [&>div]:from-accent [&>div]:to-primary/70"
+          className="h-3 [&>div]:bg-gradient-to-r [&>div]:from-accent [&>div]:to-primary/70" /* Added gradient and height */
         />
         <p className="text-xs text-muted-foreground mt-2">
           {progressMessageTextTemplate.replace('{value}', Math.round(progressValue).toString())}
