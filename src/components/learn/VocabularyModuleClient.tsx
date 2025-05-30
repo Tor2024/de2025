@@ -128,7 +128,7 @@ export function VocabularyModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset();
+      reset(); // Clear form fields on success
     } catch (error) {
       console.error("Vocabulary generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -184,11 +184,11 @@ export function VocabularyModuleClient() {
                     <li key={index} className="p-4 rounded-md bg-card shadow border border-border/50">
                       <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
                         <List className="h-5 w-5" />
-                        {item.word}
+                        {item.word} ({userData.settings?.targetLanguage})
                       </h3>
                       <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                         <Languages className="h-4 w-4" />
-                        <strong>{t('translationHeader')}:</strong> {item.translation}
+                        <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
                       </p>
                       {item.exampleSentence && (
                         <p className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">

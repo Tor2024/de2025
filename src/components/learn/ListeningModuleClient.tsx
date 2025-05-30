@@ -149,14 +149,14 @@ export function ListeningModuleClient() {
         window.speechSynthesis.cancel();
     }
 
-    const trimmedTextToSpeak = textToSpeak.trim();
+    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingScriptId(null);
       return;
     }
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0) sentences.push(trimmedTextToSpeak);
+    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
     utteranceQueueRef.current = sentences.map(sentence => {
       const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -203,7 +203,7 @@ export function ListeningModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset();
+      reset(); // Clear form fields on success
     } catch (error) {
       console.error("Listening material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
