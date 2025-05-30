@@ -19,7 +19,7 @@ import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIco
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const exerciseFormSchema = z.object({
-  topic: z.string().min(3, "Topic should be at least 3 characters").optional(),
+  topic: z.string().min(3, "Topic should be at least 3 characters").optional().or(z.literal('')),
 });
 
 type ExerciseFormData = z.infer<typeof exerciseFormSchema>;
@@ -299,7 +299,7 @@ export function WordPracticeClient() {
                     disabled={currentExerciseState.isSubmitted}
                     className={
                         currentExerciseState.isSubmitted 
-                        ? (currentExerciseState.isCorrect ? 'border-green-500 focus-visible:ring-green-500 bg-green-50' : 'border-red-500 focus-visible:ring-red-500 bg-red-50')
+                        ? (currentExerciseState.isCorrect ? 'border-green-500 focus-visible:ring-green-500 bg-green-50/50' : 'border-red-500 focus-visible:ring-red-500 bg-red-50/50')
                         : ''
                     }
                   />
@@ -359,5 +359,3 @@ export function WordPracticeClient() {
     </div>
   );
 }
-
-    
