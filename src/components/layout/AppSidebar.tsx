@@ -36,23 +36,23 @@ interface NavItemDef {
   defaultLabel: string;
   tooltipKey: string;
   defaultTooltip: string;
-  disabled?: boolean; // Added to allow disabling from learningModules source
+  disabled?: boolean; 
 }
 
 // Synchronize with learningModules from dashboard
 const learningModulesConfig = [
-  { titleKey: "grammar", defaultTitle: "Grammar", href: "/learn/grammar", icon: BookOpen, tooltipKey: "grammarTooltip", defaultTooltip: "Grammar" },
-  { titleKey: "writing", defaultTitle: "Writing", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant" },
-  { titleKey: "vocabulary", defaultTitle: "Vocabulary", href: "/learn/vocabulary", icon: FileText, tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary" },
-  { titleKey: "reading", defaultTitle: "Reading", href: "/learn/reading", icon: BookOpen, tooltipKey: "readingTooltip", defaultTooltip: "Reading" }, // Assuming BookOpen is also for reading
-  { titleKey: "listening", defaultTitle: "Listening", href: "/learn/listening", icon: Headphones, tooltipKey: "listeningTooltip", defaultTooltip: "Listening", disabled: true },
+  { titleKey: "grammar", defaultTitle: "Grammar", href: "/learn/grammar", icon: BookOpen, tooltipKey: "grammarTooltip", defaultTooltip: "Grammar", disabled: false },
+  { titleKey: "writing", defaultTitle: "Writing", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant", disabled: false },
+  { titleKey: "vocabulary", defaultTitle: "Vocabulary", href: "/learn/vocabulary", icon: FileText, tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary", disabled: false },
+  { titleKey: "reading", defaultTitle: "Reading", href: "/learn/reading", icon: BookOpen, tooltipKey: "readingTooltip", defaultTooltip: "Reading", disabled: false }, 
+  { titleKey: "listening", defaultTitle: "Listening", href: "/learn/listening", icon: Headphones, tooltipKey: "listeningTooltip", defaultTooltip: "Listening", disabled: false },
   { titleKey: "speaking", defaultTitle: "Speaking", href: "/learn/speaking", icon: Mic, tooltipKey: "speakingTooltip", defaultTooltip: "Speaking", disabled: true },
   { titleKey: "wordPractice", defaultTitle: "Word Practice", href: "/learn/practice", icon: Repeat, tooltipKey: "wordPracticeTooltip", defaultTooltip: "Word Practice", disabled: true },
 ];
 
 const navItemDefinitions: NavItemDef[] = [
   { href: "/dashboard", icon: Home, labelKey: "dashboard", defaultLabel: "Dashboard", tooltipKey: "dashboardTooltip", defaultTooltip: "Dashboard" },
-  ...learningModulesConfig.map(mod => ({ // Spread learning modules here
+  ...learningModulesConfig.map(mod => ({ 
     href: mod.href,
     icon: mod.icon,
     labelKey: mod.titleKey,
@@ -80,10 +80,10 @@ const baseEnTranslations: Record<string, string> = {
   vocabularyTooltip: "Vocabulary",
   listening: "Listening",
   listeningTooltip: "Listening",
-  reading: "Reading", // Added
-  readingTooltip: "Reading", // Added
-  writing: "Writing Assistant", // Changed from "Writing" to match dashboard
-  writingTooltip: "Writing Assistant", // Changed from "Writing"
+  reading: "Reading", 
+  readingTooltip: "Reading", 
+  writing: "Writing Assistant", 
+  writingTooltip: "Writing Assistant", 
   speaking: "Speaking",
   speakingTooltip: "Speaking",
   wordPractice: "Word Practice",
@@ -106,9 +106,9 @@ const baseRuTranslations: Record<string, string> = {
   vocabularyTooltip: "Словарный запас",
   listening: "Аудирование",
   listeningTooltip: "Аудирование",
-  reading: "Чтение", // Added
-  readingTooltip: "Чтение", // Added
-  writing: "Помощник по письму", // Changed to match dashboard
+  reading: "Чтение", 
+  readingTooltip: "Чтение", 
+  writing: "Помощник по письму", 
   writingTooltip: "Помощник по письму",
   speaking: "Говорение",
   speakingTooltip: "Говорение",
@@ -130,7 +130,7 @@ const generateSidebarTranslations = () => {
     if (code === 'ru') {
       translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
     } else {
-      translations[code] = { ...baseEnTranslations }; // Fallback to English for other languages
+      translations[code] = { ...baseEnTranslations }; 
     }
   });
   return translations;
@@ -143,28 +143,22 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
-  const currentDisplayLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  
+  const t = (key: string, defaultText?: string): string => {
+    const langTranslations = sidebarTranslations[currentLang as keyof typeof sidebarTranslations];
+    return langTranslations?.[key] || sidebarTranslations['en']?.[key] || defaultText || key; 
+  };
+  
   if (isUserDataLoading || !userData.settings) {
-    return null;
+    // Render a minimal sidebar or null during loading or if no settings
+    // This helps avoid rendering with incorrect language during hydration or if user is not set up
+    return null; 
   }
 
-  const actualInterfaceLang = userData.settings.interfaceLanguage || 'en';
-
-  const t = (key: string, defaultText?: string): string => {
-    const langTranslations = sidebarTranslations[actualInterfaceLang as keyof typeof sidebarTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = sidebarTranslations['en']; 
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key; 
-  };
 
   const mapNavItem = (itemDef: NavItemDef) => ({
-    ...itemDef, // Spread to keep disabled status and other props
+    ...itemDef, 
     label: t(itemDef.labelKey, itemDef.defaultLabel),
     tooltip: t(itemDef.tooltipKey, itemDef.defaultTooltip),
   });

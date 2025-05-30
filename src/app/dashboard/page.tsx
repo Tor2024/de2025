@@ -16,11 +16,11 @@ import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } fr
 import * as React from 'react';
 
 const learningModules = [
-  { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen },
-  { titleKey: "writingAssistant", defaultTitle: "Writing Assistant", descriptionKey: "writingAssistantDescription", defaultDescription: "Get feedback on your texts.", href: "/learn/writing", icon: Edit3 },
-  { titleKey: "vocabulary", defaultTitle: "Vocabulary", descriptionKey: "vocabularyDescription", defaultDescription: "Expand your word bank.", href: "/learn/vocabulary", icon: FileText },
-  { titleKey: "reading", defaultTitle: "Reading", descriptionKey: "readingDescription", defaultDescription: "Understand written texts.", href: "/learn/reading", icon: BookOpen },
-  { titleKey: "listening", defaultTitle: "Listening", descriptionKey: "listeningDescription", defaultDescription: "Sharpen your comprehension.", href: "/learn/listening", icon: Headphones, disabled: true },
+  { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen, disabled: false },
+  { titleKey: "writingAssistant", defaultTitle: "Writing Assistant", descriptionKey: "writingAssistantDescription", defaultDescription: "Get feedback on your texts.", href: "/learn/writing", icon: Edit3, disabled: false },
+  { titleKey: "vocabulary", defaultTitle: "Vocabulary", descriptionKey: "vocabularyDescription", defaultDescription: "Expand your word bank.", href: "/learn/vocabulary", icon: FileText, disabled: false },
+  { titleKey: "reading", defaultTitle: "Reading", descriptionKey: "readingDescription", defaultDescription: "Understand written texts.", href: "/learn/reading", icon: BookOpen, disabled: false },
+  { titleKey: "listening", defaultTitle: "Listening", descriptionKey: "listeningDescription", defaultDescription: "Sharpen your comprehension.", href: "/learn/listening", icon: Headphones, disabled: false },
   { titleKey: "speaking", defaultTitle: "Speaking", descriptionKey: "speakingDescription", defaultDescription: "Practice your pronunciation.", href: "/learn/speaking", icon: Mic, disabled: true },
   { titleKey: "wordPractice", defaultTitle: "Word Practice", descriptionKey: "wordPracticeDescription", defaultDescription: "Reinforce with fun drills.", href: "/learn/practice", icon: Repeat, disabled: true },
 ];
@@ -160,31 +160,29 @@ export default function DashboardPage() {
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = pageTranslations['en']; // Fallback to English
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key; // Fallback to defaultText or key itself
+    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
   };
   
   if (isUserDataLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner size={48} />
-        <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
-      </div>
+      <AppShell>
+        <div className="flex h-screen items-center justify-center">
+          <LoadingSpinner size={48} />
+          <p className="ml-4">{t('loadingUserData')}</p>
+        </div>
+      </AppShell>
     );
   }
 
   if (userData.settings === null) {
+    // This case should ideally be caught by the useEffect redirect, but good for robustness
     return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner size={48} />
-        <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
-      </div>
+       <AppShell>
+        <div className="flex h-screen items-center justify-center">
+          <LoadingSpinner size={48} />
+          <p className="ml-4">{t('redirecting')}</p>
+        </div>
+      </AppShell>
     );
   }
 

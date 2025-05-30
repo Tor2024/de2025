@@ -2,22 +2,22 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Headphones } from "lucide-react";
+import { ListeningModuleClient } from "@/components/learn/ListeningModuleClient";
 import { useUserData } from "@/contexts/UserDataContext";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import * as React from 'react';
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
 
 const baseEnTranslations = {
-  title: "Listening Module",
-  description: "Audio comprehension tasks, tailored to your proficiency level and with optional subtitles, are coming soon to help you sharpen your listening skills!",
-  loading: "Loading listening module...",
+  loadingModule: "Loading listening module...",
+  redirecting: "Redirecting...",
 };
 
 const baseRuTranslations = {
-  title: "Модуль Аудирования",
-  description: "Задания на понимание аудио, подобранные под ваш уровень и с возможностью включения субтитров, скоро появятся, чтобы помочь вам отточить навыки аудирования!",
-  loading: "Загрузка модуля аудирования...",
+  loadingModule: "Загрузка модуля аудирования...",
+  redirecting: "Перенаправление...",
 };
 
 const generateTranslations = () => {
@@ -36,27 +36,38 @@ const generateTranslations = () => {
 const pageTranslations = generateTranslations();
 
 export default function ListeningPage() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading } = useUserData(); 
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings === null) {
+      router.replace('/');
+    }
+  }, [userData, isUserDataLoading, router]); 
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const tPage = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = pageTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key;
+    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
   };
 
-  if (isUserDataLoading) { 
+  if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={32} />
-          <p className="ml-2">{t('loading')}</p>
+          <p className="ml-2">{tPage('loadingModule')}</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (userData.settings === null) {
+     return (
+      <AppShell>
+        <div className="flex h-screen items-center justify-center">
+          <LoadingSpinner size={48} />
+          <p className="ml-4">{tPage('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -64,22 +75,7 @@ export default function ListeningPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full">
-        <Card className="w-full max-w-md text-center p-8 shadow-xl">
-          <CardHeader>
-            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
-              <Headphones className="h-12 w-12 text-primary" />
-            </div>
-            <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              {t('description')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <ListeningModuleClient />
     </AppShell>
   );
 }
-
