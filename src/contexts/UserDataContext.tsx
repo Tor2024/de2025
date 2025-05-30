@@ -27,6 +27,8 @@ const initialUserData: UserData = {
   progress: { ...initialUserProgress },
 };
 
+const BADGE_FIRST_LESSON_COMPLETED = "First Lesson Completed";
+
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
@@ -55,11 +57,18 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const newCompletedLessonIds = isCompleted
         ? currentCompletedIds.filter(id => id !== lessonId)
         : [...currentCompletedIds, lessonId];
+
+      let newBadges = [...(prev.progress?.badges || [])];
+      if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
+        newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
+      }
+
       return {
         ...prev,
         progress: {
           ...(prev.progress || initialUserProgress),
           completedLessonIds: newCompletedLessonIds,
+          badges: newBadges,
         },
       };
     });
@@ -73,10 +82,6 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
       };
       const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
-      // Optional: Limit archive size, e.g., keep last 50 errors
-      // if (updatedErrorArchive.length > 50) {
-      //   updatedErrorArchive.splice(0, updatedErrorArchive.length - 50);
-      // }
       return {
         ...prev,
         progress: {
@@ -117,3 +122,4 @@ export function useUserData(): UserDataContextType {
   }
   return context;
 }
+
