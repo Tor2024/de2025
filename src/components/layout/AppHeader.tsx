@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { interfaceLanguageCodes } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 const baseEnTranslations = {
   profile: "Profile",
@@ -68,7 +69,7 @@ export function AppHeader() {
     router.push('/'); 
   };
   
-  const userInitial = userData.settings?.userName && userData.settings.userName.length > 0 
+  const userInitial = !isUserDataLoading && userData.settings?.userName && userData.settings.userName.length > 0 
     ? userData.settings.userName.charAt(0).toUpperCase() 
     : "L";
 
@@ -88,8 +89,9 @@ export function AppHeader() {
         <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">LinguaLab</span>
       </Link>
       <div className="ml-auto flex items-center gap-4">
-        {/* Show Avatar and Dropdown only if not loading AND settings are available */}
-        {!isUserDataLoading && userData.settings && (
+        {isUserDataLoading ? (
+          <Skeleton className="h-10 w-10 rounded-full" />
+        ) : userData.settings ? (
            <DropdownMenu>
            <DropdownMenuTrigger asChild>
              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -124,7 +126,7 @@ export function AppHeader() {
              </DropdownMenuItem>
            </DropdownMenuContent>
          </DropdownMenu>
-        )}
+        ) : null}
       </div>
     </header>
   );
