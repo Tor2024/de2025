@@ -20,7 +20,7 @@ import { Edit, CheckCircle } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
 
 const writingSchema = z.object({
-  writingPrompt: z.string().min(5, "Prompt should be at least 5 characters"), // These validation messages can also be localized with a more robust i18n setup
+  writingPrompt: z.string().min(5, "Prompt should be at least 5 characters"),
   userText: z.string().min(10, "Your text should be at least 10 characters"),
 });
 
@@ -31,8 +31,8 @@ const baseEnTranslations = {
   description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections.",
   writingPromptLabel: "Writing Prompt",
   writingPromptPlaceholder: "E.g., Describe your last holiday, Write a formal email asking for information...",
-  userTextLabel: "Your Text", // Dynamic part ({language}) handled in JSX
-  userTextPlaceholder: "Write your text in {language} here...", // Dynamic part
+  userTextLabel: "Your Text",
+  userTextPlaceholder: "Write your text in {language} here...",
   getFeedbackButton: "Get Feedback",
   toastSuccessTitle: "Feedback Received!",
   toastSuccessDescription: "Your writing has been reviewed.",
@@ -42,6 +42,7 @@ const baseEnTranslations = {
   feedbackSectionTitle: "Feedback:",
   correctedTextSectionTitle: "Corrected Text:",
   onboardingMissing: "Please complete onboarding first.",
+  loading: "Loading...",
 };
 
 const baseRuTranslations = {
@@ -60,6 +61,7 @@ const baseRuTranslations = {
   feedbackSectionTitle: "Обратная связь:",
   correctedTextSectionTitle: "Исправленный текст:",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+  loading: "Загрузка...",
 };
 
 const generateTranslations = () => {
@@ -69,14 +71,13 @@ const generateTranslations = () => {
   };
   interfaceLanguageCodes.forEach(code => {
     if (code !== 'en' && code !== 'ru') {
-      translations[code] = { ...baseEnTranslations }; // Fill with English as placeholder
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;
 };
 
 const componentTranslations = generateTranslations();
-
 
 export function WritingAssistantClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -101,9 +102,8 @@ export function WritingAssistantClient() {
     return defaultText || key; 
   };
 
-  if (isUserDataLoading) {
-     // Or some other loading state specific to this component if needed
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading', 'Loading...')}</p></div>;
+  if (isUserDataLoading && !userData.settings) {
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
@@ -197,4 +197,3 @@ export function WritingAssistantClient() {
     </div>
   );
 }
-

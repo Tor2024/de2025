@@ -82,7 +82,7 @@ export default function SettingsPage() {
     return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
   };
 
-  if (isUserDataLoading) {
+  if (isUserDataLoading && !userData.settings) { // Show loading only if settings are not yet available
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">

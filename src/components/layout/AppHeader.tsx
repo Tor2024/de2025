@@ -87,7 +87,8 @@ export function AppHeader() {
         <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">LinguaLab</span>
       </Link>
       <div className="ml-auto flex items-center gap-4">
-        {userData.settings && !isUserDataLoading && (
+        {/* Show Avatar and Dropdown only if not loading AND settings are available */}
+        {!isUserDataLoading && userData.settings && (
            <DropdownMenu>
            <DropdownMenuTrigger asChild>
              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
