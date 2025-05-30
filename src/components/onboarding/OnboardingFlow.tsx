@@ -67,7 +67,7 @@ const baseEnTranslations: Record<string, string> = {
   setupCompleteDescription: "Your personalized learning roadmap has been generated. Happy learning!",
   errorTitle: "Error",
   errorDescription: "Failed to complete setup. Please try again.",
-  fallbackLearnerName: "Learner", // Added for consistency, might be used in toast
+  fallbackLearnerName: "Learner",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -161,7 +161,7 @@ export function OnboardingFlow() {
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage,
         targetLanguage: data.targetLanguage,
-        proficiencyLevel: data.proficiencyLevel, // User specified proficiency
+        proficiencyLevel: data.proficiencyLevel,
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
@@ -169,7 +169,7 @@ export function OnboardingFlow() {
       
       const newProgress: UserProgress = {
         ...initialUserProgress, 
-        learningRoadmap: roadmapOutput as LearningRoadmap, // Cast is safe due to schema alignment
+        learningRoadmap: roadmapOutput as LearningRoadmap,
       };
 
       setUserData({
@@ -177,20 +177,20 @@ export function OnboardingFlow() {
           progress: newProgress,
       });
 
-      const toastTitle = (currentTranslations.setupCompleteTitle || "Setup Complete, {userName}!")
-        .replace('{userName}', settingsData.userName || currentTranslations.fallbackLearnerName || 'Learner');
+      const toastTitle = (currentTranslations.setupCompleteTitle || baseEnTranslations.setupCompleteTitle)
+        .replace('{userName}', settingsData.userName || currentTranslations.fallbackLearnerName || baseEnTranslations.fallbackLearnerName);
       
       toast({
         title: toastTitle,
-        description: currentTranslations.setupCompleteDescription,
+        description: currentTranslations.setupCompleteDescription || baseEnTranslations.setupCompleteDescription,
       });
 
     } catch (error) {
       console.error("Onboarding error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: currentTranslations.errorTitle,
-        description: `${currentTranslations.errorDescription} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: currentTranslations.errorTitle || baseEnTranslations.errorTitle,
+        description: `${currentTranslations.errorDescription || baseEnTranslations.errorDescription} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -293,7 +293,7 @@ export function OnboardingFlow() {
   };
 
   const stepTitle = currentTranslations[steps[currentStep].titleKey] || `Step ${currentStep + 1} Title`;
-  const stepDescriptionText = (currentTranslations.stepDescription || "Step {current} of {total}")
+  const stepDescriptionText = (currentTranslations.stepDescription || baseEnTranslations.stepDescription)
     .replace("{current}", (currentStep + 1).toString())
     .replace("{total}", steps.length.toString());
 
@@ -330,7 +330,7 @@ export function OnboardingFlow() {
               <Button type="submit" disabled={isLoading || !isValid} className="ml-auto w-full md:w-auto">
                 {isLoading ? (
                   <>
-                    <LoadingSpinner className="mr-2" />
+                    <LoadingSpinner size={16} className="mr-2" />
                     {currentTranslations.generatingPlanButton}
                   </>
                 ) : (

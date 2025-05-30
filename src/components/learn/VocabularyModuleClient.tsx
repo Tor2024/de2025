@@ -163,7 +163,8 @@ export function VocabularyModuleClient() {
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading ? <LoadingSpinner /> : t('getWordsButton')}
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getWordsButton')}
             </Button>
           </CardFooter>
         </form>

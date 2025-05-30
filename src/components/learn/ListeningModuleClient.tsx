@@ -245,7 +245,8 @@ export function ListeningModuleClient() {
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading ? <LoadingSpinner /> : t('getMaterialButton')}
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getMaterialButton')}
             </Button>
           </CardFooter>
         </form>
@@ -282,7 +283,7 @@ export function ListeningModuleClient() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                                if (!hasScriptText || !listeningResult.script) return; // Added check for listeningResult.script
+                                if (!hasScriptText || !listeningResult.script) return; 
                                 const scriptId = listeningResult.title || `script-${Date.now()}`;
                                 if (currentlySpeakingScriptId === scriptId) {
                                     stopSpeech();

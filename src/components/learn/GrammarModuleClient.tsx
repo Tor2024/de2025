@@ -102,7 +102,7 @@ export function GrammarModuleClient() {
 
 
   if (isUserDataLoading) {
-     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading', 'Loading...')}</p></div>;
+     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
   
   if (!userData.settings || !userData.progress) {
@@ -162,7 +162,8 @@ export function GrammarModuleClient() {
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading ? <LoadingSpinner /> : t('getExplanationButton')}
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getExplanationButton')}
             </Button>
           </CardFooter>
         </form>

@@ -299,7 +299,8 @@ export default function DashboardPage() {
                   onClick={fetchTutorTip}
                   disabled={isTipLoading}
                 >
-                  {isTipLoading ? <LoadingSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isTipLoading && <LoadingSpinner size={16} className="mr-2" />}
+                  <RefreshCw className="mr-2 h-4 w-4" />
                   {t('refreshTipButton')}
                 </Button>
               </CardContent>

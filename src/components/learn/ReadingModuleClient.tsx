@@ -162,7 +162,8 @@ export function ReadingModuleClient() {
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading ? <LoadingSpinner /> : t('getTextButton')}
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getTextButton')}
             </Button>
           </CardFooter>
         </form>

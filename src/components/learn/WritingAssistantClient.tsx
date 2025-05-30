@@ -216,7 +216,8 @@ export function WritingAssistantClient() {
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading ? <LoadingSpinner /> : t('getFeedbackButton')}
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getFeedbackButton')}
             </Button>
           </CardFooter>
         </form>
