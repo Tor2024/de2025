@@ -33,7 +33,7 @@ const baseRuTranslations = {
   learnerSuffix: "Ученик",
 };
 
-const generateTranslations = () => {
+const generateHeaderTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
     if (code === 'ru') {
@@ -45,7 +45,7 @@ const generateTranslations = () => {
   return translations;
 };
 
-const componentTranslations = generateTranslations();
+const headerTranslations = generateHeaderTranslations();
 
 export function AppHeader() {
   const { userData, clearUserData, isLoading: isUserDataLoading } = useUserData();
@@ -53,11 +53,11 @@ export function AppHeader() {
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
-    const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
+    const langTranslations = headerTranslations[currentLang as keyof typeof headerTranslations];
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
     }
-    const enTranslations = componentTranslations['en'];
+    const enTranslations = headerTranslations['en'];
     if (enTranslations && enTranslations[key]) {
       return enTranslations[key];
     }
