@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, type SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,7 +17,7 @@ import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assist
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle, Sparkles, XCircle } from "lucide-react"; 
+import { Edit, CheckCircle, Sparkles, XCircle, FileText } from "lucide-react"; 
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -46,6 +46,7 @@ const baseEnTranslations: Record<string, string> = {
   toastErrorDescription: "Failed to get writing assistance. Please try again.",
   resultsCardTitle: "Feedback & Corrections",
   feedbackSectionTitle: "Feedback",
+  yourOriginalTextSectionTitle: "Your Original Text",
   correctedTextSectionTitle: "Corrected Text (with highlights)",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
@@ -74,6 +75,7 @@ const baseRuTranslations: Record<string, string> = {
   toastErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
   resultsCardTitle: "Обратная связь и исправления",
   feedbackSectionTitle: "Обратная связь",
+  yourOriginalTextSectionTitle: "Ваш исходный текст",
   correctedTextSectionTitle: "Исправленный текст (с выделениями)",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
@@ -105,8 +107,9 @@ export function WritingAssistantClient() {
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
+  const [submittedUserText, setSubmittedUserText] = useState<string | null>(null);
 
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<WritingFormData>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<WritingFormData>({
     resolver: zodResolver(writingSchema),
   });
 
@@ -115,6 +118,21 @@ export function WritingAssistantClient() {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
+
+  useEffect(() => {
+    // Если пользователь меняет язык интерфейса, а результат уже есть, его лучше очистить,
+    // так как обратная связь от ИИ была на предыдущем языке.
+    if (assistanceResult && userData.settings?.interfaceLanguage) {
+        // Дополнительно можно проверить, что язык действительно изменился, если хранить предыдущий язык.
+        // Но для простоты пока очистим, если результат есть и язык пользователя определен.
+        // setAssistanceResult(null);
+        // setSubmittedUserText(null);
+        // Эта логика может быть сложной, если пользователь часто меняет язык. 
+        // Возможно, лучше оставить результаты и просто информировать, что они были на другом языке.
+        // Или не делать ничего, как сейчас.
+    }
+  }, [userData.settings?.interfaceLanguage, assistanceResult]);
+
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -127,6 +145,7 @@ export function WritingAssistantClient() {
   const onSubmit: SubmitHandler<WritingFormData> = async (data) => {
     setIsAiLoading(true);
     setAssistanceResult(null);
+    setSubmittedUserText(data.userText); // Сохраняем текст пользователя
     try {
       if (!userData.settings) {
          toast({ title: t('onboardingMissing'), variant: "destructive" });
@@ -147,7 +166,7 @@ export function WritingAssistantClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset(); 
+      // Не вызываем reset(), чтобы пользователь мог видеть свой введенный текст и настройки
     } catch (error) {
       console.error("Writing assistance error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -163,6 +182,7 @@ export function WritingAssistantClient() {
 
   const handleClearResults = () => {
     setAssistanceResult(null);
+    setSubmittedUserText(null);
   };
   
   const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
@@ -241,13 +261,26 @@ export function WritingAssistantClient() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-6">
+          <CardContent className="space-y-6">
             <div className="space-y-2">
               <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
               </ScrollArea>
             </div>
+
+            {submittedUserText && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  {t('yourOriginalTextSectionTitle')}
+                </h3>
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
+                </ScrollArea>
+              </div>
+            )}
+
             <div className="space-y-2">
               <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
@@ -263,5 +296,3 @@ export function WritingAssistantClient() {
     </div>
   );
 }
-
-    
