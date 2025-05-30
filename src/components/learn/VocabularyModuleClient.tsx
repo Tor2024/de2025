@@ -17,6 +17,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { FileText, Sparkles, Languages, MessageSquareText, ArrowLeft, ArrowRight, XCircle, Eye, EyeOff } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -44,8 +45,8 @@ const baseEnTranslations: Record<string, string> = {
   noExampleSentence: "No example sentence provided.",
   previousButton: "Previous",
   nextButton: "Next",
-  showAnswerButton: "Show Details", // Changed from "Show Answer" for clarity
-  hideAnswerButton: "Hide Details", // Changed from "Hide Answer" for clarity
+  showDetailsButton: "Show Details",
+  hideDetailsButton: "Hide Details",
   currentCardOfTotal: "Card {current} of {total}",
   noWordsForFlashcards: "No words generated for this topic to display as flashcards.",
   clearResultsButton: "Clear Results",
@@ -71,8 +72,8 @@ const baseRuTranslations: Record<string, string> = {
   noExampleSentence: "Пример предложения не предоставлен.",
   previousButton: "Назад",
   nextButton: "Вперед",
-  showAnswerButton: "Показать детали",
-  hideAnswerButton: "Скрыть детали",
+  showDetailsButton: "Показать детали",
+  hideDetailsButton: "Скрыть детали",
   currentCardOfTotal: "Карточка {current} из {total}",
   noWordsForFlashcards: "Для этой темы не сгенерировано слов для отображения в виде карточек.",
   clearResultsButton: "Очистить результаты",
@@ -128,9 +129,9 @@ export function VocabularyModuleClient() {
     setIsCardRevealed(false);
     try {
       const flowInput: GenerateVocabularyInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage,
-        targetLanguage: userData.settings!.targetLanguage,
-        proficiencyLevel: userData.settings!.proficiencyLevel,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic,
       };
 
@@ -230,58 +231,72 @@ export function VocabularyModuleClient() {
           <CardContent>
             {currentWordData ? (
               <div className="space-y-4">
-                <Card 
-                  className="min-h-[200px] flex flex-col items-center justify-center p-6 text-center hover:shadow-md transition-shadow"
-                >
-                  <div className="w-full flex justify-between items-center mb-3">
-                    <h3 className="text-2xl md:text-3xl font-semibold text-primary">
-                      {currentWordData.word}
-                      <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
-                    </h3>
-                     <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setIsCardRevealed(!isCardRevealed)}
-                        className="whitespace-nowrap"
-                      >
-                        {isCardRevealed ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-                        {isCardRevealed ? t('hideAnswerButton') : t('showAnswerButton')}
-                    </Button>
-                  </div>
-                  
-                  {isCardRevealed && (
-                    <div className="space-y-3 text-left w-full mt-3 border-t pt-3">
-                      <div className="border-b pb-2">
-                        <p className="text-sm text-muted-foreground mb-1">
-                          <strong>{t('translationHeader')}</strong> ({userData.settings?.interfaceLanguage}):
-                        </p> 
-                        <p className="text-base">{currentWordData.translation}</p>
+                <Card className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300">
+                  {!isCardRevealed ? (
+                    <>
+                      <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
+                        {currentWordData.word}
+                      </h3>
+                      <Button onClick={() => setIsCardRevealed(true)} size="lg">
+                        <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="w-full text-left space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-2xl md:text-3xl font-semibold text-primary break-all">
+                          {currentWordData.word}
+                          <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsCardRevealed(false)}
+                          className="whitespace-nowrap shrink-0 ml-2"
+                        >
+                          <EyeOff className="mr-2 h-4 w-4" /> {t('hideDetailsButton')}
+                        </Button>
                       </div>
-                      {currentWordData.exampleSentence && (
+                      <div className="border-t pt-3 space-y-3">
                         <div>
-                            <p className="text-sm text-muted-foreground mb-1">
-                                <strong>{t('exampleSentenceHeader')}:</strong>
+                          <p className="text-sm font-semibold text-muted-foreground mb-1 flex items-center">
+                            <Languages className="mr-2 h-4 w-4" /> {t('translationHeader')} ({userData.settings?.interfaceLanguage}):
+                          </p>
+                          <p className="text-lg">{currentWordData.translation}</p>
+                        </div>
+                        {currentWordData.exampleSentence ? (
+                          <div>
+                            <p className="text-sm font-semibold text-muted-foreground mb-1 flex items-center">
+                              <MessageSquareText className="mr-2 h-4 w-4" /> {t('exampleSentenceHeader')}:
                             </p>
                             <p className="text-base italic">{currentWordData.exampleSentence}</p>
-                        </div>
-                      )}
-                      {!currentWordData.exampleSentence && (
-                         <div>
-                             <p className="text-sm text-muted-foreground mb-1">
-                                <strong>{t('exampleSentenceHeader')}:</strong>
-                            </p>
-                            <p className="text-base italic">{t('noExampleSentence')}</p>
-                        </div>
-                      )}
+                          </div>
+                        ) : (
+                           <div>
+                             <p className="text-sm font-semibold text-muted-foreground mb-1 flex items-center">
+                               <MessageSquareText className="mr-2 h-4 w-4" /> {t('exampleSentenceHeader')}:
+                             </p>
+                             <p className="text-base italic">{t('noExampleSentence')}</p>
+                           </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </Card>
 
                 <div className="flex justify-between items-center mt-4">
-                  <Button onClick={handlePrevCard} variant="outline" disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}>
+                  <Button 
+                    onClick={handlePrevCard} 
+                    variant="outline" 
+                    disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                  >
                     <ArrowLeft className="mr-2 h-4 w-4" /> {t('previousButton')}
                   </Button>
-                  <Button onClick={handleNextCard} variant="outline" disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}>
+                  <Button 
+                    onClick={handleNextCard} 
+                    variant="outline" 
+                    disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                  >
                     {t('nextButton')} <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -295,5 +310,3 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
-
-    
