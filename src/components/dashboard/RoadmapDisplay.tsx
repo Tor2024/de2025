@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -37,7 +38,7 @@ interface RoadmapDisplayProps {
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: Voices not available or synthesis not supported.');
+    console.warn('TTS: RoadmapDisplay - Voices not available or synthesis not supported.');
     return undefined;
   }
 
@@ -116,12 +117,22 @@ export function RoadmapDisplay({
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
 
+  const t = useCallback((key: string, defaultText?: string): string => {
+     // Simple t function for this component, can be expanded or use a shared one
+    const translations: Record<string, string> = {
+      ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
+      ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
+      ttsNotSupportedTitle: ttsNotSupportedTitle,
+      ttsNotSupportedDescription: ttsNotSupportedDescription,
+    };
+    return translations[key] || defaultText || key;
+  }, [ttsUtteranceErrorTitle, ttsUtteranceErrorDescription, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+
 
   React.useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        // console.log("RoadmapDisplay: Voices updated", voicesRef.current);
       }
     };
 
@@ -140,12 +151,6 @@ export function RoadmapDisplay({
     };
   }, []);
 
-  const t = (key: string) => { 
-    if (key === 'ttsUtteranceErrorTitle') return ttsUtteranceErrorTitle;
-    if (key === 'ttsUtteranceErrorDescription') return ttsUtteranceErrorDescription;
-    return key;
-  };
-
   const speakNext = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -154,13 +159,17 @@ export function RoadmapDisplay({
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
         setCurrentlySpeakingLessonId(null); 
-        toast({
+        if (event.error === "interrupted") {
+          console.info('TTS: RoadmapDisplay - SpeechSynthesisUtterance playback was interrupted.', event);
+        } else {
+          console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          toast({
             title: t('ttsUtteranceErrorTitle'),
             description: t('ttsUtteranceErrorDescription'),
             variant: 'destructive',
-        });
+          });
+        }
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -168,20 +177,20 @@ export function RoadmapDisplay({
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
            if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [userData.settings, toast, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); 
+  }, [userData.settings, t, toast]); 
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
-        title: ttsNotSupportedTitle,
-        description: ttsNotSupportedDescription,
+        title: t('ttsNotSupportedTitle'),
+        description: t('ttsNotSupportedDescription'),
         variant: 'destructive',
       });
       setCurrentlySpeakingLessonId(null);
@@ -208,7 +217,7 @@ export function RoadmapDisplay({
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings){
         startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-        const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+        const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
         if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
@@ -216,7 +225,7 @@ export function RoadmapDisplay({
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -231,7 +240,7 @@ export function RoadmapDisplay({
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
 
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, userData.settings]);
+  }, [currentlySpeakingLessonId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {

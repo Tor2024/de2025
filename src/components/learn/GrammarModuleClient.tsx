@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -143,7 +144,7 @@ const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<strin
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: Voices not available or synthesis not supported.');
+    console.warn('TTS: GrammarModule - Voices not available or synthesis not supported.');
     return undefined;
   }
 
@@ -208,29 +209,33 @@ export function GrammarModuleClient() {
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = componentTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
+  }, [currentLang]);
 
   useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        // console.log("GrammarModuleClient: Voices updated", voicesRef.current);
       }
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      // Initial load of voices
       updateVoices();
-      // Update voices when the list changes
       window.speechSynthesis.onvoiceschanged = updateVoices;
     }
 
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null; // Clean up listener
+        window.speechSynthesis.onvoiceschanged = null; 
         if (window.speechSynthesis.speaking) {
           window.speechSynthesis.cancel();
         }
@@ -247,13 +252,17 @@ export function GrammarModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
-        setCurrentlySpeakingTTSId(null);
-        toast({
-          title: t('ttsUtteranceErrorTitle'),
-          description: t('ttsUtteranceErrorDescription'),
-          variant: 'destructive',
-        });
+        setCurrentlySpeakingTTSId(null); 
+        if (event.error === "interrupted") {
+          console.info('TTS: GrammarModule - SpeechSynthesisUtterance playback was interrupted.', event);
+        } else {
+          console.error('TTS: GrammarModule - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          toast({
+            title: t('ttsUtteranceErrorTitle'),
+            description: t('ttsUtteranceErrorDescription'),
+            variant: 'destructive',
+          });
+        }
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -261,14 +270,14 @@ export function GrammarModuleClient() {
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
            if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast]); // Added t and toast
+  }, [userData.settings, t, toast]); 
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -299,18 +308,18 @@ export function GrammarModuleClient() {
     
     utteranceQueueRef.current = [];
 
-    const startCue = new SpeechSynthesisUtterance("Дзынь");
+    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings) {
-      startCue.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
-      if (startVoice) startCue.voice = startVoice;
+      startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
+      if (startVoice) startCueUtterance.voice = startVoice;
     }
-    utteranceQueueRef.current.push(startCue);
+    utteranceQueueRef.current.push(startCueUtterance);
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -335,7 +344,7 @@ export function GrammarModuleClient() {
 
 
   if (isUserDataLoading) {
-     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings || !userData.progress) {
@@ -368,7 +377,7 @@ export function GrammarModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} (${errorMessage})`,
+        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {

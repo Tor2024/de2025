@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -121,7 +122,7 @@ const componentTranslations = generateTranslations();
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: Voices not available or synthesis not supported.');
+    console.warn('TTS: ReadingModule - Voices not available or synthesis not supported.');
     return undefined;
   }
 
@@ -175,7 +176,7 @@ export function ReadingModuleClient() {
   const [readingResult, setReadingResult] = useState<GenerateReadingMaterialOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
-  const [currentlySpeakingTextId, setCurrentlySpeakingTextId] = useState<string | null>(null);
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
@@ -191,10 +192,17 @@ export function ReadingModuleClient() {
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = componentTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
+  }, [currentLang]);
 
   useEffect(() => {
     const updateVoices = () => {
@@ -224,13 +232,17 @@ export function ReadingModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
-        setCurrentlySpeakingTextId(null);
-        toast({
-          title: t('ttsUtteranceErrorTitle'),
-          description: t('ttsUtteranceErrorDescription'),
-          variant: 'destructive',
-        });
+        setCurrentlySpeakingTTSId(null);
+        if (event.error === "interrupted") {
+          console.info('TTS: ReadingModule - SpeechSynthesisUtterance playback was interrupted.', event);
+        } else {
+          console.error('TTS: ReadingModule - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          toast({
+            title: t('ttsUtteranceErrorTitle'),
+            description: t('ttsUtteranceErrorDescription'),
+            variant: 'destructive',
+          });
+        }
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -238,12 +250,12 @@ export function ReadingModuleClient() {
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-          const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+          const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
           if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
-      setCurrentlySpeakingTextId(null);
+      setCurrentlySpeakingTTSId(null);
     }
   }, [userData.settings, t, toast]); 
 
@@ -254,13 +266,13 @@ export function ReadingModuleClient() {
         description: t('ttsNotSupportedDescription'),
         variant: 'destructive',
       });
-      setCurrentlySpeakingTextId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    if (window.speechSynthesis.speaking && currentlySpeakingTextId === textId) {
+    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
       window.speechSynthesis.cancel();
-      setCurrentlySpeakingTextId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
@@ -270,7 +282,7 @@ export function ReadingModuleClient() {
     
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-      setCurrentlySpeakingTextId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
@@ -278,7 +290,7 @@ export function ReadingModuleClient() {
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
       if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
@@ -287,7 +299,7 @@ export function ReadingModuleClient() {
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
     
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -299,15 +311,15 @@ export function ReadingModuleClient() {
     });
     
     currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingTextId(textId);
+    setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTextId, speakNext, t, toast, userData.settings]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingTextId(null);
+    setCurrentlySpeakingTTSId(null);
   }, []);
 
 
@@ -348,7 +360,7 @@ export function ReadingModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} (${errorMessage})`,
+        description: `${t('toastErrorDescription')} ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -485,7 +497,7 @@ export function ReadingModuleClient() {
              <div>
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="font-semibold text-lg">{t('readingTextHeader')} ({userData.settings.targetLanguage})</h3>
-                    {typeof window !== 'undefined' && window.speechSynthesis && (
+                    {typeof window !== 'undefined' && window.speechSynthesis && hasTextToRead && (
                         <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -494,22 +506,22 @@ export function ReadingModuleClient() {
                             onClick={() => {
                                 if (!hasTextToRead || !readingResult.readingText) return;
                                 const textId = readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
-                                if (currentlySpeakingTextId === textId) {
+                                if (currentlySpeakingTTSId === textId) {
                                     stopSpeech();
                                 } else {
                                     playText(textId, readingResult.readingText, userData.settings!.targetLanguage as AppTargetLanguage);
                                 }
                             }}
                             className="shrink-0"
-                            aria-label={currentlySpeakingTextId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
+                            aria-label={currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
                             disabled={!hasTextToRead || isAiLoading}
                             >
-                            {currentlySpeakingTextId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                            {currentlySpeakingTextId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
+                            {currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                            {currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>{currentlySpeakingTextId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}</p>
+                            <p>{currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}</p>
                         </TooltipContent>
                         </Tooltip>
                     )}

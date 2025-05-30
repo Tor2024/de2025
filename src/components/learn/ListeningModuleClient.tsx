@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -124,7 +125,7 @@ const componentTranslations = generateTranslations();
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: Voices not available or synthesis not supported.');
+    console.warn('TTS: ListeningModule - Voices not available or synthesis not supported.');
     return undefined;
   }
 
@@ -178,7 +179,7 @@ export function ListeningModuleClient() {
   const [listeningResult, setListeningResult] = useState<GenerateListeningMaterialOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
-  const [currentlySpeakingScriptId, setCurrentlySpeakingScriptId] = useState<string | null>(null);
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
@@ -193,10 +194,17 @@ export function ListeningModuleClient() {
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = componentTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
+  }, [currentLang]);
 
   useEffect(() => {
     const updateVoices = () => {
@@ -226,13 +234,17 @@ export function ListeningModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
-        setCurrentlySpeakingScriptId(null);
-        toast({
-          title: t('ttsUtteranceErrorTitle'),
-          description: t('ttsUtteranceErrorDescription'),
-          variant: 'destructive',
-        });
+        setCurrentlySpeakingTTSId(null);
+        if (event.error === "interrupted") {
+          console.info('TTS: ListeningModule - SpeechSynthesisUtterance playback was interrupted.', event);
+        } else {
+          console.error('TTS: ListeningModule - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          toast({
+            title: t('ttsUtteranceErrorTitle'),
+            description: t('ttsUtteranceErrorDescription'),
+            variant: 'destructive',
+          });
+        }
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -240,12 +252,12 @@ export function ListeningModuleClient() {
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
            if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
     }
   }, [userData.settings, t, toast]); 
 
@@ -256,13 +268,13 @@ export function ListeningModuleClient() {
         description: t('ttsNotSupportedDescription'),
         variant: 'destructive',
       });
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    if (window.speechSynthesis.speaking && currentlySpeakingScriptId === scriptId) {
+    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === scriptId) {
       window.speechSynthesis.cancel();
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
@@ -272,7 +284,7 @@ export function ListeningModuleClient() {
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
@@ -280,7 +292,7 @@ export function ListeningModuleClient() {
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
       if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
@@ -288,7 +300,7 @@ export function ListeningModuleClient() {
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -300,15 +312,15 @@ export function ListeningModuleClient() {
     });
     
     currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingScriptId(scriptId);
+    setCurrentlySpeakingTTSId(scriptId);
     speakNext();
-  }, [currentlySpeakingScriptId, speakNext, t, toast, userData.settings]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingScriptId(null);
+    setCurrentlySpeakingTTSId(null);
   }, []);
 
   if (isUserDataLoading) {
@@ -348,7 +360,7 @@ export function ListeningModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} (${errorMessage})`,
+        description: `${t('toastErrorDescription')} ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -496,7 +508,7 @@ export function ListeningModuleClient() {
             <div>
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="font-semibold text-lg">{t('scriptHeader')} ({userData.settings.targetLanguage})</h3>
-                    {typeof window !== 'undefined' && window.speechSynthesis && (
+                    {typeof window !== 'undefined' && window.speechSynthesis && hasScriptText && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -505,22 +517,22 @@ export function ListeningModuleClient() {
                             onClick={() => {
                                 if (!hasScriptText || !listeningResult.script) return;
                                 const scriptId = listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
-                                if (currentlySpeakingScriptId === scriptId) {
+                                if (currentlySpeakingTTSId === scriptId) {
                                     stopSpeech();
                                 } else {
                                     playText(scriptId, listeningResult.script, userData.settings!.targetLanguage as AppTargetLanguage);
                                 }
                             }}
                             className="shrink-0"
-                            aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                            aria-label={currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                             disabled={!hasScriptText || isAiLoading}
                             >
-                            {currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                            {currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                            {currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                            {currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                          <p>{currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}

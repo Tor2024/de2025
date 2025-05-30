@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -102,7 +103,7 @@ const componentTranslations = generateTranslations();
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: Voices not available or synthesis not supported.');
+    console.warn('TTS: SpeakingModule - Voices not available or synthesis not supported.');
     return undefined;
   }
 
@@ -166,10 +167,17 @@ export function SpeakingModuleClient() {
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = componentTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
+  }, [currentLang]);
 
    useEffect(() => {
     const updateVoices = () => {
@@ -199,13 +207,17 @@ export function SpeakingModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
         setCurrentlySpeakingTTSId(null);
-        toast({
-          title: t('ttsUtteranceErrorTitle'),
-          description: t('ttsUtteranceErrorDescription'),
-          variant: 'destructive',
-        });
+        if (event.error === "interrupted") {
+          console.info('TTS: SpeakingModule - SpeechSynthesisUtterance playback was interrupted.', event);
+        } else {
+          console.error('TTS: SpeakingModule - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          toast({
+            title: t('ttsUtteranceErrorTitle'),
+            description: t('ttsUtteranceErrorDescription'),
+            variant: 'destructive',
+          });
+        }
       };
       window.speechSynthesis.speak(utterance);
     } else {
@@ -213,7 +225,7 @@ export function SpeakingModuleClient() {
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
            if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
@@ -253,7 +265,7 @@ export function SpeakingModuleClient() {
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
       if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
@@ -261,7 +273,7 @@ export function SpeakingModuleClient() {
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -317,7 +329,7 @@ export function SpeakingModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} (${errorMessage})`,
+        description: `${t('toastErrorDescription')} ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
