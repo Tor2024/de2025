@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateFillInTheBlankExercises } from "@/ai/flows/generate-fill-in-the-blank-flow";
-import type { GenerateFillInTheBlankInput, FillBlankExerciseOutput } from "@/ai/flows/generate-fill-in-the-blank-flow";
+import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput, FillBlankExercise as ExerciseType } from "@/ai/flows/generate-fill-in-the-blank-flow"; // Renamed FillBlankExercise to ExerciseType
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive, PartyPopper } from "lucide-react";
@@ -120,7 +120,7 @@ export function WordPracticeClient() {
   const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [exerciseResult, setExerciseResult] = useState<FillBlankExerciseOutput | null>(null);
+  const [exerciseResult, setExerciseResult] = useState<GenerateFillInTheBlankOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exerciseStates, setExerciseStates] = useState<Record<number, ExerciseState>>({});
@@ -160,7 +160,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5, // Generate 5 exercises
+        count: 5, 
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -235,7 +235,7 @@ export function WordPracticeClient() {
       setCurrentExerciseIndex(prev => prev + 1);
     } else {
       setShowOverallResults(true);
-      recordPracticeSetCompletion(); // Record completion when all exercises in the set are done
+      recordPracticeSetCompletion(); 
     }
   };
   
@@ -245,6 +245,7 @@ export function WordPracticeClient() {
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
+    resetTopicForm();
   };
 
   if (isUserDataLoading) {
@@ -261,11 +262,11 @@ export function WordPracticeClient() {
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
             <Repeat className="h-8 w-8 text-primary" />
             {t('title')}
           </CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
+          <CardDescription className="text-center">{t('description')}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmitTopic)}>
           <CardContent className="space-y-4">
@@ -413,5 +414,3 @@ export function WordPracticeClient() {
     </div>
   );
 }
-
-    
