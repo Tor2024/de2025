@@ -48,11 +48,11 @@ Provide a general language learning tip.
 {{/if}}
 
 Make the tip concise and easy to understand.
-Examples of good tips (if interfaceLanguage is English for learning German):
-- "Try to label objects around your house in German!"
-- "Don't be afraid to make mistakes when speaking German; they are part of the learning journey!"
-- "Review new German vocabulary for 5-10 minutes every day to help it stick."
-- "Watch a short video or listen to a song in German today."
+Examples of good tips (if interfaceLanguage is English for learning {{{targetLanguage}}}):
+- "Try to label objects around your house in {{{targetLanguage}}}!"
+- "Don't be afraid to make mistakes when speaking {{{targetLanguage}}}; they are part of the learning journey!"
+- "Review new {{{targetLanguage}}} vocabulary for 5-10 minutes every day to help it stick."
+- "Watch a short video or listen to a song in {{{targetLanguage}}} today."
 
 Keep the tip to one or two sentences.
 Provide only the tip text.
