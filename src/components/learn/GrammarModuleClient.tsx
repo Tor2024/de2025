@@ -179,7 +179,7 @@ export function GrammarModuleClient() {
           <CardContent className="space-y-4">
             <div>
               <h3 className="font-semibold text-lg mb-2">{t('explanationHeader')}</h3>
-              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{explanationResult.explanation}</p>
               </ScrollArea>
             </div>

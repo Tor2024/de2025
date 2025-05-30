@@ -289,7 +289,7 @@ export function ListeningModuleClient() {
                         </Button>
                     )}
                 </div>
-                <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                     <p className="whitespace-pre-wrap text-base leading-relaxed">{listeningResult.script}</p>
                 </ScrollArea>
             </div>

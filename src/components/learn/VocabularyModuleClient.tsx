@@ -179,7 +179,7 @@ export function VocabularyModuleClient() {
           </CardHeader>
           <CardContent>
             {vocabularyResult.words && vocabularyResult.words.length > 0 ? (
-              <ScrollArea className="h-[400px] rounded-md border p-1 bg-muted/20">
+              <ScrollArea className="h-[250px] rounded-md border p-1 bg-muted/20">
                 <ul className="space-y-4 p-3">
                   {vocabularyResult.words.map((item: VocabularyWord, index: number) => (
                     <li key={index} className="p-4 rounded-md bg-card shadow border border-border/50">
