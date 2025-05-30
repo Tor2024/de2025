@@ -98,6 +98,6 @@ export const appModulesConfig: AppModuleConfig[] = [
     defaultDescription: "Reinforce with fun drills.",
     tooltipKey: "wordPracticeTooltip",
     defaultTooltip: "Word Practice",
-    disabled: true,
+    disabled: false, // Enabled this module
   },
 ];

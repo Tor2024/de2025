@@ -2,22 +2,22 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Repeat } from "lucide-react";
+import { WordPracticeClient } from "@/components/learn/WordPracticeClient";
 import { useUserData } from "@/contexts/UserDataContext";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import * as React from 'react';
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
 
 const baseEnTranslations = {
-  title: "Word Practice Module",
-  description: "Reinforce your vocabulary with spaced repetition (SRS), word games, and mini-challenges, all adapted to your current learning level. This feature is planned for a future update!",
-  loading: "Loading word practice module...",
+  loadingModule: "Loading word practice module...",
+  redirecting: "Redirecting...",
 };
 
 const baseRuTranslations = {
-  title: "Модуль Практики Слов",
-  description: "Закрепляйте словарный запас с помощью интервального повторения (SRS), словесных игр и мини-заданий, адаптированных к вашему текущему уровню обучения. Эта функция запланирована на будущее обновление!",
-  loading: "Загрузка модуля практики слов...",
+  loadingModule: "Загрузка модуля практики слов...",
+  redirecting: "Перенаправление...",
 };
 
 const generateTranslations = () => {
@@ -36,9 +36,16 @@ const pageTranslations = generateTranslations();
 
 export default function WordPracticePage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings === null) {
+      router.replace('/');
+    }
+  }, [userData, isUserDataLoading, router]);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const tPage = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
@@ -50,12 +57,23 @@ export default function WordPracticePage() {
     return defaultText || key;
   };
 
-  if (isUserDataLoading) { 
+  if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={32} />
-          <p className="ml-2">{t('loading')}</p>
+          <p className="ml-2">{tPage('loadingModule')}</p>
+        </div>
+      </AppShell>
+    );
+  }
+  
+  if (userData.settings === null) {
+     return (
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner size={48} />
+          <p className="ml-4">{tPage('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -63,19 +81,7 @@ export default function WordPracticePage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full p-4 md:p-6 lg:p-8">
-        <Card className="w-full max-w-md text-center shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
-          <CardHeader>
-             <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
-              <Repeat className="h-8 w-8 text-primary" />
-              {t('title')}
-            </CardTitle>
-            <CardDescription className="mt-2 text-muted-foreground">
-              {t('description')}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <WordPracticeClient />
     </AppShell>
   );
 }
