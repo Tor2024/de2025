@@ -38,24 +38,33 @@ const generateTutorTipPrompt = ai.definePrompt({
   prompt: `You are a friendly and encouraging AI language tutor.
 
 Your task is to generate a single, short, actionable, and practical learning tip for a user.
-The user is learning {{{targetLanguage}}} and their current proficiency level is {{{proficiencyLevel}}}.
 The tip MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
-Consider the user's proficiency level ({{{proficiencyLevel}}}) to make the tip appropriate for their current stage.
+User's learning context:
+- They are learning: {{{targetLanguage}}}
+- Their current proficiency level is: {{{proficiencyLevel}}}
 {{#if learningGoal}}
-The user's learning goal is: "{{{learningGoal}}}". If possible, try to make your tip relevant to this goal, while also being suitable for their {{{proficiencyLevel}}}.
-{{else}}
-Provide a general language learning tip that is appropriate for a user at the {{{proficiencyLevel}}}.
+- Their learning goal is: "{{{learningGoal}}}"
 {{/if}}
 
-Make the tip concise and easy to understand.
+Instructions for the tip:
+1.  Make it concise and easy to understand (one or two sentences).
+2.  Ensure it is practical and actionable for the user.
+3.  It should be encouraging and motivational.
+4.  Consider the user's proficiency level ({{{proficiencyLevel}}}) to make the tip appropriate for their current stage.
+5.  The tip should be relevant for someone learning {{{targetLanguage}}}.
+{{#if learningGoal}}
+6.  If possible, try to make your tip relevant to their learning goal "{{{learningGoal}}}", while also being suitable for their {{{proficiencyLevel}}} and the {{{targetLanguage}}}.
+{{else}}
+6.  Provide a general language learning tip that is appropriate for a user learning {{{targetLanguage}}} at the {{{proficiencyLevel}}}.
+{{/if}}
+
 Examples of good tips (if interfaceLanguage is English for learning {{{targetLanguage}}}):
 - "Try to label objects around your house in {{{targetLanguage}}}!"
 - "Don't be afraid to make mistakes when speaking {{{targetLanguage}}}; they are part of the learning journey!"
 - "Review new {{{targetLanguage}}} vocabulary for 5-10 minutes every day to help it stick."
 - "Watch a short video or listen to a song in {{{targetLanguage}}} today."
 
-Keep the tip to one or two sentences.
 Provide only the tip text.
 `,
 });
