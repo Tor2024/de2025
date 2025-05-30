@@ -3,12 +3,14 @@ import { z } from 'zod';
 
 export type InterfaceLanguage =
   | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi'
-  | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja' | 'ar';
+  | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja' | 'ar'
+  | 'tr' | 'la' | 'el' | 'kk' | 'ka' | 'syr' | 'ps' | 'prs';
 
 export type TargetLanguage =
   | 'English' | 'Russian' | 'German' | 'Spanish' | 'French' | 'Italian' | 'Dutch' | 'Finnish' | 'Chinese' | 'Hindi'
   | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian'
-  | 'Polish' | 'Romanian' | 'Japanese' | 'Arabic';
+  | 'Polish' | 'Romanian' | 'Japanese' | 'Arabic'
+  | 'Turkish' | 'Latin' | 'Greek' | 'Kazakh' | 'Georgian' | 'Syriac' | 'Pashto' | 'Dari';
 
 export const proficiencyLevels = ['A1-A2', 'B1-B2', 'C1-C2'] as const;
 export type ProficiencyLevel = typeof proficiencyLevels[number];
@@ -95,6 +97,14 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'ro', name: 'Romanian', nativeName: 'Română' },
   { code: 'ja', name: 'Japanese', nativeName: '日本語' },
   { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe' },
+  { code: 'la', name: 'Latin', nativeName: 'Latina' },
+  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
+  { code: 'kk', name: 'Kazakh', nativeName: 'Қазақша' },
+  { code: 'ka', name: 'Georgian', nativeName: 'ქართული' },
+  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' }, // Using 'syr' (ISO 639-2/3) and simple native name for UI
+  { code: 'ps', name: 'Pashto', nativeName: 'پښتو' },
+  { code: 'prs', name: 'Dari', nativeName: 'دری' },
 ];
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
