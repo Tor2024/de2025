@@ -41,6 +41,9 @@ const baseEnTranslations: Record<string, string> = {
   noPracticeScript: "No practice script was generated for this topic.",
   ttsPlayScript: "Play script",
   ttsStopScript: "Stop script",
+  ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+  ttsNotSupportedTitle: "TTS Not Supported",
+  ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   toastSuccessTitle: "Speaking Topic Generated!",
   toastSuccessDescription: "Your speaking topic is ready.",
   toastErrorTitle: "Error Generating Topic",
@@ -66,6 +69,9 @@ const baseRuTranslations: Record<string, string> = {
   noPracticeScript: "Для этой темы не было сгенерировано текста для практики.",
   ttsPlayScript: "Озвучить текст",
   ttsStopScript: "Остановить озвучку",
+  ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+  ttsNotSupportedTitle: "TTS не поддерживается",
+  ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   toastSuccessTitle: "Тема для говорения сгенерирована!",
   toastSuccessDescription: "Ваша тема для говорения готова.",
   toastErrorTitle: "Ошибка генерации темы",
@@ -137,8 +143,8 @@ export function SpeakingModuleClient() {
   const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
-        title: t('ttsNotSupportedTitle', 'TTS Not Supported'), // Default added
-        description: t('ttsNotSupportedDescription', 'Text-to-Speech is not supported by your browser.'), // Default added
+        title: t('ttsNotSupportedTitle'),
+        description: t('ttsNotSupportedDescription'),
         variant: 'destructive',
       });
       setCurrentlySpeakingScriptId(null);
@@ -238,7 +244,12 @@ export function SpeakingModuleClient() {
             <Mic className="h-8 w-8 text-primary" />
             {t('title')}
           </CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
+          <CardDescription>
+            {t('description')}
+            {typeof window !== 'undefined' && window.speechSynthesis && (
+              <span className="block text-xs text-muted-foreground mt-1 italic">{t('ttsExperimentalText')}</span>
+            )}
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
@@ -324,7 +335,7 @@ export function SpeakingModuleClient() {
                           size="sm"
                           onClick={() => {
                             if (!hasPracticeScript || !speakingResult.practiceScript) return;
-                            const scriptId = `speaking-script-${Date.now()}`;
+                            const scriptId = `speaking-script-${speakingResult.speakingTopic.substring(0,10)}`; // More stable ID
                             if (currentlySpeakingScriptId === scriptId) {
                                 stopSpeech();
                             } else {
@@ -332,15 +343,15 @@ export function SpeakingModuleClient() {
                             }
                           }}
                           className="shrink-0"
-                          aria-label={currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                          aria-label={currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}
                           disabled={!hasPracticeScript || isAiLoading}
                         >
-                          {currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                          {currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                          {currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                          {currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                        <p>{currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -387,3 +398,5 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+
+
