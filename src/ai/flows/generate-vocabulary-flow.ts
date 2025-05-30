@@ -55,7 +55,10 @@ User Preferences:
 Instructions:
 1.  **Words:** Generate a list of 5-10 vocabulary words related to the {{{topic}}}.
     *   The words MUST be in the {{{targetLanguage}}}.
-    *   The complexity of the words MUST be appropriate for the {{{proficiencyLevel}}}.
+    *   The complexity of the words, their translations, and especially the example sentences MUST be appropriate for the {{{proficiencyLevel}}}. For example:
+        - For A1-A2: Use very common words, simple translations, and very basic example sentences.
+        - For B1-B2: Use more nuanced vocabulary, accurate translations of more complex meanings, and sentences with moderately complex structures.
+        - For C1-C2: Introduce idiomatic expressions, specialized vocabulary (if relevant to the topic), and complex example sentences that demonstrate advanced usage.
 2.  **Translations:** For each word, provide a translation into the {{{interfaceLanguage}}}.
 3.  **Example Sentences (Optional but encouraged):** For each word, try to provide a simple example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence should also be appropriate for the {{{proficiencyLevel}}}.
 
@@ -78,3 +81,4 @@ const generateVocabularyFlow = ai.defineFlow(
     return output;
   }
 );
+
