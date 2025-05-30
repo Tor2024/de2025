@@ -13,14 +13,14 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
-import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
+import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { ExplainGrammarTaskErrorInput } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47 } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles, XCircle, CheckCircle2, Volume2, Ban, BookOpen } from "lucide-react";
-import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -120,12 +120,15 @@ const germanArticleHighlights: Record<string, { color: string; hintKey: string }
   'das': { color: 'green', hintKey: 'hintDas' },
 };
 
-const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ text, highlights, translateFn }) => {
+const HighlightedTextRenderer: React.FC<{ text: string | undefined; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ text, highlights, translateFn }) => {
   if (!text) return <>{text}</>;
   const highlightKeys = Object.keys(highlights);
   if (highlightKeys.length === 0) return <>{text}</>;
+  
+  // Match whole words, case-insensitive
   const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
   const parts = text.split(regex);
+
   return (
     <>
       {parts.map((part, index) => {
@@ -140,7 +143,7 @@ const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<strin
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}</p>
+                {translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}
               </TooltipContent>
             </Tooltip>
           );
@@ -183,7 +186,7 @@ export function GrammarModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-         console.log('TTS: GrammarModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log('TTS: GrammarModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -206,7 +209,7 @@ export function GrammarModuleClient() {
       console.warn('TTS: GrammarModuleClient - Voices not available or synthesis not supported.');
       return undefined;
     }
-    console.log(`TTS: GrammarModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+     console.log(`TTS: GrammarModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
 
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
@@ -275,7 +278,7 @@ export function GrammarModuleClient() {
 
   const speakNext = useCallback((currentPlayId: number) => {
     if (playTextInternalIdRef.current !== currentPlayId) {
-        if (window.speechSynthesis.speaking) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
         setCurrentlySpeakingTTSId(null);
@@ -292,14 +295,14 @@ export function GrammarModuleClient() {
         if (event.error === "interrupted") {
           console.info('TTS: GrammarModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
-          console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
+          console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { // Check the first signal
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
         const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
@@ -356,14 +359,14 @@ export function GrammarModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+  }, []);
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
     setIsAiLoading(true);
@@ -467,11 +470,11 @@ export function GrammarModuleClient() {
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
             <Sparkles className="h-8 w-8 text-primary animate-pulse" />
             {t('title')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-center">
             {t('description')}
              {typeof window !== 'undefined' && window.speechSynthesis && (
                 <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
@@ -546,9 +549,9 @@ export function GrammarModuleClient() {
                 )}
               </div>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
                    <HighlightedTextRenderer text={explanationResult.explanation} highlights={germanArticleHighlights} translateFn={t} />
-                </p>
+                </div>
               </ScrollArea>
             </div>
 
@@ -582,6 +585,7 @@ export function GrammarModuleClient() {
                                   onClick={() => handleCheckTaskAnswer(task.id, task)}
                                   disabled={!(taskAnswers[task.id]?.trim())}
                                 >
+                                  {isAiLoading && <LoadingSpinner size={16} className="mr-2"/>}
                                   {t('checkAnswerButton')}
                                 </Button>
                               )}
@@ -622,5 +626,3 @@ export function GrammarModuleClient() {
     </div>
   );
 }
-
-    
