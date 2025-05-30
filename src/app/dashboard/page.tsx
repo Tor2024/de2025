@@ -133,16 +133,18 @@ export default function DashboardPage() {
     }
   }, [userData, isLoading, router]);
 
-  const currentLang = userData.settings?.interfaceLanguage || 'en';
+  // If UserDataContext is loading, currentLang defaults to 'en' to prevent hydration mismatch.
+  // Once isLoading is false, it uses the actual interfaceLanguage or 'en' as fallback.
+  const currentLang = isLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string) => {
     return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
   };
   
-  const getLoadingMessage = (lang?: InterfaceLanguage) => {
+  const getLoadingMessage = () => {
     return t('loadingUserData', 'Loading user data...');
   };
 
-  const getRedirectingMessage = (lang?: InterfaceLanguage) => {
+  const getRedirectingMessage = () => {
      return t('redirecting', 'Redirecting...');
   };
 
@@ -150,7 +152,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{getLoadingMessage(userData.settings?.interfaceLanguage)}</p>
+        <p className="ml-4">{getLoadingMessage()}</p>
       </div>
     );
   }
@@ -159,7 +161,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{getRedirectingMessage(userData.settings?.interfaceLanguage)}</p>
+        <p className="ml-4">{getRedirectingMessage()}</p>
       </div>
     );
   }
@@ -265,5 +267,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-    
