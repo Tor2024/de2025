@@ -53,6 +53,11 @@ const baseEnTranslations: Record<string, string> = {
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
   clearResultsButton: "Clear Results",
+  scoreMessagePart1: "You answered",
+  scoreMessagePart2: "out of",
+  scoreMessagePart3: "questions correctly.",
+  scoreMessagePerfect: "Perfect! All {totalQuestions} questions correct.",
+  scoreMessageNone: "No correct answers this time. Try again!",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -81,6 +86,11 @@ const baseRuTranslations: Record<string, string> = {
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
   clearResultsButton: "Очистить результаты",
+  scoreMessagePart1: "Вы ответили правильно на",
+  scoreMessagePart2: "из",
+  scoreMessagePart3: "вопросов.",
+  scoreMessagePerfect: "Отлично! Все {totalQuestions} вопросов правильно.",
+  scoreMessageNone: "В этот раз нет правильных ответов. Попробуйте снова!",
 };
 
 const generateTranslations = () => {
@@ -110,6 +120,7 @@ export function ReadingModuleClient() {
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ReadingFormData>({
     resolver: zodResolver(readingSchema),
@@ -208,13 +219,14 @@ export function ReadingModuleClient() {
     setReadingResult(null);
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
     stopSpeech();
     setCurrentTopic(data.topic); 
     try {
       const flowInput: GenerateReadingMaterialInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage,
-        targetLanguage: userData.settings!.targetLanguage,
-        proficiencyLevel: userData.settings!.proficiencyLevel,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic,
       };
       
@@ -243,6 +255,7 @@ export function ReadingModuleClient() {
     setCurrentTopic("");
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
     stopSpeech();
   };
   
@@ -251,16 +264,37 @@ export function ReadingModuleClient() {
   };
 
   const handleCheckAnswers = () => {
+    if (!readingResult || !readingResult.comprehensionQuestions) return;
+    let correctCount = 0;
+    readingResult.comprehensionQuestions.forEach((q, index) => {
+      if (q.answer && selectedAnswers[index] === q.answer) {
+        correctCount++;
+      }
+    });
+    setCorrectAnswersCount(correctCount);
     setIsAnswersSubmitted(true);
   };
 
   const handleTryAgain = () => {
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
   };
 
   const hasTextToRead = readingResult && readingResult.readingText && readingResult.readingText.trim().length > 0;
   const hasQuestions = readingResult && readingResult.comprehensionQuestions && readingResult.comprehensionQuestions.length > 0;
+  const totalQuestions = readingResult?.comprehensionQuestions?.length || 0;
+
+  const getScoreMessage = () => {
+    if (!isAnswersSubmitted || !hasQuestions) return null;
+    if (correctAnswersCount === totalQuestions) {
+      return t('scoreMessagePerfect').replace('{totalQuestions}', totalQuestions.toString());
+    }
+    if (correctAnswersCount === 0) {
+      return t('scoreMessageNone');
+    }
+    return `${t('scoreMessagePart1')} ${correctAnswersCount} ${t('scoreMessagePart2')} ${totalQuestions} ${t('scoreMessagePart3')}`;
+  };
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -325,7 +359,7 @@ export function ReadingModuleClient() {
                                 if (currentlySpeakingTextId === textId) {
                                     stopSpeech();
                                 } else {
-                                    playText(textId, readingResult.readingText, userData.settings!.targetLanguage);
+                                    playText(textId, readingResult.readingText, userData.settings!.targetLanguage as AppTargetLanguage);
                                 }
                             }}
                             className="shrink-0"
@@ -354,8 +388,8 @@ export function ReadingModuleClient() {
             </div>
             
             {hasQuestions && (
-              <>
-                <h3 className="font-semibold text-lg mt-4">{t('comprehensionQuestionsHeader')}</h3>
+              <div>
+                <h3 className="font-semibold text-lg mt-4 mb-1">{t('comprehensionQuestionsHeader')}</h3>
                 <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                   <ul className="space-y-3">
                     {readingResult.comprehensionQuestions!.map((q, index) => {
@@ -377,11 +411,14 @@ export function ReadingModuleClient() {
                                 const isSelected = userAnswer === opt;
                                 const isActualCorrectAnswer = q.answer === opt;
                                 let labelClassName = "text-sm";
-                                if (hasSubmitted && isSelected) {
-                                  labelClassName = isCorrect ? "text-green-600 font-semibold" : "text-red-600 font-semibold";
-                                } else if (hasSubmitted && isActualCorrectAnswer) {
-                                  labelClassName = "text-green-700";
+                                if (hasSubmitted && isSelected && isCorrect) {
+                                  labelClassName = "text-sm font-semibold text-green-600";
+                                } else if (hasSubmitted && isSelected && !isCorrect) {
+                                  labelClassName = "text-sm font-semibold text-red-600";
+                                } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
+                                  labelClassName = "text-sm text-green-700"; // Highlight correct answer if user missed it
                                 }
+
 
                                 return (
                                   <div key={optIndex} className="flex items-center space-x-2">
@@ -412,7 +449,7 @@ export function ReadingModuleClient() {
                 {hasQuestions && (
                   <div className="mt-4">
                     {!isAnswersSubmitted ? (
-                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
+                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
@@ -420,9 +457,12 @@ export function ReadingModuleClient() {
                         {t('tryAgainButton')}
                       </Button>
                     )}
+                     {isAnswersSubmitted && (
+                      <p className="text-sm mt-2 text-muted-foreground">{getScoreMessage()}</p>
+                    )}
                   </div>
                 )}
-              </>
+              </div>
             )}
             {(!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
                 <p className="text-sm text-muted-foreground italic mt-4">{t('noQuestions')}</p>
@@ -433,5 +473,3 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-
-    
