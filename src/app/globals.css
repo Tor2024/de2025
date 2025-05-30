@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -109,3 +110,18 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Styles for <ins> and <del> tags for highlighted corrections */
+  ins {
+    @apply bg-primary/10 text-primary no-underline px-1 py-0.5 rounded-sm;
+    /* Consider a more distinct text color if primary is light, or just background */
+    /* For example: color: hsl(var(--primary-foreground)); */
+  }
+  del {
+    @apply bg-destructive/10 text-destructive px-1 py-0.5 rounded-sm;
+    /* text-decoration: line-through; is default for <del> */
+  }
+}
+
+    

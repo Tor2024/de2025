@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { germanWritingTaskTypes, proficiencyLevels as appProficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
-import type { GermanWritingTaskType } from '@/lib/types';
+import type { GermanWritingTaskType, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
 
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -20,15 +20,15 @@ const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [strin
 const AIPoweredWritingAssistanceInputSchema = z.object({
   prompt: z.string().describe('The writing prompt or topic.'),
   text: z.string().describe('The user-generated text to be evaluated.'),
-  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
+  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru). ALL FEEDBACK MUST BE IN THIS LANGUAGE.'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
   proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
 const AIPoweredWritingAssistanceOutputSchema = z.object({
-  feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type. Feedback should be tailored to the user proficiency level.'),
-  correctedText: z.string().describe('The corrected version of the input text, appropriate for the user proficiency level.'),
+  feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type. CRITICALLY: This feedback MUST be in the {{{interfaceLanguage}}}. Feedback should be tailored to the user proficiency level. Ensure the text is clear, concise, and well-suited for text-to-speech conversion if applicable.'),
+  markedCorrectedText: z.string().describe('The corrected version of the input text, with corrections clearly marked. Use `<ins>inserted text</ins>` for additions/changes and `<del>deleted text</del>` for deletions. This text should be suitable for direct HTML rendering. ONLY use `<ins>` and `<del>` tags, no other HTML elements, attributes, or styles. The text should be appropriate for the user proficiency level.'),
 });
 export type AIPoweredWritingAssistanceOutput = z.infer<typeof AIPoweredWritingAssistanceOutputSchema>;
 
@@ -42,7 +42,7 @@ const writingAssistantPrompt = ai.definePrompt({
   input: {schema: AIPoweredWritingAssistanceInputSchema},
   output: {schema: AIPoweredWritingAssistanceOutputSchema},
   prompt: `You are an AI writing assistant that provides feedback and corrections on user-submitted text.
-All explanations and feedback must be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
+CRITICAL: All explanations and feedback in the 'feedback' field MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
 The user's proficiency level in the target language is: {{{proficiencyLevel}}}.
 Tailor your feedback and corrections to this level:
@@ -144,10 +144,15 @@ For example, if the task is a "Formal Letter/Email", assess if the user employed
 --- END GERMAN WRITING TASK FORMATS GUIDE ---
 {{/if}}
 
-Provide feedback on the structure, grammar, and tone of the text.
-Correct any errors and provide a revised version of the text.
-Ensure both feedback and corrected text are appropriate for the user's proficiency level ({{{proficiencyLevel}}}).
-Output the feedback and corrected text as a JSON object.
+Your tasks:
+1.  Provide feedback on the structure, grammar, and tone of the user's text. This feedback MUST be in the {{{interfaceLanguage}}} and be appropriate for the user's {{{proficiencyLevel}}}.
+2.  Provide a corrected version of the user's text in the 'markedCorrectedText' field. In this field, you MUST highlight the changes you made compared to the original user's text.
+    Use ONLY the HTML tags `<ins>inserted or changed text</ins>` for any text you add or modify, and `<del>deleted text</del>` for any text you remove from the original.
+    For example, if the original was "I go to store" and you correct it to "I went to the store.", your markedCorrectedText should be "I <ins>went</ins> to <ins>the </ins>store<del>go</del>."
+    If the original was "I like apples bananas and oranges" and you correct it to "I like apples, bananas, and oranges.", your markedCorrectedText should be "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges."
+    Do NOT use any other HTML tags, attributes, or styles in 'markedCorrectedText'. The corrected text should also be appropriate for the user's {{{proficiencyLevel}}}.
+
+Output the feedback and the marked corrected text as a JSON object matching the defined output schema.
   `,
 });
 
@@ -165,3 +170,5 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

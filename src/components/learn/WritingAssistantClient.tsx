@@ -46,7 +46,7 @@ const baseEnTranslations: Record<string, string> = {
   toastErrorDescription: "Failed to get writing assistance. Please try again.",
   resultsCardTitle: "Feedback & Corrections",
   feedbackSectionTitle: "Feedback",
-  correctedTextSectionTitle: "Corrected Text",
+  correctedTextSectionTitle: "Corrected Text (with highlights)",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
   informalLetterEmail: "Informal Letter/Email",
@@ -74,7 +74,7 @@ const baseRuTranslations: Record<string, string> = {
   toastErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
   resultsCardTitle: "Обратная связь и исправления",
   feedbackSectionTitle: "Обратная связь",
-  correctedTextSectionTitle: "Исправленный текст",
+  correctedTextSectionTitle: "Исправленный текст (с выделениями)",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
   informalLetterEmail: "Неофициальное письмо/E-Mail",
@@ -128,12 +128,17 @@ export function WritingAssistantClient() {
     setIsAiLoading(true);
     setAssistanceResult(null);
     try {
+      if (!userData.settings) {
+         toast({ title: t('onboardingMissing'), variant: "destructive" });
+         setIsAiLoading(false);
+         return;
+      }
       const writingInput: AIPoweredWritingAssistanceInput = {
         prompt: data.writingPrompt,
         text: data.userText,
-        interfaceLanguage: userData.settings!.interfaceLanguage,
+        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
-        proficiencyLevel: userData.settings!.proficiencyLevel,
+        proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
@@ -246,7 +251,10 @@ export function WritingAssistantClient() {
             <div className="space-y-2">
               <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.correctedText}</p>
+                <div 
+                  className="whitespace-pre-wrap text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
+                />
               </ScrollArea>
             </div>
           </CardContent>
