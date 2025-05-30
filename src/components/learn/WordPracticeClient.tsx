@@ -159,7 +159,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5,
+        count: 5, // Let's request 5 exercises
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -212,7 +212,7 @@ export function WordPracticeClient() {
   };
 
   const handleArchiveMistake = () => {
-    if (!currentExercise || !userData.settings) return;
+    if (!currentExercise || !userData.settings || !currentExerciseState) return;
     addErrorToArchive({
       module: "Word Practice",
       context: currentExercise.sentenceWithBlank,
@@ -405,3 +405,4 @@ export function WordPracticeClient() {
     </div>
   );
 }
+
