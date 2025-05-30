@@ -189,13 +189,17 @@ export default function DashboardPage() {
   };
 
   const fetchTutorTip = React.useCallback(async () => {
-    if (!userData.settings) return;
+    if (!userData.settings) {
+      setAiTutorTip(t('aiTutorTipStatic')); // Set static tip if settings are not available
+      return;
+    }
     setIsTipLoading(true);
     try {
       const response = await generateTutorTip({
         interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
         targetLanguage: userData.settings.targetLanguage as TargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
+        learningGoal: userData.settings.goal,
       });
       setAiTutorTip(response.tip);
     } catch (error) {
@@ -222,7 +226,7 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
-  }, [isUserDataLoading, userData.settings, fetchTutorTip]); 
+  }, [isUserDataLoading, userData.settings, userData.settings?.goal, fetchTutorTip]); 
   
   if (isUserDataLoading) {
     return (
@@ -289,7 +293,7 @@ export default function DashboardPage() {
               targetLanguageDisplayName={targetLanguageDisplayName}
               goalText={userGoalText}
               progressLabelText={t('progressLabel')}
-              progressMessageTextTemplate={t('progressMessage')}
+              progressMessageTextTemplate={t('progressMessageTextTemplate')}
             />
             <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader>
@@ -416,3 +420,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+

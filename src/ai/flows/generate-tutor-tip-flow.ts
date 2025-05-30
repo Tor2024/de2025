@@ -17,6 +17,7 @@ const GenerateTutorTipInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for the tip (e.g., en, ru).'),
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user is learning (e.g., German, English).'),
   proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
+  learningGoal: z.string().optional().describe('The user-defined learning goal, if available, to make the tip more relevant.'),
 });
 export type GenerateTutorTipInput = z.infer<typeof GenerateTutorTipInputSchema>;
 
@@ -39,6 +40,12 @@ const generateTutorTipPrompt = ai.definePrompt({
 Your task is to generate a single, short, actionable, and practical learning tip for a user.
 The user is learning {{{targetLanguage}}} and their current proficiency level is {{{proficiencyLevel}}}.
 The tip MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
+
+{{#if learningGoal}}
+The user's learning goal is: "{{{learningGoal}}}". If possible, try to make your tip relevant to this goal, or provide a general tip that could help achieve it.
+{{else}}
+Provide a general language learning tip.
+{{/if}}
 
 Make the tip concise and easy to understand.
 Examples of good tips (if interfaceLanguage is English for learning German):
@@ -66,3 +73,4 @@ const generateTutorTipFlow = ai.defineFlow(
     return output;
   }
 );
+
