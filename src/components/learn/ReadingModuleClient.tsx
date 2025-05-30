@@ -184,7 +184,9 @@ export function ReadingModuleClient() {
                 <p className="whitespace-pre-wrap text-base leading-relaxed">{readingResult.readingText}</p>
               </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md border">{t('noTextGenerated')}</p>
+              <div className="h-[250px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
+                <p className="text-sm text-muted-foreground italic">{t('noTextGenerated')}</p>
+              </div>
             )}
             
             {readingResult.comprehensionQuestions && readingResult.comprehensionQuestions.length > 0 && (

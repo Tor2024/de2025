@@ -135,7 +135,7 @@ export function ListeningModuleClient() {
     }
   }, []);
 
-  const playText = useCallback((scriptId: string, textToSpeak: string, langCode: string) => {
+  const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       alert("Text-to-Speech is not supported by your browser.");
       setCurrentlySpeakingScriptId(null);
@@ -282,7 +282,7 @@ export function ListeningModuleClient() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                                if (!hasScriptText) return;
+                                if (!hasScriptText || !listeningResult.script) return; // Added check for listeningResult.script
                                 const scriptId = listeningResult.title || `script-${Date.now()}`;
                                 if (currentlySpeakingScriptId === scriptId) {
                                     stopSpeech();
@@ -309,7 +309,9 @@ export function ListeningModuleClient() {
                         <p className="whitespace-pre-wrap text-base leading-relaxed">{listeningResult.script}</p>
                     </ScrollArea>
                 ) : (
-                    <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md border">{t('noScriptGenerated')}</p>
+                  <div className="h-[250px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground italic">{t('noScriptGenerated')}</p>
+                  </div>
                 )}
             </div>
             
