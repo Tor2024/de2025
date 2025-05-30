@@ -54,6 +54,11 @@ const baseEnTranslations: Record<string, string> = {
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
   clearResultsButton: "Clear Results",
+  scoreMessagePart1: "You answered",
+  scoreMessagePart2: "out of",
+  scoreMessagePart3: "questions correctly.",
+  scoreMessagePerfect: "Perfect! All {totalQuestions} questions correct.",
+  scoreMessageNone: "No correct answers this time. Try again!",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -84,6 +89,11 @@ const baseRuTranslations: Record<string, string> = {
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
   clearResultsButton: "Очистить результаты",
+  scoreMessagePart1: "Вы ответили правильно на",
+  scoreMessagePart2: "из",
+  scoreMessagePart3: "вопросов.",
+  scoreMessagePerfect: "Отлично! Все {totalQuestions} вопросов правильно.",
+  scoreMessageNone: "В этот раз нет правильных ответов. Попробуйте снова!",
 };
 
 const generateTranslations = () => {
@@ -113,6 +123,7 @@ export function ListeningModuleClient() {
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ListeningFormData>({
     resolver: zodResolver(listeningSchema),
@@ -210,6 +221,7 @@ export function ListeningModuleClient() {
     setListeningResult(null);
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
     stopSpeech(); 
     setCurrentTopic(data.topic);
     try {
@@ -245,6 +257,7 @@ export function ListeningModuleClient() {
     setCurrentTopic("");
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
     stopSpeech();
   };
   
@@ -253,16 +266,40 @@ export function ListeningModuleClient() {
   };
 
   const handleCheckAnswers = () => {
+    if (!listeningResult || !listeningResult.comprehensionQuestions) return;
+    let correctCount = 0;
+    listeningResult.comprehensionQuestions.forEach((q, index) => {
+      if (q.answer && selectedAnswers[index] === q.answer) {
+        correctCount++;
+      }
+    });
+    setCorrectAnswersCount(correctCount);
     setIsAnswersSubmitted(true);
   };
 
   const handleTryAgain = () => {
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
+    setCorrectAnswersCount(0);
   };
 
   const hasScriptText = listeningResult && listeningResult.script && listeningResult.script.trim().length > 0;
   const hasQuestions = listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0;
+  const totalQuestions = listeningResult?.comprehensionQuestions?.length || 0;
+
+  const getScoreMessage = () => {
+    if (!isAnswersSubmitted || !hasQuestions) return null;
+    if (correctAnswersCount === totalQuestions && totalQuestions > 0) {
+      return t('scoreMessagePerfect').replace('{totalQuestions}', totalQuestions.toString());
+    }
+    if (correctAnswersCount === 0 && totalQuestions > 0) {
+      return t('scoreMessageNone');
+    }
+    if (totalQuestions > 0) {
+      return `${t('scoreMessagePart1')} ${correctAnswersCount} ${t('scoreMessagePart2')} ${totalQuestions} ${t('scoreMessagePart3')}`;
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -337,7 +374,7 @@ export function ListeningModuleClient() {
                                 if (currentlySpeakingScriptId === scriptId) {
                                     stopSpeech();
                                 } else {
-                                    playText(scriptId, listeningResult.script, userData.settings!.targetLanguage);
+                                    playText(scriptId, listeningResult.script, userData.settings!.targetLanguage as AppTargetLanguage);
                                 }
                             }}
                             className="shrink-0"
@@ -389,10 +426,12 @@ export function ListeningModuleClient() {
                                 const isSelected = userAnswer === opt;
                                 const isActualCorrectAnswer = q.answer === opt;
                                 let labelClassName = "text-sm";
-                                if (hasSubmitted && isSelected) {
-                                  labelClassName = isCorrect ? "text-green-600 font-semibold" : "text-red-600 font-semibold";
-                                } else if (hasSubmitted && isActualCorrectAnswer) {
-                                  labelClassName = "text-green-700";
+                                if (hasSubmitted && isSelected && isCorrect) {
+                                  labelClassName = "text-sm font-semibold text-green-600";
+                                } else if (hasSubmitted && isSelected && !isCorrect) {
+                                  labelClassName = "text-sm font-semibold text-red-600";
+                                } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
+                                  labelClassName = "text-sm text-green-700"; 
                                 }
 
                                 return (
@@ -424,13 +463,16 @@ export function ListeningModuleClient() {
                 {hasQuestions && (
                   <div className="mt-4">
                     {!isAnswersSubmitted ? (
-                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
+                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
                       <Button onClick={handleTryAgain} variant="outline">
                         {t('tryAgainButton')}
                       </Button>
+                    )}
+                    {isAnswersSubmitted && (
+                      <p className="text-sm mt-2 text-muted-foreground">{getScoreMessage()}</p>
                     )}
                   </div>
                 )}
