@@ -42,6 +42,7 @@ const baseEnTranslations: Record<string, string> = {
   toastErrorDescription: "Failed to generate vocabulary. Please try again.",
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
+  noExampleSentence: "No example sentence provided.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -61,17 +62,15 @@ const baseRuTranslations: Record<string, string> = {
   toastErrorDescription: "Не удалось создать список слов. Пожалуйста, попробуйте снова.",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
+  noExampleSentence: "Пример предложения не предоставлен.",
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) {
-      translations[code] = { ...baseEnTranslations };
-    }
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    translations[code] = base;
   });
   return translations;
 };
@@ -128,7 +127,7 @@ export function VocabularyModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset(); // Clear form fields on success
+      reset(); 
     } catch (error) {
       console.error("Vocabulary generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -190,12 +189,14 @@ export function VocabularyModuleClient() {
                         <Languages className="h-4 w-4" />
                         <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
                       </p>
-                      {item.exampleSentence && (
-                        <p className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">
-                          <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">
+                        <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
+                        {item.exampleSentence ? (
                           <span><strong>{t('exampleSentenceHeader')}:</strong> {item.exampleSentence}</span>
-                        </p>
-                      )}
+                        ) : (
+                          <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
