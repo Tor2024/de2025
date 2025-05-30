@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserData } from "@/contexts/UserDataContext";
-import type { InterfaceLanguage, ProficiencyLevel, TargetLanguage, UserSettings, LearningRoadmap } from "@/lib/types";
-import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames } from "@/lib/types";
+import type { InterfaceLanguage, TargetLanguage, UserSettings, LearningRoadmap, UserProgress } from "@/lib/types";
+import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames, initialUserProgress } from "@/lib/types";
 import { generatePersonalizedLearningRoadmap } from "@/ai/flows/ai-learning-roadmap";
 import type { GeneratePersonalizedLearningRoadmapInput, GeneratePersonalizedLearningRoadmapOutput } from "@/ai/flows/ai-learning-roadmap";
 import { useToast } from "@/hooks/use-toast";
@@ -87,7 +87,6 @@ const translations: Record<string, Record<string, string>> = {
     errorTitle: "Ошибка",
     errorDescription: "Не удалось завершить настройку. Пожалуйста, попробуйте снова.",
   },
-  // Add other languages here as needed
   de: {
     step1Title: "Willkommen bei LinguaLab!",
     step2Title: "Dein Lernfokus",
@@ -151,21 +150,19 @@ const translations: Record<string, Record<string, string>> = {
     errorTitle: "Erreur",
     errorDescription: "Impossible de terminer la configuration. Veuillez réessayer.",
    },
-   // ... other languages, ensuring they have 'setupCompleteTitle', 'setupCompleteDescription', 'errorTitle', 'errorDescription'
 };
 
 
 export function OnboardingFlow() {
-  const { updateSettings, setLearningRoadmap } = useUserData();
+  const { setUserData } = useUserData(); // Get setUserData directly
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Local loading state for submit button
   const [currentStep, setCurrentStep] = useState(0);
-  // Ensure uiLang is always a valid key of translations, defaulting to 'en'
   const [uiLang, setUiLang] = useState<keyof typeof translations>('en');
 
   const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
-    mode: "onChange", // Validate on change for better UX
+    mode: "onChange", 
   });
 
   const selectedInterfaceLanguage = watch("interfaceLanguage") as keyof typeof translations | undefined;
@@ -174,7 +171,6 @@ export function OnboardingFlow() {
     if (selectedInterfaceLanguage && translations[selectedInterfaceLanguage] && selectedInterfaceLanguage !== uiLang) {
       setUiLang(selectedInterfaceLanguage);
     } else if (selectedInterfaceLanguage && !translations[selectedInterfaceLanguage] && uiLang !== 'en') {
-      // Fallback to English if translations for selected language don't exist
       setUiLang('en');
     }
   }, [selectedInterfaceLanguage, uiLang]);
@@ -203,25 +199,40 @@ export function OnboardingFlow() {
   const onSubmit: SubmitHandler<OnboardingFormData> = async (data) => {
     setIsLoading(true);
     try {
-      const userSettings: UserSettings = {
+      // Prepare the settings part
+      const settingsData: UserSettings = {
         userName: data.userName,
-        interfaceLanguage: data.interfaceLanguage as InterfaceLanguage, // Cast as it's validated by Zod enum
-        targetLanguage: data.targetLanguage as TargetLanguage, // Cast as it's validated by Zod enum
-        proficiencyLevel: 'A1-A2', // Default proficiency level
+        interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
+        targetLanguage: data.targetLanguage as TargetLanguage,
+        proficiencyLevel: 'A1-A2', // Default starting proficiency level
         goal: data.goal,
       };
-      updateSettings(userSettings);
 
+      // Generate roadmap (ASYNC)
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
         targetLanguage: data.targetLanguage as TargetLanguage,
         proficiencyLevel: 'A1-A2', // Pass default/starting proficiency
         personalGoal: data.goal,
       };
-      const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = await generatePersonalizedLearningRoadmap(roadmapInput);
-
-      // The roadmapOutput is now a structured object, no need to truncate a single string
-      setLearningRoadmap(roadmapOutput as LearningRoadmap); // Cast to app's LearningRoadmap type
+      const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
+        await generatePersonalizedLearningRoadmap(roadmapInput);
+      
+      // Update context with both settings and roadmap AT ONCE
+      setUserData(prev => {
+          // Ensure we start with a clean slate for progress for a new user,
+          // but overlay with prev.progress in case this is somehow a re-onboarding
+          // or if initialUserProgress had other important defaults.
+          const newProgress: UserProgress = {
+              ...initialUserProgress, // Start with defined initial progress structure
+              ...prev.progress,       // Overlay any existing progress values from prev state
+              learningRoadmap: roadmapOutput as LearningRoadmap, // Add the new roadmap
+          };
+          return {
+              settings: settingsData,
+              progress: newProgress,
+          };
+      });
 
       toast({
         title: currentTranslations.setupCompleteTitle || "Setup Complete!",
@@ -257,14 +268,13 @@ export function OnboardingFlow() {
             <Controller
               name="interfaceLanguage"
               control={control}
-              defaultValue={uiLang as InterfaceLanguage} // Set default value for Controller
+              defaultValue={uiLang as InterfaceLanguage}
               render={({ field }) => (
                 <Select
                   onValueChange={(value) => {
                     field.onChange(value);
-                    // selectedInterfaceLanguage will update via watch, then useEffect handles uiLang
                   }}
-                  value={field.value || uiLang} // Ensure value is controlled
+                  value={field.value || uiLang}
                 >
                   <SelectTrigger id="interfaceLanguage">
                     <SelectValue placeholder={currentTranslations.interfaceLanguagePlaceholder} />

@@ -52,6 +52,15 @@ export interface UserProgress {
   onboardingStep?: number;
 }
 
+export const initialUserProgress: UserProgress = {
+  xp: 0,
+  streak: 0,
+  badges: [],
+  moduleCompletion: {},
+  errorArchive: [],
+  learningRoadmap: undefined,
+};
+
 export interface UserData {
   settings: UserSettings | null;
   progress: UserProgress;
