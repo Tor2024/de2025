@@ -26,7 +26,7 @@ const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user wants to study (e.g., German, English). The actual learning content and concepts in the roadmap (e.g., grammar rules, vocabulary themes) should be for this language.'),
   proficiencyLevel: z
     .enum(proficiencyLevels)
-    .describe('The current/starting proficiency level of the user (e.g., A1-A2, B1-B2, C1-C2). The roadmap should cover A0-C2 regardless.'),
+    .describe('The user-selected current/starting proficiency level (e.g., A1-A2, B1-B2, C1-C2). The generated roadmap must still cover all levels from A0/A1 to C2, but this input provides context for the user\'s starting point.'),
   personalGoal: z.string().describe('The personal goal of the user (e.g., Pass B2 TELC exam).'),
 });
 
@@ -44,7 +44,7 @@ const LessonSchema = z.object({
 });
 
 const GeneratePersonalizedLearningRoadmapOutputSchema = z.object({
-  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`."),
+  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`. If the user provided a `proficiencyLevel`, acknowledge it as their starting point but emphasize the plan covers A0-C2."),
   lessons: z.array(LessonSchema).describe("An array of lessons, structured sequentially from A0/A1 to C2. Ensure comprehensive coverage for the `targetLanguage` across all CEFR levels. Each lesson should aim to integrate various skills (grammar, vocabulary, listening, reading, writing, speaking) in a thematic or functional context where possible."),
   conclusion: z.string().optional().describe("A concluding remark or encouragement. MUST be in the specified `interfaceLanguage`.")
 });
@@ -77,7 +77,7 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
 
   VERY IMPORTANT INSTRUCTIONS REGARDING LANGUAGE:
   1.  **Interface Language ({{{interfaceLanguage}}})**: ALL user-facing text within the roadmap structure ITSELF must be in this language. This includes:
-      *   The 'introduction' field (provide a welcoming and informative intro).
+      *   The 'introduction' field (provide a welcoming and informative intro. If the user provided a 'proficiencyLevel', acknowledge it as their starting point but emphasize the plan covers A0-C2 for comprehensive learning.).
       *   The 'conclusion' field (if present, make it encouraging).
       *   For EACH lesson in the 'lessons' array:
           *   The 'level' text (e.g., for Russian interface: 'Уровень A1', for English interface: 'Level A1').
@@ -89,27 +89,30 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   2.  **Target Language ({{{targetLanguage}}})**: The actual linguistic concepts, grammar rules, vocabulary themes, etc., that the roadmap teaches should pertain to this language.
 
   CONTENT AND STRUCTURE OF LESSONS:
-  *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided 'proficiencyLevel' indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
-  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar).
+  *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided '{{{proficiencyLevel}}}' indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
+  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar). Strive to incorporate practical application exercises for each skill within a lesson.
   *   **Thematic/Functional Context**: Whenever possible, frame lessons or modules within a thematic (e.g., "Travel", "Work", "Hobbies") or functional (e.g., "Making appointments", "Expressing opinions") context. This makes learning more engaging.
-  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления".
+  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления" (if interface language is Russian for German target).
   *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
 
-  EXAMPLE (if interfaceLanguage='ru', targetLanguage='German'):
-  - 'introduction' and 'conclusion' fields will be in Russian.
+  EXAMPLE (if interfaceLanguage='ru', targetLanguage='German', proficiencyLevel='A1-A2'):
+  - 'introduction' field will be in Russian, and might state something like: "Добро пожаловать! Этот план поможет вам выучить немецкий язык. Вы указали, что ваш текущий уровень A1-A2. План охватывает все уровни от A0 до C2..."
+  - 'conclusion' fields will be in Russian.
   - A lesson object might look like:
     {
       "id": "german_a1_module_1_alphabet",
       "level": "Уровень A1", // In Russian
       "title": "Основы немецкого: Алфавит и приветствия", // In Russian
-      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. *Важно* запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'.", // In Russian, detailed, with example of emphasis
+      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. *Важно* запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'. Мы начнем с самых азов, чтобы заложить прочный фундамент.", // In Russian, detailed, with example of emphasis
       "topics": [
-          "Лексика: Немецкий алфавит (Das deutsche Alphabet)",
-          "Фонетика: Основные правила произношения, звуки ä, ö, ü, ß, ei, eu",
-          "Практика: Чтение простых слов и имен",
-          "Коммуникация: Приветствия (Hallo, Guten Tag) и прощания (Tschüss, Auf Wiedersehen)",
-          "Коммуникация: Как представиться (Ich heiße...)",
-          "Числа: От 1 до 10 (eins, zwei...)"
+          "Лексика: Немецкий алфавит (Das deutsche Alphabet) и его особенности",
+          "Фонетика: Основные правила произношения, звуки ä, ö, ü, ß, буквосочетания ei, eu, ch, sch",
+          "Практика: Чтение простых слов и имен, упражнения на слух для различения звуков",
+          "Коммуникация: Приветствия (Hallo, Guten Tag, Guten Morgen) и прощания (Tschüss, Auf Wiedersehen)",
+          "Коммуникация: Как представиться (Ich heiße...), спросить имя (Wie heißen Sie?)",
+          "Числа: От 1 до 10 (eins, zwei... zehn) и их употребление",
+          "Навыки: Упражнения на аудирование для распознавания приветствий и чисел",
+          "Навыки: Письменное упражнение - написать свое имя и возраст"
       ], // CRITICAL: These topic strings are in Russian, describing German concepts, and are more detailed.
       "estimatedDuration": "1 неделя" // In Russian
     }
@@ -192,6 +195,7 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   Наречия времени и порядка (zuerst, danach, schließlich)
   Инфинитивные конструкции mit "zu"
   Relativsätze (который, где…)
+  Предлоги с Genitiv (trotz, während, wegen и др.)
   💡 Совет: B1 — минимальный уровень для начала подготовки к TestDaF.
 
   🇩🇪 B2 (Продвинутый уровень)
@@ -288,3 +292,5 @@ const generatePersonalizedLearningRoadmapFlow = ai.defineFlow(
     return output;
   }
 );
+
+    

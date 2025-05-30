@@ -25,23 +25,23 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserData } from "@/contexts/UserDataContext";
-import type { InterfaceLanguage, TargetLanguage, UserSettings, LearningRoadmap, UserProgress } from "@/lib/types";
-import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames, initialUserProgress } from "@/lib/types";
+import type { InterfaceLanguage, TargetLanguage, UserSettings, LearningRoadmap, UserProgress, ProficiencyLevel } from "@/lib/types";
+import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames, initialUserProgress, proficiencyLevels } from "@/lib/types";
 import { generatePersonalizedLearningRoadmap } from "@/ai/flows/ai-learning-roadmap";
 import type { GeneratePersonalizedLearningRoadmapInput, GeneratePersonalizedLearningRoadmapOutput } from "@/ai/flows/ai-learning-roadmap";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
-// Zod schema: proficiencyLevel removed from direct user input validation
 const onboardingSchema = z.object({
   userName: z.string().min(1, "Nickname is required"),
   interfaceLanguage: z.enum(interfaceLanguageCodes, { required_error: "Interface language is required" }),
   targetLanguage: z.enum(targetLanguageNames, { required_error: "Target language is required" }),
+  proficiencyLevel: z.enum(proficiencyLevels, { required_error: "Proficiency level is required" }),
   goal: z.string().min(10, "Goal should be at least 10 characters").max(200, "Goal should be at most 200 characters"),
 });
 
-type OnboardingFormData = Omit<z.infer<typeof onboardingSchema>, 'proficiencyLevel'>;
+type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
 
 const translations: Record<string, Record<string, string>> = {
@@ -55,6 +55,8 @@ const translations: Record<string, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Select language",
     targetLanguageLabel: "Target Language",
     targetLanguagePlaceholder: "Select language to learn",
+    proficiencyLevelLabel: "Your Current Proficiency Level",
+    proficiencyLevelPlaceholder: "Select your level",
     goalLabel: "Your Personal Goal",
     goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
     previousButton: "Previous",
@@ -76,6 +78,8 @@ const translations: Record<string, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Выберите язык",
     targetLanguageLabel: "Изучаемый язык",
     targetLanguagePlaceholder: "Выберите язык для изучения",
+    proficiencyLevelLabel: "Ваш текущий уровень владения",
+    proficiencyLevelPlaceholder: "Выберите ваш уровень",
     goalLabel: "Ваша личная цель",
     goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
     previousButton: "Назад",
@@ -97,6 +101,8 @@ const translations: Record<string, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Sprache auswählen",
     targetLanguageLabel: "Zielsprache",
     targetLanguagePlaceholder: "Zu lernende Sprache auswählen",
+    proficiencyLevelLabel: "Dein aktuelles Sprachniveau",
+    proficiencyLevelPlaceholder: "Wähle dein Niveau",
     goalLabel: "Dein persönliches Ziel",
     goalPlaceholder: "Z.B. B2 TELC Prüfung bestehen, Fließend mit Kollegen sprechen...",
     previousButton: "Zurück",
@@ -118,6 +124,8 @@ const translations: Record<string, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Selecciona el idioma",
     targetLanguageLabel: "Idioma de destino",
     targetLanguagePlaceholder: "Selecciona el idioma a aprender",
+    proficiencyLevelLabel: "Tu nivel de competencia actual",
+    proficiencyLevelPlaceholder: "Selecciona tu nivel",
     goalLabel: "Tu objetivo personal",
     goalPlaceholder: "Ej. Aprobar el examen B2 TELC, Hablar con fluidez con colegas...",
     previousButton: "Anterior",
@@ -139,6 +147,8 @@ const translations: Record<string, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Sélectionner la langue",
     targetLanguageLabel: "Langue cible",
     targetLanguagePlaceholder: "Sélectionner la langue à apprendre",
+    proficiencyLevelLabel: "Votre niveau de compétence actuel",
+    proficiencyLevelPlaceholder: "Sélectionnez votre niveau",
     goalLabel: "Votre objectif personnel",
     goalPlaceholder: "Ex. Réussir l'examen B2 TELC, Parler couramment avec des collègues...",
     previousButton: "Précédent",
@@ -154,9 +164,9 @@ const translations: Record<string, Record<string, string>> = {
 
 
 export function OnboardingFlow() {
-  const { setUserData } = useUserData(); // Get setUserData directly
+  const { setUserData } = useUserData(); 
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false); // Local loading state for submit button
+  const [isLoading, setIsLoading] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
   const [uiLang, setUiLang] = useState<keyof typeof translations>('en');
 
@@ -180,7 +190,7 @@ export function OnboardingFlow() {
 
   const steps = [
     { id: 1, titleKey: "step1Title", fields: ["userName", "interfaceLanguage"] },
-    { id: 2, titleKey: "step2Title", fields: ["targetLanguage"] },
+    { id: 2, titleKey: "step2Title", fields: ["targetLanguage", "proficiencyLevel"] },
     { id: 3, titleKey: "step3Title", fields: ["goal"] },
   ];
 
@@ -204,7 +214,7 @@ export function OnboardingFlow() {
         userName: data.userName,
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
         targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: 'A1-A2', // Default starting proficiency level
+        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
         goal: data.goal,
       };
 
@@ -212,33 +222,26 @@ export function OnboardingFlow() {
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
         targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: 'A1-A2', // Pass default/starting proficiency
+        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel, 
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
       
-      // Update context with both settings and roadmap AT ONCE
-      setUserData(prev => {
-          // Ensure we start with a clean slate for progress for a new user,
-          // but overlay with prev.progress in case this is somehow a re-onboarding
-          // or if initialUserProgress had other important defaults.
-          const newProgress: UserProgress = {
-              ...initialUserProgress, // Start with defined initial progress structure
-              ...prev.progress,       // Overlay any existing progress values from prev state
-              learningRoadmap: roadmapOutput as LearningRoadmap, // Add the new roadmap
-          };
-          return {
-              settings: settingsData,
-              progress: newProgress,
-          };
+      const newProgress: UserProgress = {
+        ...initialUserProgress, 
+        learningRoadmap: roadmapOutput as LearningRoadmap,
+      };
+
+      setUserData({
+          settings: settingsData,
+          progress: newProgress,
       });
 
       toast({
         title: currentTranslations.setupCompleteTitle || "Setup Complete!",
         description: currentTranslations.setupCompleteDescription || "Your personalized learning roadmap has been generated.",
       });
-      // Redirect is handled by page.tsx based on userData.settings being populated
     } catch (error) {
       console.error("Onboarding error:", error);
       toast({
@@ -312,6 +315,26 @@ export function OnboardingFlow() {
             {errors.targetLanguage && <p className="text-sm text-destructive">{errors.targetLanguage.message}</p>}
           </div>
         )}
+        {stepConfig.fields.includes("proficiencyLevel") && (
+          <div className="space-y-2">
+            <Label htmlFor="proficiencyLevel">{currentTranslations.proficiencyLevelLabel}</Label>
+            <Controller name="proficiencyLevel" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger id="proficiencyLevel">
+                  <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {proficiencyLevels.map(level => (
+                    <SelectItem key={level} value={level}>
+                      {level}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )} />
+            {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
+          </div>
+        )}
         {stepConfig.fields.includes("goal") && (
           <div className="space-y-2">
             <Label htmlFor="goal">{currentTranslations.goalLabel}</Label>
@@ -373,3 +396,5 @@ export function OnboardingFlow() {
     </div>
   );
 }
+
+    
