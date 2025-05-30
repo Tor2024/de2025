@@ -214,7 +214,7 @@ export function VocabularyModuleClient() {
       .slice(0, 3);
     
     const options = shuffleArray([correctWord, ...distractors]);
-    setMcPracticeOptions(options.slice(0, Math.min(4, practiceWords.length)));
+    setMcPracticeOptions(options.slice(0, Math.min(4, practiceWords.length))); // Ensure max 4 options
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
     setIsMcPracticeSubmitted(false);
@@ -382,7 +382,7 @@ export function VocabularyModuleClient() {
     setUserTypeInAnswer("");
     setTypeInPracticeFeedback("");
     setIsTypeInPracticeSubmitted(false);
-    setTypeInPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct count, total remains
+    setTypeInPracticeScore(prev => ({ ...prev, correct: 0 }));
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
   };
@@ -436,7 +436,7 @@ export function VocabularyModuleClient() {
 
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
-    setMcPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct count
+    setMcPracticeScore(prev => ({ ...prev, correct: 0 })); 
     // setupMcPracticeExercise is called via useEffect
   };
 
@@ -482,6 +482,13 @@ export function VocabularyModuleClient() {
           </CardFooter>
         </form>
       </Card>
+
+      {isAiLoading && !vocabularyResult && (
+        <div className="flex justify-center items-center p-10">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      )}
 
       {vocabularyResult && currentTopic && (
         <Card className="shadow-lg">
@@ -619,7 +626,7 @@ export function VocabularyModuleClient() {
                   {!isTypeInPracticeSubmitted && (
                     <Button onClick={handleToggleTypeInPracticeHint} variant="link" size="sm" className="p-0 h-auto text-xs">
                         <Lightbulb className="h-3 w-3 mr-1"/>
-                        {showTypeInPracticeHint ? t('hideTypeInPracticeHintButton') : t('typeInPracticeAgainButton')} 
+                        {showTypeInPracticeHint ? t('hideTypeInPracticeHintButton') : t('showTypeInPracticeHintButton')} 
                     </Button>
                   )}
 
@@ -638,11 +645,7 @@ export function VocabularyModuleClient() {
                       <Button onClick={handleNextTypeInPractice}>
                         {t('typeInPracticeNextButton')}
                       </Button>
-                    ) : (
-                       <Button onClick={handleRestartTypeInPractice} variant="outline">
-                        {t('typeInPracticeAgainButton')}
-                      </Button>
-                    )
+                    ) : null 
                     }
                     {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('typeInFeedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
                        <Button variant="outline" size="sm" onClick={handleArchiveTypeInPracticeMistake} className="text-xs">
@@ -663,10 +666,19 @@ export function VocabularyModuleClient() {
                     </p>
                   )}
                 </div>
-              ) : (
+              ) : ( // This part handles the completion message for Type-In practice
                  <div className="text-center p-4 flex flex-col items-center gap-3">
-                    <PartyPopper className="h-12 w-12 text-green-500" />
-                    <p className="text-lg font-semibold text-primary">{typeInPracticeFeedback || t('typeInPracticeComplete')}</p>
+                    <PartyPopper className="h-12 w-12 text-primary" />
+                    <p className="text-lg font-semibold text-primary">
+                        {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) ? t('typeInPracticeComplete') : typeInPracticeFeedback}
+                    </p>
+                    {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
+                        <p className="text-muted-foreground">
+                            {t('typeInPracticeScoreMessage')
+                                .replace('{correct}', typeInPracticeScore.correct.toString())
+                                .replace('{total}', typeInPracticeScore.total.toString())}
+                        </p>
+                    )}
                     <Button onClick={handleRestartTypeInPractice} variant="outline">
                         {t('typeInPracticeAgainButton')}
                     </Button>
@@ -701,7 +713,7 @@ export function VocabularyModuleClient() {
                         } else if (isSelected && !isCorrect) {
                            buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30 dark:bg-red-700/30 dark:text-red-400 dark:border-red-600");
                         } else {
-                           buttonClassName = cn(buttonClassName, "border-border");
+                           buttonClassName = cn(buttonClassName, "border-border opacity-60");
                         }
                       } else if (isSelected) {
                          buttonClassName = cn(buttonClassName, "bg-primary/20 border-primary text-primary hover:bg-primary/30");
@@ -724,17 +736,14 @@ export function VocabularyModuleClient() {
                   </div>
                   
                   <div className="pt-2 flex items-center gap-2 flex-wrap">
-                    {!isMcPracticeSubmitted ? (
+                    {!isMcPracticeSubmitted && (
                       <Button onClick={handleCheckMcPracticeAnswer} disabled={!selectedMcOption}>
                         {t('practiceCheckMcButton')}
                       </Button>
-                    ) : currentMcPracticeIndex < practiceWords.length - 1 ? (
+                    )}
+                    {isMcPracticeSubmitted && currentMcPracticeIndex < practiceWords.length - 1 && (
                       <Button onClick={handleNextMcPracticeExercise}>
                         {t('practiceNextMcButton')}
-                      </Button>
-                    ) : (
-                      <Button onClick={handleRestartMcPractice} variant="outline">
-                        {t('practiceAgainMcButton')}
                       </Button>
                     )}
                      {isMcPracticeSubmitted && mcPracticeFeedback !== t('mcFeedbackCorrect') && !isCurrentMcPracticeMistakeArchived && (
@@ -759,10 +768,19 @@ export function VocabularyModuleClient() {
                     </p>
                   )}
                 </div>
-              ) : (
+              ) : ( // This part handles the completion message for MC practice
                  <div className="text-center p-4 flex flex-col items-center gap-3">
-                    <PartyPopper className="h-12 w-12 text-green-500" />
-                    <p className="text-lg font-semibold text-primary">{mcPracticeFeedback || t('mcPracticeComplete')}</p>
+                    <PartyPopper className="h-12 w-12 text-primary" />
+                     <p className="text-lg font-semibold text-primary">
+                        {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) ? t('mcPracticeComplete') : mcPracticeFeedback}
+                    </p>
+                    {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
+                        <p className="text-muted-foreground">
+                            {t('mcPracticeScoreMessage')
+                                .replace('{correct}', mcPracticeScore.correct.toString())
+                                .replace('{total}', mcPracticeScore.total.toString())}
+                        </p>
+                    )}
                     <Button onClick={handleRestartMcPractice} variant="outline">
                         {t('practiceAgainMcButton')}
                     </Button>
