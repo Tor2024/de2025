@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 const listeningSchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -274,25 +276,32 @@ export function ListeningModuleClient() {
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="font-semibold text-lg">{t('scriptHeader')} ({userData.settings.targetLanguage})</h3>
                     {typeof window !== 'undefined' && window.speechSynthesis && (
-                        <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            if (!hasScriptText) return;
-                            const scriptId = listeningResult.title || `script-${Date.now()}`;
-                            if (currentlySpeakingScriptId === scriptId) {
-                                stopSpeech();
-                            } else {
-                                playText(scriptId, listeningResult.script, userData.settings!.targetLanguage);
-                            }
-                        }}
-                        className="shrink-0"
-                        aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
-                        disabled={!hasScriptText}
-                        >
-                        {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                        {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
-                        </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (!hasScriptText) return;
+                                const scriptId = listeningResult.title || `script-${Date.now()}`;
+                                if (currentlySpeakingScriptId === scriptId) {
+                                    stopSpeech();
+                                } else {
+                                    playText(scriptId, listeningResult.script, userData.settings!.targetLanguage);
+                                }
+                            }}
+                            className="shrink-0"
+                            aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                            disabled={!hasScriptText}
+                            >
+                            {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                            {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                 </div>
                 {hasScriptText ? (

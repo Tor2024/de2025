@@ -9,6 +9,8 @@ import { useUserData } from "@/contexts/UserDataContext";
 import { BookMarked, ListChecks, Clock, Info, Volume2, Ban } from "lucide-react";
 import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface RoadmapDisplayProps {
   titleText: string;
@@ -73,7 +75,7 @@ export function RoadmapDisplay({
     }
   }, []);
 
-  const playText = React.useCallback((lessonId: string, textToSpeak: string, langCode: string) => {
+  const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       alert("Text-to-Speech is not supported by your browser.");
       setCurrentlySpeakingLessonId(null);
@@ -89,7 +91,6 @@ export function RoadmapDisplay({
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel(); // Stop any other speech
     }
-
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
@@ -175,23 +176,30 @@ export function RoadmapDisplay({
                     <div className="flex justify-between items-start mb-2">
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{lesson.description}</p>
                       {typeof window !== 'undefined' && window.speechSynthesis && (
-                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (!hasDescription) return;
-                            if (currentlySpeakingLessonId === lessonSpeechId) {
-                              stopSpeech();
-                            } else {
-                              playText(lessonSpeechId, lesson.description, interfaceLanguage);
-                            }
-                          }}
-                          className="ml-2 shrink-0"
-                          aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
-                          disabled={!hasDescription}
-                        >
-                          {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                        </Button>
+                         <Tooltip>
+                           <TooltipTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => {
+                                 if (!hasDescription) return;
+                                 if (currentlySpeakingLessonId === lessonSpeechId) {
+                                   stopSpeech();
+                                 } else {
+                                   playText(lessonSpeechId, lesson.description, interfaceLanguage);
+                                 }
+                               }}
+                               className="ml-2 shrink-0"
+                               aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
+                               disabled={!hasDescription}
+                             >
+                               {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                             </Button>
+                           </TooltipTrigger>
+                           <TooltipContent>
+                             <p>{currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}</p>
+                           </TooltipContent>
+                         </Tooltip>
                       )}
                     </div>
                     
