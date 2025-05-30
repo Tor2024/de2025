@@ -295,6 +295,7 @@ export function ListeningModuleClient() {
                             aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                             disabled={!hasScriptText}
                             >
+                            {isAiLoading && <LoadingSpinner size={16} className="mr-1" />}
                             {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
                             {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                           </Button>
@@ -349,3 +350,4 @@ export function ListeningModuleClient() {
     </div>
   );
 }
+
