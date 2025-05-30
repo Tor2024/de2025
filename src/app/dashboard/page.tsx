@@ -215,8 +215,6 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
-  // fetchTutorTip is wrapped in useCallback, so it's safe to include.
-  // t and toast are stable (or should be if from custom hooks that manage stability).
   }, [isUserDataLoading, userData.settings, fetchTutorTip]); 
   
   if (isUserDataLoading) {
@@ -373,7 +371,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Flag className="h-4 w-4 text-primary/70" />
-                  <span>{t('currentGoalLabel')}: {userData.settings.goal || t('noGoalSet')}</span>
+                  <span>{t('currentGoalLabel')}: <span className="font-medium text-foreground whitespace-pre-wrap">{userData.settings.goal || t('noGoalSet')}</span></span>
                 </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
                   {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />
@@ -386,3 +384,5 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+    
