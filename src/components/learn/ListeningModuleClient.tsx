@@ -270,10 +270,10 @@ export function ListeningModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
         const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
-        if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) {
-          const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (lastUtteranceText !== "Пииип" || utteranceQueueRef.current.length > 1) {
+          const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
           if (userData.settings) {
             endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
             const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
@@ -317,7 +317,7 @@ export function ListeningModuleClient() {
 
     utteranceQueueRef.current = [];
 
-    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+    const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
       const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
@@ -605,7 +605,7 @@ export function ListeningModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500";
+                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500"; 
                                 }
 
                                 return (
@@ -674,4 +674,3 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-

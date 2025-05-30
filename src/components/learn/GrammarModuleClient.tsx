@@ -12,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
-import { adaptiveGrammarExplanations, PracticeTaskSchema } from "@/ai/flows/adaptive-grammar-explanations"; // PracticeTaskSchema is no longer directly exported, but PracticeTask type is
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
+import { adaptiveGrammarExplanations, explainGrammarTaskError } from "@/ai/flows/adaptive-grammar-explanations"; 
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask, ExplainGrammarTaskErrorInput } from "@/ai/flows/adaptive-grammar-explanations";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -59,6 +59,8 @@ const baseEnTranslations: Record<string, string> = {
   yourAnswerLabel: "Your Answer:",
   feedbackCorrect: "Correct!",
   feedbackIncorrectPrefix: "Incorrect. Correct answer:",
+  aiErrorAnalysisHeader: "AI Error Analysis:",
+  loadingAiExplanation: "Loading AI explanation for your error...",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -92,6 +94,8 @@ const baseRuTranslations: Record<string, string> = {
   yourAnswerLabel: "Ваш ответ:",
   feedbackCorrect: "Правильно!",
   feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
+  aiErrorAnalysisHeader: "Разбор ошибки ИИ:",
+  loadingAiExplanation: "Загрузка объяснения ошибки от ИИ...",
 };
 
 const generateTranslations = () => {
@@ -202,21 +206,21 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
-  // 1. Удаление Markdown выделения (*italic*, **bold**, _italic_, __bold__)
+  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  // 2. Удаление различных типов кавычек
+  // 2. Remove various types of quotes
   sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  // 3. Удаление апострофов/одиночных кавычек
+  // 3. Remove apostrophes/single quotes
   sanitizedText = sanitizedText.replace(/'/g, '');
-  // 4. Удаление обратных кавычек (Markdown code)
+  // 4. Remove backticks (Markdown code)
   sanitizedText = sanitizedText.replace(/`/g, '');
-  // 5. Удаление дефисов, используемых как маркеры списка в начале строки
+  // 5. Remove hyphens used as list item markers at the beginning of a line
   sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  // 6. Удаление круглых скобок
+  // 6. Remove parentheses
   sanitizedText = sanitizedText.replace(/[()]/g, '');
-  // 7. Замена дефисов, используемых как разделители (тире), на запятую и пробел
+  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
   sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
-  // 8. Замена множественных пробелов на один
+  // 8. Normalize multiple spaces to a single space
   sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
@@ -235,6 +239,8 @@ export function GrammarModuleClient() {
 
   const [taskAnswers, setTaskAnswers] = useState<Record<string, string>>({});
   const [taskFeedback, setTaskFeedback] = useState<Record<string, { isCorrect: boolean; submitted: boolean }>>({});
+  const [taskErrorExplanations, setTaskErrorExplanations] = useState<Record<string, string | null>>({});
+  const [isFetchingExplanation, setIsFetchingExplanation] = useState<Record<string, boolean>>({});
 
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
@@ -287,7 +293,7 @@ export function GrammarModuleClient() {
         if (event.error === "interrupted") {
           console.info('TTS: GrammarModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
-          console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
+          console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
           toast({
             title: t('ttsUtteranceErrorTitle'),
             description: t('ttsUtteranceErrorDescription'),
@@ -298,10 +304,10 @@ export function GrammarModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
         const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
-        if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) {
-          const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (lastUtteranceText !== "Пииип" || utteranceQueueRef.current.length > 1) {
+          const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
           if (userData.settings) {
             endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
             const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
@@ -345,7 +351,7 @@ export function GrammarModuleClient() {
     
     utteranceQueueRef.current = [];
     
-    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+    const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
     if(userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
       const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
@@ -394,6 +400,8 @@ export function GrammarModuleClient() {
     setCurrentTopic(data.grammarTopic);
     setTaskAnswers({});
     setTaskFeedback({});
+    setTaskErrorExplanations({});
+    setIsFetchingExplanation({});
     stopSpeech();
     try {
       if (!userData.settings || !userData.progress) { 
@@ -434,6 +442,8 @@ export function GrammarModuleClient() {
     setCurrentTopic("");
     setTaskAnswers({});
     setTaskFeedback({});
+    setTaskErrorExplanations({});
+    setIsFetchingExplanation({});
     stopSpeech();
   };
 
@@ -442,14 +452,37 @@ export function GrammarModuleClient() {
     // Reset feedback if user changes answer after submission
     if (taskFeedback[taskId]?.submitted) {
       setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: false, isCorrect: false } }));
+      setTaskErrorExplanations(prev => ({ ...prev, [taskId]: null }));
+      setIsFetchingExplanation(prev => ({ ...prev, [taskId]: false }));
     }
   };
 
-  const handleCheckTaskAnswer = (taskId: string, correctAnswer: string) => {
+  const handleCheckTaskAnswer = async (taskId: string, task: PracticeTask) => {
     const userAnswer = taskAnswers[taskId]?.trim().toLowerCase() || "";
-    const actualCorrectAnswer = correctAnswer.trim().toLowerCase();
+    const actualCorrectAnswer = task.correctAnswer.trim().toLowerCase();
     const isCorrect = userAnswer === actualCorrectAnswer;
     setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: true, isCorrect } }));
+
+    if (!isCorrect && userData.settings) {
+      setIsFetchingExplanation(prev => ({ ...prev, [taskId]: true }));
+      try {
+        const errorInput: ExplainGrammarTaskErrorInput = {
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          grammarTopic: currentTopic,
+          taskDescription: task.taskDescription,
+          userAttempt: taskAnswers[taskId] || "",
+          correctAnswer: task.correctAnswer,
+        };
+        const errorExplanationResult = await explainGrammarTaskError(errorInput);
+        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: errorExplanationResult.explanation }));
+      } catch (error) {
+        console.error("AI error explanation failed:", error);
+        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: "Failed to load AI explanation for this error." }));
+        // Optionally, show a toast for this specific error
+      } finally {
+        setIsFetchingExplanation(prev => ({ ...prev, [taskId]: false }));
+      }
+    }
   };
 
   const explanationTTSId = `grammar-explanation-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
@@ -549,7 +582,7 @@ export function GrammarModuleClient() {
 
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
-              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-[350px] rounded-md border p-3 bg-muted/30">
                 {explanationResult.practiceTasks && explanationResult.practiceTasks.length > 0 ? (
                   <div className="space-y-4">
                     {explanationResult.practiceTasks.map((task, index) => (
@@ -574,7 +607,7 @@ export function GrammarModuleClient() {
                               {!taskFeedback[task.id]?.submitted && (
                                 <Button 
                                   size="sm" 
-                                  onClick={() => handleCheckTaskAnswer(task.id, task.correctAnswer)}
+                                  onClick={() => handleCheckTaskAnswer(task.id, task)}
                                   disabled={!(taskAnswers[task.id]?.trim())}
                                 >
                                   {t('checkAnswerButton')}
@@ -589,6 +622,17 @@ export function GrammarModuleClient() {
                                 {taskFeedback[task.id]?.isCorrect ? <CheckCircle2 className="h-4 w-4"/> : <XCircle className="h-4 w-4"/>}
                                 {taskFeedback[task.id]?.isCorrect ? t('feedbackCorrect') : `${t('feedbackIncorrectPrefix')} ${task.correctAnswer}`}
                               </div>
+                            )}
+                            {isFetchingExplanation[task.id] && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                                    <LoadingSpinner size={16}/> {t('loadingAiExplanation')}
+                                </div>
+                            )}
+                            {taskErrorExplanations[task.id] && !isFetchingExplanation[task.id] && (
+                                <div className="mt-2 p-2 border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 rounded-r-md">
+                                    <h4 className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">{t('aiErrorAnalysisHeader')}</h4>
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-200 whitespace-pre-wrap">{taskErrorExplanations[task.id]}</p>
+                                </div>
                             )}
                           </div>
                         )}
@@ -606,4 +650,3 @@ export function GrammarModuleClient() {
     </div>
   );
 }
-

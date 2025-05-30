@@ -15,3 +15,4 @@ import '@/ai/flows/generate-listening-material-flow.ts';
 import '@/ai/flows/generate-tutor-tip-flow.ts';
 import '@/ai/flows/generate-speaking-topic-flow.ts';
 import '@/ai/flows/generate-fill-in-the-blank-flow.ts';
+import '@/ai/flows/explain-grammar-task-error-flow.ts';
