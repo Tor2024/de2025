@@ -104,7 +104,7 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
   { code: 'kk', name: 'Kazakh', nativeName: 'Қазақша' },
   { code: 'ka', name: 'Georgian', nativeName: 'ქართული' },
-  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' },
+  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' }, // Note: BCP-47 for Syriac can be complex, 'syc' is for Classical Syriac.
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو' },
   { code: 'prs', name: 'Dari', nativeName: 'دری' },
 ];
@@ -124,3 +124,78 @@ export const germanWritingTaskTypes = [
 ] as const;
 
 export type GermanWritingTaskType = typeof germanWritingTaskTypes[number]['value'];
+
+
+// Function to map TargetLanguage (e.g., "German") to BCP-47 code (e.g., "de-DE")
+export const mapTargetLanguageToBcp47 = (targetLanguage: TargetLanguage): string => {
+  const langMapping: Partial<Record<TargetLanguage, string>> = {
+    'English': 'en-US',
+    'German': 'de-DE',
+    'Russian': 'ru-RU',
+    'Spanish': 'es-ES',
+    'French': 'fr-FR',
+    'Italian': 'it-IT',
+    'Dutch': 'nl-NL',
+    'Finnish': 'fi-FI',
+    'Chinese': 'zh-CN',
+    'Hindi': 'hi-IN',
+    'Norwegian': 'no-NO',
+    'Hungarian': 'hu-HU',
+    'Danish': 'da-DK',
+    'Korean': 'ko-KR',
+    'Bulgarian': 'bg-BG',
+    'Slovenian': 'sl-SI',
+    'Ukrainian': 'uk-UA',
+    'Belarusian': 'be-BY',
+    'Polish': 'pl-PL',
+    'Romanian': 'ro-RO',
+    'Japanese': 'ja-JP',
+    'Arabic': 'ar-SA',
+    'Turkish': 'tr-TR',
+    'Latin': 'la',
+    'Greek': 'el-GR',
+    'Kazakh': 'kk-KZ',
+    'Georgian': 'ka-GE',
+    'Syriac': 'syc',
+    'Pashto': 'ps-AF',
+    'Dari': 'prs-AF',
+  };
+  return langMapping[targetLanguage] || 'en-US'; // Fallback to English
+};
+
+// Function to map InterfaceLanguage (e.g., "en") to BCP-47 code (e.g., "en-US")
+export const mapInterfaceLanguageToBcp47 = (interfaceLang: InterfaceLanguage): string => {
+  const langMapping: Record<InterfaceLanguage, string> = {
+    'en': 'en-US',
+    'ru': 'ru-RU',
+    'de': 'de-DE',
+    'es': 'es-ES',
+    'fr': 'fr-FR',
+    'it': 'it-IT',
+    'nl': 'nl-NL',
+    'fi': 'fi-FI',
+    'zh': 'zh-CN',
+    'hi': 'hi-IN',
+    'no': 'no-NO',
+    'hu': 'hu-HU',
+    'da': 'da-DK',
+    'ko': 'ko-KR',
+    'bg': 'bg-BG',
+    'sl': 'sl-SI',
+    'uk': 'uk-UA',
+    'be': 'be-BY',
+    'pl': 'pl-PL',
+    'ro': 'ro-RO',
+    'ja': 'ja-JP',
+    'ar': 'ar-SA',
+    'tr': 'tr-TR',
+    'la': 'la',
+    'el': 'el-GR',
+    'kk': 'kk-KZ',
+    'ka': 'ka-GE',
+    'syr': 'syc',
+    'ps': 'ps-AF',
+    'prs': 'prs-AF',
+  };
+  return langMapping[interfaceLang] || 'en-US'; // Fallback to English
+};
