@@ -8,7 +8,7 @@ config();
 
 import '@/ai/flows/generate-tutor-tip-flow.ts';
 import '@/ai/flows/ai-learning-roadmap.ts';
-// import '@/ai/flows/adaptive-grammar-explanations.ts';
+import '@/ai/flows/adaptive-grammar-explanations.ts';
 // import '@/ai/flows/explain-grammar-task-error-flow.ts';
 // import '@/ai/flows/ai-powered-writing-assistance.ts';
 // import '@/ai/flows/generate-vocabulary-flow.ts';
