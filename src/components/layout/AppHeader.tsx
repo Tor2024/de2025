@@ -33,12 +33,11 @@ const baseRuTranslations = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
       translations[code] = { ...baseEnTranslations };
     }
   });
@@ -69,7 +68,9 @@ export function AppHeader() {
     router.push('/'); 
   };
   
-  const userInitial = userData.settings?.userName ? userData.settings.userName.charAt(0).toUpperCase() : "L";
+  const userInitial = userData.settings?.userName && userData.settings.userName.length > 0 
+    ? userData.settings.userName.charAt(0).toUpperCase() 
+    : "L";
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur md:px-6">
