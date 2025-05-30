@@ -9,7 +9,7 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid } from "lucide-react"; // Added LayoutGrid
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid } from "lucide-react"; 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
@@ -149,9 +149,11 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    let base = baseEnTranslations;
-    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    translations[code] = base;
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
   });
   return translations;
 };
@@ -201,7 +203,7 @@ export default function DashboardPage() {
     } finally {
       setIsTipLoading(false);
     }
-  }, [userData.settings, t, toast]); // Added t and toast to dependencies
+  }, [userData.settings, t, toast]); 
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -213,8 +215,6 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
-  // fetchTutorTip is already memoized with useCallback, so including it directly.
-  // currentLang is derived from userData.settings, which is in fetchTutorTip's deps.
   }, [isUserDataLoading, userData.settings, fetchTutorTip]); 
   
   if (isUserDataLoading) {
@@ -309,7 +309,7 @@ export default function DashboardPage() {
 
         <div>
           <h2 className="text-2xl font-semibold tracking-tight mb-4 flex items-center gap-2">
-            <LayoutGrid className="text-primary h-6 w-6" /> {/* Added icon */}
+            <LayoutGrid className="text-primary h-6 w-6" /> 
             {t('exploreLearningModules')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -372,4 +372,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-

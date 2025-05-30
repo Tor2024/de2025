@@ -63,13 +63,12 @@ const baseRuTranslations: Record<string, string> = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) {
-      translations[code] = { ...baseEnTranslations }; 
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;
@@ -127,7 +126,7 @@ export function ReadingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset(); // Clear form fields on success
+      reset(); 
     } catch (error) {
       console.error("Reading material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -215,4 +214,3 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-    

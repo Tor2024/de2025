@@ -65,9 +65,11 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    let base = baseEnTranslations;
-    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    translations[code] = base;
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
   });
   return translations;
 };

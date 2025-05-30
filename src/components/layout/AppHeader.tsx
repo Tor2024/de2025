@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { interfaceLanguageCodes } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
+import { Skeleton } from "@/components/ui/skeleton"; 
 
 const baseEnTranslations = {
   profile: "Profile",

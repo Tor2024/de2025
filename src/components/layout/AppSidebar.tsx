@@ -39,10 +39,9 @@ interface NavItemDef {
   disabled?: boolean; 
 }
 
-// Synchronize with learningModules from dashboard
 const learningModulesConfig = [
   { titleKey: "grammar", defaultTitle: "Grammar", href: "/learn/grammar", icon: BookOpen, tooltipKey: "grammarTooltip", defaultTooltip: "Grammar", disabled: false },
-  { titleKey: "writing", defaultTitle: "Writing", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant", disabled: false },
+  { titleKey: "writing", defaultTitle: "Writing Assistant", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant", disabled: false },
   { titleKey: "vocabulary", defaultTitle: "Vocabulary", href: "/learn/vocabulary", icon: FileText, tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary", disabled: false },
   { titleKey: "reading", defaultTitle: "Reading", href: "/learn/reading", icon: BookOpen, tooltipKey: "readingTooltip", defaultTooltip: "Reading", disabled: false }, 
   { titleKey: "listening", defaultTitle: "Listening", href: "/learn/listening", icon: Headphones, tooltipKey: "listeningTooltip", defaultTooltip: "Listening", disabled: false },
@@ -70,7 +69,6 @@ const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/settings", icon: Settings, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
 ];
 
-// Base translations
 const baseEnTranslations: Record<string, string> = {
   dashboard: "Dashboard",
   dashboardTooltip: "Dashboard",
@@ -123,16 +121,13 @@ const baseRuTranslations: Record<string, string> = {
   aiTutor: "AI Репетитор",
 };
 
-// Generate full translations object at module level
 const generateSidebarTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
     if (code === 'ru') {
       translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
     } else {
-      // For other languages, default to English translations
-      // You can add more specific base translations (e.g., baseDeTranslations) here in the future
-      translations[code] = { ...baseEnTranslations }; 
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;
@@ -145,10 +140,8 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
-  // Determine current language, default to 'en' during loading to prevent hydration issues
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   
-  // Translation function specific to this component
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = sidebarTranslations[currentLang as keyof typeof sidebarTranslations];
     if (langTranslations && langTranslations[key]) {
@@ -156,19 +149,15 @@ export function AppSidebar() {
     }
     const enTranslations = sidebarTranslations['en'];
     if (enTranslations && enTranslations[key]) {
-      return enTranslations[key]; // Fallback to English
+      return enTranslations[key]; 
     }
-    return defaultText || key; // Fallback to default text or key itself
+    return defaultText || key; 
   };
   
-  // If user data is loading or settings are not available, don't render the full sidebar
-  // This prevents rendering with potentially incorrect language or data during initial load or if user is not set up
   if (isUserDataLoading || !userData.settings) {
     return null; 
   }
 
-
-  // Map nav item definitions to include localized labels and tooltips
   const mapNavItem = (itemDef: NavItemDef) => ({
     ...itemDef, 
     label: t(itemDef.labelKey, itemDef.defaultLabel),

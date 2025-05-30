@@ -191,7 +191,7 @@ export function WritingAssistantClient() {
                 name="writingTaskType"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || ''}> {/* Ensure value is controlled, default to empty string if undefined */}
+                  <Select onValueChange={field.onChange} value={field.value || ''}> 
                     <SelectTrigger id="writingTaskType">
                       <SelectValue placeholder={t('writingTaskTypePlaceholder')} />
                     </SelectTrigger>
@@ -249,4 +249,3 @@ export function WritingAssistantClient() {
     </div>
   );
 }
-

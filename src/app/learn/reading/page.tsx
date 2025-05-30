@@ -22,13 +22,12 @@ const baseRuTranslations = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
-      translations[code] = { ...baseEnTranslations }; // Fallback to English
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;

@@ -2,30 +2,32 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+import { VocabularyModuleClient } from "@/components/learn/VocabularyModuleClient"; 
 import { useUserData } from "@/contexts/UserDataContext";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { useRouter } from "next/navigation"; 
+import { useEffect } from "react"; 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import * as React from 'react'; 
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types"; 
 
 const baseEnTranslations = {
-  title: "Vocabulary Module",
-  description: "This module is under construction. Soon you'll be able to expand your word bank with thematic sets, image support, pronunciation guides, and word games, all tailored to your proficiency level!",
-  loading: "Loading vocabulary module...",
+  loadingModule: "Loading vocabulary module...", 
+  redirecting: "Redirecting...",
 };
 
 const baseRuTranslations = {
-  title: "Модуль Словарного запаса",
-  description: "Этот модуль находится в разработке. Скоро вы сможете расширить свой словарный запас с помощью тематических наборов, поддержки изображений, руководств по произношению и словесных игр, адаптированных к вашему уровню владения языком!",
-  loading: "Загрузка модуля словарного запаса...",
+  loadingModule: "Загрузка модуля словарного запаса...",
+  redirecting: "Перенаправление...",
 };
 
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    let base = baseEnTranslations;
-    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    translations[code] = base;
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
   });
   return translations;
 };
@@ -34,26 +36,37 @@ const pageTranslations = generateTranslations();
 
 export default function VocabularyPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings === null) {
+      router.replace('/');
+    }
+  }, [userData, isUserDataLoading, router]);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const tPage = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = pageTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key;
+    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
   };
 
-  if (isUserDataLoading) { 
+  if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner size={32} />
-          <p className="ml-2">{t('loading')}</p>
+        <div className="flex h-full items-center justify-center"> 
+          <LoadingSpinner size={32} /> 
+          <p className="ml-2">{tPage('loadingModule')}</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (userData.settings === null) {
+     return (
+      <AppShell>
+        <div className="flex h-screen items-center justify-center"> 
+          <LoadingSpinner size={48} /> 
+          <p className="ml-4">{tPage('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -61,21 +74,7 @@ export default function VocabularyPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full">
-        <Card className="w-full max-w-md text-center p-8 shadow-xl">
-          <CardHeader>
-            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
-              <FileText className="h-12 w-12 text-primary" />
-            </div>
-            <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              {t('description')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <VocabularyModuleClient /> 
     </AppShell>
   );
 }
