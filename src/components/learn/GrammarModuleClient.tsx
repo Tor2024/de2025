@@ -135,9 +135,6 @@ const HighlightedTextRenderer: React.FC<{ textSegments: TextSegment[]; highlight
     <>
       {textSegments.map((segment, segmentIndex) => {
         const highlightKeys = Object.keys(highlights);
-        // Only apply germanArticleHighlights if the segment is in German (or a related target language)
-        // For simplicity, let's assume targetLanguage is German if highlights are present
-        // A more robust way would be to pass the targetLanguage to HighlightedTextRenderer
         const shouldHighlight = segment.langCode.startsWith('de') && highlightKeys.length > 0; 
 
         if (!shouldHighlight) {
@@ -161,7 +158,7 @@ const HighlightedTextRenderer: React.FC<{ textSegments: TextSegment[]; highlight
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}
+                      <span>{translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}</span>
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -287,14 +284,15 @@ export function GrammarModuleClient() {
   const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
     if (!text) return "";
     let sanitizedText = text;
-    sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-    sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-    sanitizedText = sanitizedText.replace(/'/g, '');
-    sanitizedText = sanitizedText.replace(/`/g, '');
-    sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-    sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
-    sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
+    sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2'); // Markdown bold/italic
+    sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); // Quotes
+    sanitizedText = sanitizedText.replace(/'/g, ''); // Apostrophes
+    sanitizedText = sanitizedText.replace(/`/g, ''); // Backticks
+    sanitizedText = sanitizedText.replace(/^-\s+/gm, ''); // List hyphens
+    sanitizedText = sanitizedText.replace(/[()]/g, ''); // Parentheses
+    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); // Hyphens as dashes
+    sanitizedText = sanitizedText.replace(/#+/g, ''); // Hash symbols
+    sanitizedText = sanitizedText.replace(/\s\s+/g, ' '); // Multiple spaces
     return sanitizedText.trim();
   }, []);
 
@@ -305,9 +303,13 @@ export function GrammarModuleClient() {
   ): TextSegment[] => {
     const segments: TextSegment[] = [];
     let lastIndex = 0;
-    const regex = new RegExp(`${TARGET_LANG_START_DELIMITER}(.*?)${TARGET_LANG_END_DELIMITER}`, 'gs');
+    // Regex to find ##TARGET_LANG_START##...##TARGET_LANG_END##
+    const regex = new RegExp(
+      `${TARGET_LANG_START_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${TARGET_LANG_END_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+      'gs'
+    );
     let match;
-
+  
     while ((match = regex.exec(text)) !== null) {
       // Add text before the target language segment (interface language)
       if (match.index > lastIndex) {
@@ -323,7 +325,7 @@ export function GrammarModuleClient() {
       });
       lastIndex = regex.lastIndex;
     }
-
+  
     // Add any remaining text after the last target language segment (interface language)
     if (lastIndex < text.length) {
       segments.push({
@@ -361,22 +363,11 @@ export function GrammarModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-      // Check if the first utterance was the start cue. If so, play end cue.
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
-        const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        endSignalUtterance.lang = interfaceLangBcp47;
-        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-        if (voice) endSignalUtterance.voice = voice;
-        endSignalUtterance.rate = 0.95;
-        endSignalUtterance.pitch = 1.1;
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            window.speechSynthesis.speak(endSignalUtterance);
-        }
-      }
+      // All text segments spoken, now play end cue if it was the "Piip" from the start.
+      // The end "Piip" is now added directly after all text segments.
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings?.interfaceLanguage, t, toast, selectPreferredVoice]); // Added dependencies
+  }, [userData.settings?.interfaceLanguage, t, toast, selectPreferredVoice]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined) => {
     playTextInternalIdRef.current += 1;
@@ -392,8 +383,8 @@ export function GrammarModuleClient() {
     utteranceQueueRef.current = [];
     currentUtteranceIndexRef.current = 0;
 
-    const sanitizedFullText = sanitizeTextForTTS(textToSpeak);
-    if (!sanitizedFullText) {
+    const fullText = textToSpeak || "";
+    if (!fullText.trim()) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
@@ -410,26 +401,40 @@ export function GrammarModuleClient() {
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
 
-    const textSegments = parseMultiLanguageText(sanitizedFullText, interfaceLangBcp47, targetLangBcp47);
+    const textSegments = parseMultiLanguageText(fullText, interfaceLangBcp47, targetLangBcp47);
 
     textSegments.forEach(segment => {
-      const sentences = segment.text.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
-      sentences.forEach(sentenceText => {
-        if (sentenceText.trim()) {
-          const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
-          utterance.lang = segment.langCode;
-          const voice = selectPreferredVoice(segment.langCode, voicesRef.current || []);
-          if (voice) utterance.voice = voice;
-          utterance.rate = 0.95;
-          utterance.pitch = 1.1;
-          utteranceQueueRef.current.push(utterance);
-        }
-      });
+      const sanitizedSegmentText = sanitizeTextForTTS(segment.text);
+      if (sanitizedSegmentText) {
+        // Further split sanitized segment text into sentences if necessary
+        const sentences = sanitizedSegmentText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [sanitizedSegmentText];
+        sentences.forEach(sentenceText => {
+          if (sentenceText.trim()) {
+            const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
+            utterance.lang = segment.langCode; // CRITICAL: Use segment's langCode
+            const voice = selectPreferredVoice(segment.langCode, voicesRef.current || []);
+            if (voice) utterance.voice = voice;
+            utterance.rate = 0.95;
+            utterance.pitch = 1.1;
+            utteranceQueueRef.current.push(utterance);
+            console.log(`TTS: GrammarModuleClient - Queued: "${sentenceText.trim()}", Lang: ${segment.langCode}, Voice: ${voice ? voice.name : 'default'}`);
+          }
+        });
+      }
     });
+    
+    // Add end "Пииип"
+    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
+    endSignalUtterance.lang = interfaceLangBcp47;
+    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endVoice) endSignalUtterance.voice = endVoice;
+    endSignalUtterance.rate = 0.95;
+    endSignalUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endSignalUtterance);
     
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText]); // Added parseMultiLanguageText
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
