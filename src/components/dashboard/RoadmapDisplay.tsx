@@ -89,6 +89,7 @@ const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2'); // Remove Markdown bold/italic
+  sanitizedText = sanitizedText.replace(/[()]/g, ''); // Remove parentheses
   sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); // Remove various quotes
   sanitizedText = sanitizedText.replace(/'/g, ''); // Remove single quotes/apostrophes
   sanitizedText = sanitizedText.replace(/`/g, ''); // Remove backticks
@@ -131,13 +132,12 @@ export function RoadmapDisplay({
   
 
   const t = useCallback((key: string, defaultText?: string): string => {
-    const translations: Record<string, string> = {
-      ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
-      ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
-      ttsNotSupportedTitle: ttsNotSupportedTitle,
-      ttsNotSupportedDescription: ttsNotSupportedDescription,
-    };
-    return translations[key] || defaultText || key;
+    // Simplified t function for brevity, assuming props handle translations
+    if (key === 'ttsUtteranceErrorTitle') return ttsUtteranceErrorTitle;
+    if (key === 'ttsUtteranceErrorDescription') return ttsUtteranceErrorDescription;
+    if (key === 'ttsNotSupportedTitle') return ttsNotSupportedTitle;
+    if (key === 'ttsNotSupportedDescription') return ttsNotSupportedDescription;
+    return defaultText || key;
   }, [ttsUtteranceErrorTitle, ttsUtteranceErrorDescription, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
 
@@ -172,7 +172,6 @@ export function RoadmapDisplay({
         speakNext();
       };
       utterance.onerror = (event) => {
-        setCurrentlySpeakingLessonId(null); 
         if (event.error === "interrupted") {
           console.info('TTS: RoadmapDisplay - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
@@ -183,13 +182,13 @@ export function RoadmapDisplay({
             variant: 'destructive',
           });
         }
+        setCurrentlySpeakingLessonId(null); 
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      // All text segments are spoken, now play the end cue "Дзынь"
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 ) {
+      // All text segments are spoken
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") { // Check if start cue was played
          const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
-         // Check if the last main content utterance was not "Дзынь" to avoid double "Дзынь" if queue was only start cue
          if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) { 
             const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
             if (userData.settings) {
@@ -197,7 +196,9 @@ export function RoadmapDisplay({
                const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
                if (voice) endCueUtterance.voice = voice;
             }
-            window.speechSynthesis.speak(endCueUtterance);
+             if (typeof window !== 'undefined' && window.speechSynthesis) {
+                window.speechSynthesis.speak(endCueUtterance);
+             }
          }
       }
       setCurrentlySpeakingLessonId(null);
@@ -232,6 +233,8 @@ export function RoadmapDisplay({
     }
     
     utteranceQueueRef.current = [];
+    
+    // Start Cue
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings){
         startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;

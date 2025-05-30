@@ -194,6 +194,7 @@ const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
+  sanitizedText = sanitizedText.replace(/[()]/g, ''); // Remove parentheses
   sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
   sanitizedText = sanitizedText.replace(/'/g, '');
   sanitizedText = sanitizedText.replace(/`/g, '');
@@ -238,12 +239,10 @@ export function GrammarModuleClient() {
          console.log('TTS: GrammarModuleClient - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
       }
     };
-
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       updateVoices();
       window.speechSynthesis.onvoiceschanged = updateVoices;
     }
-
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.onvoiceschanged = null; 
@@ -263,7 +262,6 @@ export function GrammarModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        setCurrentlySpeakingTTSId(null); 
         if (event.error === "interrupted") {
           console.info('TTS: GrammarModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
@@ -274,10 +272,11 @@ export function GrammarModuleClient() {
             variant: 'destructive',
           });
         }
+        setCurrentlySpeakingTTSId(null); 
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 ) {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") {
         const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
         if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) {
           const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
@@ -286,7 +285,9 @@ export function GrammarModuleClient() {
             const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
             if (voice) endCueUtterance.voice = voice;
           }
-          window.speechSynthesis.speak(endCueUtterance);
+           if (typeof window !== 'undefined' && window.speechSynthesis) {
+              window.speechSynthesis.speak(endCueUtterance);
+           }
         }
       }
       setCurrentlySpeakingTTSId(null);
@@ -371,7 +372,7 @@ export function GrammarModuleClient() {
     setCurrentTopic(data.grammarTopic);
     stopSpeech();
     try {
-      if (!userData.settings || !userData.progress) { // Added check for progress
+      if (!userData.settings || !userData.progress) { 
         toast({ title: t('onboardingMissing'), variant: "destructive" });
         setIsAiLoading(false);
         return;

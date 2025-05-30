@@ -175,11 +175,12 @@ const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  sanitizedText = sanitizedText.replace(/'/g, '');
-  sanitizedText = sanitizedText.replace(/`/g, '');
-  sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
+  sanitizedText = sanitizedText.replace(/[()]/g, ''); // Remove parentheses
+  sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); 
+  sanitizedText = sanitizedText.replace(/'/g, ''); 
+  sanitizedText = sanitizedText.replace(/`/g, ''); 
+  sanitizedText = sanitizedText.replace(/^-\s+/gm, ''); 
+  sanitizedText = sanitizedText.replace(/\s\s+/g, ' '); 
   return sanitizedText.trim();
 };
 
@@ -246,7 +247,6 @@ export function ListeningModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        setCurrentlySpeakingTTSId(null);
         if (event.error === "interrupted") {
           console.info('TTS: ListeningModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
@@ -257,10 +257,11 @@ export function ListeningModuleClient() {
             variant: 'destructive',
           });
         }
+        setCurrentlySpeakingTTSId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 ) {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") {
         const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
         if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) {
           const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
@@ -269,7 +270,9 @@ export function ListeningModuleClient() {
             const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
             if (voice) endCueUtterance.voice = voice;
           }
-          window.speechSynthesis.speak(endCueUtterance);
+           if (typeof window !== 'undefined' && window.speechSynthesis) {
+              window.speechSynthesis.speak(endCueUtterance);
+           }
         }
       }
       setCurrentlySpeakingTTSId(null);
@@ -304,6 +307,7 @@ export function ListeningModuleClient() {
     }
 
     utteranceQueueRef.current = [];
+
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
