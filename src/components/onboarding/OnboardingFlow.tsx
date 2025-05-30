@@ -62,6 +62,7 @@ const baseEnTranslations: Record<string, string> = {
   nextButton: "Next",
   submitButton: "Generate My Plan & Start Learning!",
   generatingPlanButton: "Generating Plan...",
+  generatingPlanMessage: "Your personalized learning plan is being generated. This may take a moment, please wait...",
   stepDescription: "Step {current} of {total}",
   setupCompleteTitle: "Setup Complete, {userName}!",
   setupCompleteDescription: "Your personalized learning roadmap has been generated. Happy learning!",
@@ -88,6 +89,7 @@ const baseRuTranslations: Record<string, string> = {
   nextButton: "Далее",
   submitButton: "Создать мой план и начать обучение!",
   generatingPlanButton: "Генерация плана...",
+  generatingPlanMessage: "Ваш персональный учебный план генерируется. Это может занять некоторое время, пожалуйста, подождите...",
   stepDescription: "Шаг {current} из {total}",
   setupCompleteTitle: "Настройка завершена, {userName}!",
   setupCompleteDescription: "Ваш персональный план обучения создан. Приятного обучения!",
@@ -200,6 +202,7 @@ export function OnboardingFlow() {
 
   const renderStepContent = () => {
     const stepConfig = steps[currentStep];
+    const isLastStep = currentStep === steps.length - 1;
     return (
       <>
         {stepConfig.fields.includes("userName") && (
@@ -284,15 +287,24 @@ export function OnboardingFlow() {
               placeholder={currentTranslations.goalPlaceholder}
               {...register("goal")}
               className="min-h-[100px]"
+              disabled={isLoading && isLastStep}
             />
             {errors.goal && <p className="text-sm text-destructive">{errors.goal.message}</p>}
+          </div>
+        )}
+        {isLastStep && isLoading && (
+          <div className="mt-4 p-3 text-center bg-muted/50 rounded-md">
+            <LoadingSpinner size={24} className="mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {currentTranslations.generatingPlanMessage || baseEnTranslations.generatingPlanMessage}
+            </p>
           </div>
         )}
       </>
     )
   };
 
-  const stepTitle = currentTranslations[steps[currentStep].titleKey] || `Step ${currentStep + 1} Title`;
+  const stepTitle = currentTranslations[steps[currentStep].titleKey as keyof typeof currentTranslations] || `Step ${currentStep + 1} Title`;
   const stepDescriptionText = (currentTranslations.stepDescription || baseEnTranslations.stepDescription)
     .replace("{current}", (currentStep + 1).toString())
     .replace("{total}", steps.length.toString());
