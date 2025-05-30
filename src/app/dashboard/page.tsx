@@ -9,7 +9,7 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight } from "lucide-react";
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
@@ -40,6 +40,7 @@ const baseEnTranslations: Record<string, string> = {
     aiTutorTipLoading: "Generating a fresh tip for you...",
     aiTutorTipErrorTitle: "AI Tip Error",
     aiTutorTipErrorDescription: "Could not load a new tip from the AI tutor at this time.",
+    refreshTipButton: "Refresh Tip",
     xp: "XP",
     streak: "Streak",
     days: "days",
@@ -96,6 +97,7 @@ const baseRuTranslations: Record<string, string> = {
     aiTutorTipLoading: "Генерирую свежий совет для вас...",
     aiTutorTipErrorTitle: "Ошибка совета ИИ",
     aiTutorTipErrorDescription: "В данный момент не удалось загрузить новый совет от AI-репетитора.",
+    refreshTipButton: "Обновить совет",
     xp: "ОП",
     streak: "Серия",
     days: "дней",
@@ -173,6 +175,30 @@ export default function DashboardPage() {
     return defaultText || key; 
   };
 
+  const fetchTutorTip = React.useCallback(async () => {
+    if (!userData.settings) return;
+    setIsTipLoading(true);
+    try {
+      const response = await generateTutorTip({
+        interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
+        targetLanguage: userData.settings.targetLanguage as TargetLanguage,
+        proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
+      });
+      setAiTutorTip(response.tip);
+    } catch (error) {
+      console.error("Failed to generate tutor tip:", error);
+      setAiTutorTip(t('aiTutorTipStatic')); 
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast({
+        title: t('aiTutorTipErrorTitle'),
+        description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTipLoading(false);
+    }
+  }, [userData.settings, t, toast]);
+
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
@@ -181,30 +207,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings) {
-      setIsTipLoading(true);
-      generateTutorTip({
-        interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
-        targetLanguage: userData.settings.targetLanguage as TargetLanguage,
-        proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
-      })
-      .then(response => {
-        setAiTutorTip(response.tip);
-      })
-      .catch(error => {
-        console.error("Failed to generate tutor tip:", error);
-        setAiTutorTip(t('aiTutorTipStatic')); 
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        toast({
-            title: t('aiTutorTipErrorTitle'),
-            description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
-            variant: "destructive",
-        });
-      })
-      .finally(() => {
-        setIsTipLoading(false);
-      });
+      fetchTutorTip();
     }
-  }, [isUserDataLoading, userData.settings, currentLang, t, toast]); 
+  }, [isUserDataLoading, userData.settings, fetchTutorTip, currentLang]); // Added currentLang to dependencies to refetch tip if language changes
   
   if (isUserDataLoading) {
     return (
@@ -274,13 +279,23 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {isTipLoading ? (
+                {isTipLoading && !aiTutorTip ? ( // Show loading only if there's no tip yet
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
                 )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3 w-full" 
+                  onClick={fetchTutorTip}
+                  disabled={isTipLoading}
+                >
+                  {isTipLoading ? <LoadingSpinner size={16} /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {t('refreshTipButton')}
+                </Button>
               </CardContent>
             </Card>
           </div>
