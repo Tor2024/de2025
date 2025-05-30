@@ -287,13 +287,16 @@ export function ReadingModuleClient() {
 
   const getScoreMessage = () => {
     if (!isAnswersSubmitted || !hasQuestions) return null;
-    if (correctAnswersCount === totalQuestions) {
+    if (correctAnswersCount === totalQuestions && totalQuestions > 0) {
       return t('scoreMessagePerfect').replace('{totalQuestions}', totalQuestions.toString());
     }
-    if (correctAnswersCount === 0) {
+    if (correctAnswersCount === 0 && totalQuestions > 0) {
       return t('scoreMessageNone');
     }
-    return `${t('scoreMessagePart1')} ${correctAnswersCount} ${t('scoreMessagePart2')} ${totalQuestions} ${t('scoreMessagePart3')}`;
+    if (totalQuestions > 0) {
+      return `${t('scoreMessagePart1')} ${correctAnswersCount} ${t('scoreMessagePart2')} ${totalQuestions} ${t('scoreMessagePart3')}`;
+    }
+    return null;
   };
 
   return (
@@ -416,7 +419,7 @@ export function ReadingModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm text-green-700"; // Highlight correct answer if user missed it
+                                  labelClassName = "text-sm font-semibold text-green-700"; 
                                 }
 
 
@@ -450,6 +453,7 @@ export function ReadingModuleClient() {
                   <div className="mt-4">
                     {!isAnswersSubmitted ? (
                       <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
+                        {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
@@ -473,3 +477,4 @@ export function ReadingModuleClient() {
     </div>
   );
 }
+

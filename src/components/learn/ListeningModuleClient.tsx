@@ -431,7 +431,7 @@ export function ListeningModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm text-green-700"; 
+                                  labelClassName = "text-sm font-semibold text-green-700"; 
                                 }
 
                                 return (
@@ -464,6 +464,7 @@ export function ListeningModuleClient() {
                   <div className="mt-4">
                     {!isAnswersSubmitted ? (
                       <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
+                         {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
