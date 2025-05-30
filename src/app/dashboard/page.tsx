@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -13,6 +13,7 @@ import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, S
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages } from '@/lib/types'; // Import for language display
+import * as React from 'react';
 
 const learningModules = [
   { title: "Grammar", description: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen },
@@ -27,18 +28,33 @@ const learningModules = [
 export default function DashboardPage() {
   const { userData } = useUserData();
   const router = useRouter();
+  const [isCheckingData, setIsCheckingData] = useState(true);
 
   useEffect(() => {
-    if (userData.settings === null) { 
-      router.replace('/'); 
+    // Wait until userData.settings is defined (i.e., loaded from localStorage attempt has been made)
+    if (userData.settings !== undefined) {
+      setIsCheckingData(false);
+      if (userData.settings === null) { // Explicitly null means onboarding not completed
+        router.replace('/');
+      }
     }
   }, [userData, router]);
 
-  if (!userData.settings) {
+  if (isCheckingData) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
         <p className="ml-4">Loading user data...</p>
+      </div>
+    );
+  }
+  
+  // Fallback if somehow settings are still null after check (should be caught by useEffect redirect)
+  if (!userData.settings) {
+     return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner size={48} />
+        <p className="ml-4">Redirecting to setup...</p>
       </div>
     );
   }
