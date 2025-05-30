@@ -10,13 +10,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
   title: "Speaking Module",
-  description: "Practice your pronunciation with microphone input, voice recognition, and AI-powered correction tips. Coming soon!",
+  description: "Practice your pronunciation with microphone input, voice recognition, and AI-powered correction tips, all adapted to your current proficiency level. Coming soon!",
   loading: "Loading speaking module...",
 };
 
 const baseRuTranslations = {
   title: "Модуль Говорения",
-  description: "Практикуйте произношение с помощью микрофона, распознавания голоса и советов по исправлению от ИИ. Скоро!",
+  description: "Практикуйте произношение с помощью микрофона, распознавания голоса и советов по исправлению от ИИ, адаптированных к вашему текущему уровню владения языком. Скоро!",
   loading: "Загрузка модуля говорения...",
 };
 
@@ -82,3 +82,4 @@ export default function SpeakingPage() {
     </AppShell>
   );
 }
+

@@ -10,13 +10,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
   title: "Reading Module",
-  description: "Adapted texts with interactive translation, comprehension, and vocabulary questions will be available here soon!",
+  description: "Adapted texts tailored to your proficiency level, with interactive translation, comprehension, and vocabulary questions, will be available here soon!",
   loading: "Loading reading module...",
 };
 
 const baseRuTranslations = {
   title: "Модуль Чтения",
-  description: "Адаптированные тексты с интерактивным переводом, вопросами на понимание и словарным запасом скоро будут доступны здесь!",
+  description: "Адаптированные тексты, подобранные под ваш уровень владения языком, с интерактивным переводом, вопросами на понимание и словарным запасом скоро будут доступны здесь!",
   loading: "Загрузка модуля чтения...",
 };
 
@@ -82,3 +82,4 @@ export default function ReadingPage() {
     </AppShell>
   );
 }
+

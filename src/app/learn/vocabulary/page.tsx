@@ -10,13 +10,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
   title: "Vocabulary Module",
-  description: "This module is under construction. Soon you'll be able to expand your word bank with thematic sets, image support, pronunciation guides, word games, and more!",
+  description: "This module is under construction. Soon you'll be able to expand your word bank with thematic sets, image support, pronunciation guides, and word games, all tailored to your proficiency level!",
   loading: "Loading vocabulary module...",
 };
 
 const baseRuTranslations = {
   title: "Модуль Словарного запаса",
-  description: "Этот модуль находится в разработке. Скоро вы сможете расширить свой словарный запас с помощью тематических наборов, поддержки изображений, руководств по произношению, словесных игр и многого другого!",
+  description: "Этот модуль находится в разработке. Скоро вы сможете расширить свой словарный запас с помощью тематических наборов, поддержки изображений, руководств по произношению и словесных игр, адаптированных к вашему уровню владения языком!",
   loading: "Загрузка модуля словарного запаса...",
 };
 
@@ -82,3 +82,4 @@ export default function VocabularyPage() {
     </AppShell>
   );
 }
+

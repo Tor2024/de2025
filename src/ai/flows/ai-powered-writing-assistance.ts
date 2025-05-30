@@ -11,6 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { interfaceLanguageCodes, germanWritingTaskTypes } from '@/lib/types';
+import { ProficiencyLevelSchema, type ProficiencyLevel } from './adaptive-grammar-explanations'; // Import from grammar flow
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -20,17 +21,23 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should consider the conventions of this type.'),
+  proficiencyLevel: ProficiencyLevelSchema.describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
 const AIPoweredWritingAssistanceOutputSchema = z.object({
-  feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type.'),
-  correctedText: z.string().describe('The corrected version of the input text.'),
+  feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type. Feedback should be tailored to the user proficiency level.'),
+  correctedText: z.string().describe('The corrected version of the input text, appropriate for the user proficiency level.'),
 });
 export type AIPoweredWritingAssistanceOutput = z.infer<typeof AIPoweredWritingAssistanceOutputSchema>;
 
 export async function aiPoweredWritingAssistance(input: AIPoweredWritingAssistanceInput): Promise<AIPoweredWritingAssistanceOutput> {
-  return aiPoweredWritingAssistanceFlow(input);
+  // Ensure the proficiencyLevel from app matches the flow's expected type
+    const typedInput: AIPoweredWritingAssistanceInput = {
+        ...input,
+        proficiencyLevel: input.proficiencyLevel as ProficiencyLevel,
+    };
+  return aiPoweredWritingAssistanceFlow(typedInput);
 }
 
 const writingAssistantPrompt = ai.definePrompt({
@@ -40,6 +47,12 @@ const writingAssistantPrompt = ai.definePrompt({
   prompt: `You are an AI writing assistant that provides feedback and corrections on user-submitted text.
 All explanations and feedback must be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
+The user's proficiency level in the target language is: {{{proficiencyLevel}}}.
+Tailor your feedback and corrections to this level.
+- For lower levels (e.g., A1-A2), focus on fundamental errors, use simpler language in your feedback, and suggest simpler corrections.
+- For intermediate levels (e.g., B1-B2), address more complex grammatical structures and vocabulary, and provide more detailed explanations.
+- For higher levels (e.g., C1-C2), provide nuanced feedback on style, advanced grammar, idiomatic expressions, and overall coherence. Corrected text can be more sophisticated.
+
 The user is writing based on the following prompt:
 Prompt: {{{prompt}}}
 
@@ -48,7 +61,7 @@ Text: {{{text}}}
 
 {{#if writingTaskType}}
 The user has specified that this is a "{{{writingTaskType}}}" type of writing task.
-When providing feedback, pay close attention to the conventions of this specific task type regarding structure, tone, formality, and typical expressions.
+When providing feedback, pay close attention to the conventions of this specific task type regarding structure, tone, formality, and typical expressions, adapting to the user's {{{proficiencyLevel}}}.
 Here is a guide to common German writing task formats to help you contextualize your feedback if the target language is German or if the task type is similar to one of these:
 
 --- BEGIN GERMAN WRITING TASK FORMATS GUIDE ---
@@ -136,6 +149,7 @@ Here is a guide to common German writing task formats to help you contextualize 
 
 Provide feedback on the structure, grammar, and tone of the text.
 Correct any errors and provide a revised version of the text.
+Ensure both feedback and corrected text are appropriate for the user's proficiency level ({{{proficiencyLevel}}}).
 Output the feedback and corrected text as a JSON object.
   `,
 });
@@ -151,3 +165,4 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     return output!;
   }
 );
+

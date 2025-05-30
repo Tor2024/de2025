@@ -11,18 +11,20 @@
  * - adaptiveGrammarExplanations - A function that handles the adaptive grammar explanations process.
  * - AdaptiveGrammarExplanationsInput - The input type for the adaptiveGrammarExplanations function.
  * - AdaptiveGrammarExplanationsOutput - The return type for the adaptiveGrammarExplanations function.
+ * - ProficiencyLevelSchema - Zod schema for proficiency level.
+ * - ProficiencyLevel - Type for proficiency level.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
-import { interfaceLanguageCodes } from '@/lib/types';
+import type { InterfaceLanguage as AppInterfaceLanguage } from '@/lib/types';
+import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } from '@/lib/types';
 
 
 const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
 export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>;
 
-const ProficiencyLevelSchema = z.enum(['A1-A2', 'B1-B2', 'C1-C2']);
+export const ProficiencyLevelSchema = z.enum(appProficiencyLevels);
 export type ProficiencyLevel = z.infer<typeof ProficiencyLevelSchema>;
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
@@ -79,3 +81,4 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output!;
   }
 );
+

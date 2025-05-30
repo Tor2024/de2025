@@ -10,13 +10,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
   title: "Listening Module",
-  description: "Audio comprehension tasks, with and without subtitles, are coming soon to help you sharpen your listening skills!",
+  description: "Audio comprehension tasks, tailored to your proficiency level and with optional subtitles, are coming soon to help you sharpen your listening skills!",
   loading: "Loading listening module...",
 };
 
 const baseRuTranslations = {
   title: "Модуль Аудирования",
-  description: "Задания на понимание аудио, с субтитрами и без, скоро появятся, чтобы помочь вам отточить навыки аудирования!",
+  description: "Задания на понимание аудио, подобранные под ваш уровень и с возможностью включения субтитров, скоро появятся, чтобы помочь вам отточить навыки аудирования!",
   loading: "Загрузка модуля аудирования...",
 };
 
@@ -82,3 +82,4 @@ export default function ListeningPage() {
     </AppShell>
   );
 }
+

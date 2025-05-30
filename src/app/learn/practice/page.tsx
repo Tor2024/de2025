@@ -10,13 +10,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
   title: "Word Practice Module",
-  description: "Reinforce your vocabulary with spaced repetition (SRS), word games, and mini-challenges. This feature is planned for a future update!",
+  description: "Reinforce your vocabulary with spaced repetition (SRS), word games, and mini-challenges, all adapted to your current learning level. This feature is planned for a future update!",
   loading: "Loading word practice module...",
 };
 
 const baseRuTranslations = {
   title: "Модуль Практики Слов",
-  description: "Закрепляйте словарный запас с помощью интервального повторения (SRS), словесных игр и мини-заданий. Эта функция запланирована на будущее обновление!",
+  description: "Закрепляйте словарный запас с помощью интервального повторения (SRS), словесных игр и мини-заданий, адаптированных к вашему текущему уровню обучения. Эта функция запланирована на будущее обновление!",
   loading: "Загрузка модуля практики слов...",
 };
 
@@ -82,3 +82,4 @@ export default function WordPracticePage() {
     </AppShell>
   );
 }
+

@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
+import type { ProficiencyLevel as AiProficiencyLevel } from "@/ai/flows/adaptive-grammar-explanations"; // Import AI ProficiencyLevel type
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Edit, CheckCircle } from "lucide-react";
@@ -32,7 +33,7 @@ type WritingFormData = z.infer<typeof writingSchema>;
 
 const baseEnTranslations = {
   title: "AI-Powered Writing Assistant",
-  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback.",
+  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback. Feedback will be tailored to your proficiency level.",
   writingPromptLabel: "Writing Prompt",
   writingPromptPlaceholder: "E.g., Describe your last holiday, Write a formal email asking for information...",
   userTextLabel: "Your Text",
@@ -59,7 +60,7 @@ const baseEnTranslations = {
 
 const baseRuTranslations = {
   title: "Помощник по письму с ИИ",
-  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи.",
+  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи. Обратная связь будет адаптирована к вашему уровню владения языком.",
   writingPromptLabel: "Тема для письма",
   writingPromptPlaceholder: "Напр., Опишите свой последний отпуск, Напишите официальное письмо с запросом информации...",
   userTextLabel: "Ваш текст",
@@ -139,6 +140,7 @@ export function WritingAssistantClient() {
         text: data.userText,
         interfaceLanguage: userData.settings!.interfaceLanguage as InterfaceLanguage,
         writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel,
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
@@ -248,3 +250,4 @@ export function WritingAssistantClient() {
     </div>
   );
 }
+
