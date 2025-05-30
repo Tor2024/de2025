@@ -26,9 +26,19 @@ const vocabularySchema = z.object({
 
 type VocabularyFormData = z.infer<typeof vocabularySchema>;
 
+// Helper function to shuffle an array
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 const baseEnTranslations: Record<string, string> = {
   title: "Vocabulary Builder",
-  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level. Use the flashcards below to study them, then try the practice mode.",
+  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level. Use the flashcards below to study them, then try the practice modes.",
   topicLabel: "Topic for Vocabulary",
   topicPlaceholder: "E.g., Travel, Food, Business",
   getWordsButton: "Get Words",
@@ -51,27 +61,39 @@ const baseEnTranslations: Record<string, string> = {
   wordHeader: "Word",
   translationHeader: "Translation",
   exampleSentenceHeader: "Example Sentence",
-  practiceModeTitle: "Practice Mode: Type the Translation",
-  practiceWordLabel: "Word:",
-  practiceYourTranslationLabel: "Your Translation:",
-  practiceCheckButton: "Check",
-  practiceNextButton: "Next",
-  feedbackCorrect: "Correct!",
-  feedbackIncorrectPrefix: "Incorrect. Correct answer was:",
-  practiceComplete: "Practice Complete!",
-  practiceScoreMessage: "Your Score: {correct} out of {total}.",
-  showPracticeHintButton: "Show Hint (First Letter)",
-  hidePracticeHintButton: "Hide Hint",
-  hintLabel: "Hint:",
-  practiceAgainButton: "Practice Again",
+  // Type In Translation Practice
+  typeInPracticeTitle: "Practice Mode: Type the Translation",
+  typeInPracticeWordLabel: "Word:",
+  typeInPracticeYourTranslationLabel: "Your Translation:",
+  typeInPracticeCheckButton: "Check",
+  typeInPracticeNextButton: "Next",
+  typeInFeedbackCorrect: "Correct!",
+  typeInFeedbackIncorrectPrefix: "Incorrect. Correct answer was:",
+  typeInPracticeComplete: "Practice Complete!",
+  typeInPracticeScoreMessage: "Your Score: {correct} out of {total}.",
+  showTypeInPracticeHintButton: "Show Hint (First Letter)",
+  hideTypeInPracticeHintButton: "Hide Hint",
+  typeInHintLabel: "Hint:",
+  typeInPracticeAgainButton: "Practice Again",
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
+  // Multiple Choice Practice
+  mcPracticeTitle: "Practice Mode: Choose Correct Translation",
+  mcPracticeWordLabel: "Word (in {targetLanguage}):",
+  mcPracticeChooseLabel: "Choose the correct translation (in {interfaceLanguage}):",
+  mcPracticeCheckButton: "Check Answer",
+  mcPracticeNextButton: "Next Question",
+  mcPracticeAgainButton: "Practice This Set Again",
+  mcFeedbackCorrect: "Correct!",
+  mcFeedbackIncorrect: "Not quite!",
+  mcPracticeComplete: "Multiple Choice Practice Complete!",
+  mcPracticeScoreMessage: "Your Score: {correct} out of {total} correct.",
 };
 
 const baseRuTranslations: Record<string, string> = {
   title: "Конструктор словарного запаса",
-  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню. Используйте карточки ниже для их изучения, затем попробуйте режим практики.",
+  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню. Используйте карточки ниже для их изучения, затем попробуйте режимы практики.",
   topicLabel: "Тема для словарного запаса",
   topicPlaceholder: "Напр., Путешествия, Еда, Бизнес",
   getWordsButton: "Получить слова",
@@ -94,22 +116,34 @@ const baseRuTranslations: Record<string, string> = {
   wordHeader: "Слово",
   translationHeader: "Перевод",
   exampleSentenceHeader: "Пример предложения",
-  practiceModeTitle: "Режим практики: Введите перевод",
-  practiceWordLabel: "Слово:",
-  practiceYourTranslationLabel: "Ваш перевод:",
-  practiceCheckButton: "Проверить",
-  practiceNextButton: "Дальше",
-  feedbackCorrect: "Правильно!",
-  feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
-  practiceComplete: "Практика завершена!",
-  practiceScoreMessage: "Ваш результат: {correct} из {total}.",
-  showPracticeHintButton: "Показать подсказку (первая буква)",
-  hidePracticeHintButton: "Скрыть подсказку",
-  hintLabel: "Подсказка:",
-  practiceAgainButton: "Практиковать снова",
+  // Type In Translation Practice
+  typeInPracticeTitle: "Режим практики: Введите перевод",
+  typeInPracticeWordLabel: "Слово:",
+  typeInPracticeYourTranslationLabel: "Ваш перевод:",
+  typeInPracticeCheckButton: "Проверить",
+  typeInPracticeNextButton: "Дальше",
+  typeInFeedbackCorrect: "Правильно!",
+  typeInFeedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
+  typeInPracticeComplete: "Практика завершена!",
+  typeInPracticeScoreMessage: "Ваш результат: {correct} из {total}.",
+  showTypeInPracticeHintButton: "Показать подсказку (первая буква)",
+  hideTypeInPracticeHintButton: "Скрыть подсказку",
+  typeInHintLabel: "Подсказка:",
+  typeInPracticeAgainButton: "Практиковать снова",
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
+  // Multiple Choice Practice
+  mcPracticeTitle: "Режим практики: Выберите правильный перевод",
+  mcPracticeWordLabel: "Слово (на {targetLanguage}):",
+  mcPracticeChooseLabel: "Выберите правильный перевод (на {interfaceLanguage}):",
+  mcPracticeCheckButton: "Проверить ответ",
+  mcPracticeNextButton: "Следующий вопрос",
+  mcPracticeAgainButton: "Практиковать этот набор снова",
+  mcFeedbackCorrect: "Правильно!",
+  mcFeedbackIncorrect: "Не совсем!",
+  mcPracticeComplete: "Практика 'Множественный выбор' завершена!",
+  mcPracticeScoreMessage: "Ваш результат: {correct} из {total} правильно.",
 };
 
 const generateTranslations = () => {
@@ -133,17 +167,28 @@ export function VocabularyModuleClient() {
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
+  // Flashcard states
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
 
+  // Type-in practice states
   const [practiceWords, setPracticeWords] = useState<VocabularyWord[]>([]);
-  const [currentPracticeIndex, setCurrentPracticeIndex] = useState(0);
-  const [userPracticeAnswer, setUserPracticeAnswer] = useState("");
-  const [practiceFeedback, setPracticeFeedback] = useState("");
-  const [isPracticeSubmitted, setIsPracticeSubmitted] = useState(false);
-  const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
-  const [showPracticeHint, setShowPracticeHint] = useState(false);
-  const [isCurrentPracticeMistakeArchived, setIsCurrentPracticeMistakeArchived] = useState(false);
+  const [currentTypeInPracticeIndex, setCurrentTypeInPracticeIndex] = useState(0);
+  const [userTypeInAnswer, setUserTypeInAnswer] = useState("");
+  const [typeInPracticeFeedback, setTypeInPracticeFeedback] = useState("");
+  const [isTypeInPracticeSubmitted, setIsTypeInPracticeSubmitted] = useState(false);
+  const [typeInPracticeScore, setTypeInPracticeScore] = useState({ correct: 0, total: 0 });
+  const [showTypeInPracticeHint, setShowTypeInPracticeHint] = useState(false);
+  const [isCurrentTypeInPracticeMistakeArchived, setIsCurrentTypeInPracticeMistakeArchived] = useState(false);
+
+  // Multiple Choice (MC) practice states
+  const [currentMcPracticeIndex, setCurrentMcPracticeIndex] = useState(0);
+  const [mcPracticeOptions, setMcPracticeOptions] = useState<VocabularyWord[]>([]);
+  const [selectedMcOption, setSelectedMcOption] = useState<VocabularyWord | null>(null);
+  const [isMcPracticeSubmitted, setIsMcPracticeSubmitted] = useState(false);
+  const [mcPracticeFeedback, setMcPracticeFeedback] = useState("");
+  const [mcPracticeScore, setMcPracticeScore] = useState({ correct: 0, total: 0 });
+  const [isCurrentMcPracticeMistakeArchived, setIsCurrentMcPracticeMistakeArchived] = useState(false);
 
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
@@ -155,6 +200,33 @@ export function VocabularyModuleClient() {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
+
+  // Setup MC exercise options
+  const setupMcPracticeExercise = (index: number) => {
+    if (!practiceWords || practiceWords.length === 0 || index < 0 || index >= practiceWords.length) {
+      setMcPracticeOptions([]);
+      return;
+    }
+    const correctWord = practiceWords[index];
+    const distractors = practiceWords
+      .filter(word => word.word !== correctWord.word) // Ensure distractors are different words
+      .sort(() => 0.5 - Math.random()) // Shuffle to get random distractors
+      .slice(0, 3);
+    
+    const options = shuffleArray([correctWord, ...distractors]);
+    setMcPracticeOptions(options.slice(0, Math.min(4, practiceWords.length))); // Ensure we have at most 4 options, or less if not enough words
+    setSelectedMcOption(null);
+    setMcPracticeFeedback("");
+    setIsMcPracticeSubmitted(false);
+    setIsCurrentMcPracticeMistakeArchived(false);
+  };
+
+  useEffect(() => {
+    if (practiceWords.length > 0 && currentMcPracticeIndex < practiceWords.length) {
+      setupMcPracticeExercise(currentMcPracticeIndex);
+    }
+  }, [currentMcPracticeIndex, practiceWords]);
+
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -168,16 +240,27 @@ export function VocabularyModuleClient() {
     setIsAiLoading(true);
     setVocabularyResult(null);
     setCurrentTopic(data.topic);
+    // Reset flashcard states
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
+    // Reset type-in practice states
     setPracticeWords([]);
-    setCurrentPracticeIndex(0);
-    setUserPracticeAnswer("");
-    setPracticeFeedback("");
-    setIsPracticeSubmitted(false);
-    setPracticeScore({ correct: 0, total: 0 });
-    setShowPracticeHint(false);
-    setIsCurrentPracticeMistakeArchived(false);
+    setCurrentTypeInPracticeIndex(0);
+    setUserTypeInAnswer("");
+    setTypeInPracticeFeedback("");
+    setIsTypeInPracticeSubmitted(false);
+    setTypeInPracticeScore({ correct: 0, total: 0 });
+    setShowTypeInPracticeHint(false);
+    setIsCurrentTypeInPracticeMistakeArchived(false);
+    // Reset MC practice states
+    setCurrentMcPracticeIndex(0);
+    setMcPracticeOptions([]);
+    setSelectedMcOption(null);
+    setIsMcPracticeSubmitted(false);
+    setMcPracticeFeedback("");
+    setMcPracticeScore({ correct: 0, total: 0 });
+    setIsCurrentMcPracticeMistakeArchived(false);
+
 
     try {
       const flowInput: GenerateVocabularyInput = {
@@ -191,7 +274,9 @@ export function VocabularyModuleClient() {
       setVocabularyResult(result);
       if (result && result.words && result.words.length > 0) {
         setPracticeWords([...result.words]); 
-        setPracticeScore(prev => ({ ...prev, total: result.words.length }));
+        setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
+        setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
+        setupMcPracticeExercise(0); // Setup first MC question
       }
       toast({
         title: t('toastSuccessTitle'),
@@ -214,104 +299,163 @@ export function VocabularyModuleClient() {
   const handleClearResults = () => {
     setVocabularyResult(null);
     setCurrentTopic("");
+    // Reset flashcard states
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
+    // Reset type-in practice states
     setPracticeWords([]);
-    setCurrentPracticeIndex(0);
-    setUserPracticeAnswer("");
-    setPracticeFeedback("");
-    setIsPracticeSubmitted(false);
-    setPracticeScore({ correct: 0, total: 0 });
-    setShowPracticeHint(false);
-    setIsCurrentPracticeMistakeArchived(false);
+    setCurrentTypeInPracticeIndex(0);
+    setUserTypeInAnswer("");
+    setTypeInPracticeFeedback("");
+    setIsTypeInPracticeSubmitted(false);
+    setTypeInPracticeScore({ correct: 0, total: 0 });
+    setShowTypeInPracticeHint(false);
+    setIsCurrentTypeInPracticeMistakeArchived(false);
+     // Reset MC practice states
+    setCurrentMcPracticeIndex(0);
+    setMcPracticeOptions([]);
+    setSelectedMcOption(null);
+    setIsMcPracticeSubmitted(false);
+    setMcPracticeFeedback("");
+    setMcPracticeScore({ correct: 0, total: 0 });
+    setIsCurrentMcPracticeMistakeArchived(false);
   };
 
+  // Flashcard handlers
   const handleNextCard = () => {
     if (vocabularyResult && vocabularyResult.words) {
-      setCurrentCardIndex((prevIndex) => (prevIndex + 1) % vocabularyResult.words.length);
+      setCurrentCardIndex((prevIndex) => (prevIndex + 1));
       setIsCardRevealed(false);
     }
   };
 
   const handlePrevCard = () => {
     if (vocabularyResult && vocabularyResult.words) {
-      setCurrentCardIndex((prevIndex) => (prevIndex - 1 + vocabularyResult.words.length) % vocabularyResult.words.length);
+      setCurrentCardIndex((prevIndex) => (prevIndex - 1));
       setIsCardRevealed(false);
     }
   };
 
   const currentWordData = vocabularyResult?.words?.[currentCardIndex];
-  const currentPracticeWord = practiceWords[currentPracticeIndex];
 
-  const handleUserPracticeAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUserPracticeAnswer(e.target.value);
+  // Type-in practice handlers
+  const currentTypeInPracticeWord = practiceWords[currentTypeInPracticeIndex];
+
+  const handleUserTypeInAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserTypeInAnswer(e.target.value);
   };
 
-  const handleCheckPractice = () => {
-    if (!currentPracticeWord) return;
-    const userAnswer = userPracticeAnswer.trim().toLowerCase();
-    const correctAnswer = currentPracticeWord.translation.trim().toLowerCase();
+  const handleCheckTypeInPracticeAnswer = () => {
+    if (!currentTypeInPracticeWord) return;
+    const userAnswer = userTypeInAnswer.trim().toLowerCase();
+    const correctAnswer = currentTypeInPracticeWord.translation.trim().toLowerCase();
     if (userAnswer === correctAnswer) {
-      setPracticeFeedback(t('feedbackCorrect'));
-      setPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setTypeInPracticeFeedback(t('typeInFeedbackCorrect'));
+      setTypeInPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
     } else {
-      setPracticeFeedback(`${t('feedbackIncorrectPrefix')} ${currentPracticeWord.translation}`);
+      setTypeInPracticeFeedback(`${t('typeInFeedbackIncorrectPrefix')} ${currentTypeInPracticeWord.translation}`);
     }
-    setIsPracticeSubmitted(true);
-    setShowPracticeHint(false); 
-    setIsCurrentPracticeMistakeArchived(false); 
+    setIsTypeInPracticeSubmitted(true);
+    setShowTypeInPracticeHint(false); 
+    setIsCurrentTypeInPracticeMistakeArchived(false); 
   };
 
-  const handleNextPractice = () => {
-    if (currentPracticeIndex < practiceWords.length - 1) {
-      setCurrentPracticeIndex(prev => prev + 1);
-      setUserPracticeAnswer("");
-      setPracticeFeedback("");
-      setIsPracticeSubmitted(false);
-      setShowPracticeHint(false);
-      setIsCurrentPracticeMistakeArchived(false);
+  const handleNextTypeInPractice = () => {
+    if (currentTypeInPracticeIndex < practiceWords.length - 1) {
+      setCurrentTypeInPracticeIndex(prev => prev + 1);
+      setUserTypeInAnswer("");
+      setTypeInPracticeFeedback("");
+      setIsTypeInPracticeSubmitted(false);
+      setShowTypeInPracticeHint(false);
+      setIsCurrentTypeInPracticeMistakeArchived(false);
     } else {
-      const finalScoreMsg = t('practiceScoreMessage')
-        .replace('{correct}', practiceScore.correct.toString())
-        .replace('{total}', practiceScore.total.toString());
-      setPracticeFeedback(`${t('practiceComplete')} ${finalScoreMsg}`);
+      const finalScoreMsg = t('typeInPracticeScoreMessage')
+        .replace('{correct}', typeInPracticeScore.correct.toString())
+        .replace('{total}', typeInPracticeScore.total.toString());
+      setTypeInPracticeFeedback(`${t('typeInPracticeComplete')} ${finalScoreMsg}`);
     }
   };
   
-  const handleTogglePracticeHint = () => {
-    setShowPracticeHint(prev => !prev);
+  const handleToggleTypeInPracticeHint = () => {
+    setShowTypeInPracticeHint(prev => !prev);
   };
 
-  const handleRestartPractice = () => {
-    setCurrentPracticeIndex(0);
-    setUserPracticeAnswer("");
-    setPracticeFeedback("");
-    setIsPracticeSubmitted(false);
-    setPracticeScore(prev => ({ ...prev, correct: 0 }));
-    setShowPracticeHint(false);
-    setIsCurrentPracticeMistakeArchived(false);
+  const handleRestartTypeInPractice = () => {
+    setCurrentTypeInPracticeIndex(0);
+    setUserTypeInAnswer("");
+    setTypeInPracticeFeedback("");
+    setIsTypeInPracticeSubmitted(false);
+    setTypeInPracticeScore(prev => ({ ...prev, correct: 0 }));
+    setShowTypeInPracticeHint(false);
+    setIsCurrentTypeInPracticeMistakeArchived(false);
   };
 
-  const handleArchivePracticeMistake = () => {
-    if (!currentPracticeWord || !userData.settings) return;
+  const handleArchiveTypeInPracticeMistake = () => {
+    if (!currentTypeInPracticeWord || !userData.settings) return;
     addErrorToArchive({
-      module: "Vocabulary Practice",
-      context: currentPracticeWord.word, 
-      userAttempt: userPracticeAnswer,
-      correctAnswer: currentPracticeWord.translation,
+      module: "Vocabulary Practice - Type In",
+      context: currentTypeInPracticeWord.word, 
+      userAttempt: userTypeInAnswer,
+      correctAnswer: currentTypeInPracticeWord.translation,
     });
-    setIsCurrentPracticeMistakeArchived(true);
+    setIsCurrentTypeInPracticeMistakeArchived(true);
     toast({
       title: t('mistakeArchivedToastTitle'),
       description: t('mistakeArchivedToastDescription'),
     });
   };
-  
-  const toggleReveal = (index: number) => {
-    // This function is not used in the current "single card" view
-    // but kept if we switch back or use multiple revealed cards.
-    // For single card view, we use `setIsCardRevealed`.
-    setIsCardRevealed(prev => !prev);
+
+  // Multiple Choice practice handlers
+  const currentMcPracticeWord = practiceWords[currentMcPracticeIndex];
+
+  const handleMcOptionSelect = (option: VocabularyWord) => {
+    if (isMcPracticeSubmitted) return;
+    setSelectedMcOption(option);
+  };
+
+  const handleCheckMcPracticeAnswer = () => {
+    if (!currentMcPracticeWord || !selectedMcOption) return;
+    if (selectedMcOption.translation === currentMcPracticeWord.translation) {
+      setMcPracticeFeedback(t('mcFeedbackCorrect'));
+      setMcPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+    } else {
+      setMcPracticeFeedback(t('mcFeedbackIncorrect'));
+    }
+    setIsMcPracticeSubmitted(true);
+    setIsCurrentMcPracticeMistakeArchived(false);
+  };
+
+  const handleNextMcPracticeExercise = () => {
+    if (currentMcPracticeIndex < practiceWords.length - 1) {
+      setCurrentMcPracticeIndex(prev => prev + 1);
+      // setupMcPracticeExercise will be called by useEffect
+    } else {
+      const finalScoreMsg = t('mcPracticeScoreMessage')
+        .replace('{correct}', mcPracticeScore.correct.toString())
+        .replace('{total}', mcPracticeScore.total.toString());
+      setMcPracticeFeedback(`${t('mcPracticeComplete')} ${finalScoreMsg}`);
+    }
+  };
+
+  const handleRestartMcPractice = () => {
+    setCurrentMcPracticeIndex(0);
+    setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
+    // setupMcPracticeExercise will be called by useEffect
+  };
+
+  const handleArchiveMcPracticeMistake = () => {
+    if (!currentMcPracticeWord || !selectedMcOption || !userData.settings) return;
+    addErrorToArchive({
+      module: "Vocabulary Practice - MC",
+      context: currentMcPracticeWord.word,
+      userAttempt: selectedMcOption.translation,
+      correctAnswer: currentMcPracticeWord.translation,
+    });
+    setIsCurrentMcPracticeMistakeArchived(true);
+    toast({
+      title: t('mistakeArchivedToastTitle'),
+      description: t('mistakeArchivedToastDescription'),
+    });
   };
 
 
@@ -442,30 +586,31 @@ export function VocabularyModuleClient() {
             )}
           </CardContent>
 
+          {/* Type-In Practice Mode Section */}
           {practiceWords.length > 0 && (
             <CardFooter className="flex-col items-start border-t mt-6 pt-6">
               <CardTitle className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Repeat className="h-6 w-6 text-primary" />
-                {t('practiceModeTitle')}
+                {t('typeInPracticeTitle')}
               </CardTitle>
-              {currentPracticeWord && !practiceFeedback.startsWith(t('practiceComplete')) ? (
+              {currentTypeInPracticeWord && !typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) ? (
                 <div className="w-full space-y-3">
                   <p className="text-lg">
-                    <span className="font-semibold">{t('practiceWordLabel')}</span> {currentPracticeWord.word}
+                    <span className="font-semibold">{t('typeInPracticeWordLabel')}</span> {currentTypeInPracticeWord.word}
                     <span className="text-sm text-muted-foreground ml-1">({userData.settings?.targetLanguage})</span>
                   </p>
                   <div className="space-y-1">
-                    <Label htmlFor="userPracticeAnswer">{t('practiceYourTranslationLabel')} ({userData.settings?.interfaceLanguage})</Label>
+                    <Label htmlFor="userTypeInAnswer">{t('typeInPracticeYourTranslationLabel')} ({userData.settings?.interfaceLanguage})</Label>
                     <Input
-                      id="userPracticeAnswer"
+                      id="userTypeInAnswer"
                       type="text"
-                      value={userPracticeAnswer}
-                      onChange={handleUserPracticeAnswerChange}
-                      disabled={isPracticeSubmitted}
+                      value={userTypeInAnswer}
+                      onChange={handleUserTypeInAnswerChange}
+                      disabled={isTypeInPracticeSubmitted}
                       className={cn(
                         "transition-colors duration-300 ease-in-out",
-                        isPracticeSubmitted && 
-                        (practiceFeedback === t('feedbackCorrect') ? 
+                        isTypeInPracticeSubmitted && 
+                        (typeInPracticeFeedback === t('typeInFeedbackCorrect') ? 
                             'border-green-500 focus-visible:ring-green-500 bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
                             : 
                             'border-red-500 focus-visible:ring-red-500 bg-red-100/50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
@@ -474,54 +619,143 @@ export function VocabularyModuleClient() {
                     />
                   </div>
                   
-                  {!isPracticeSubmitted && (
-                    <Button onClick={handleTogglePracticeHint} variant="link" size="sm" className="p-0 h-auto text-xs">
+                  {!isTypeInPracticeSubmitted && (
+                    <Button onClick={handleToggleTypeInPracticeHint} variant="link" size="sm" className="p-0 h-auto text-xs">
                         <Lightbulb className="h-3 w-3 mr-1"/>
-                        {showPracticeHint ? t('hidePracticeHintButton') : t('showPracticeHintButton')}
+                        {showTypeInPracticeHint ? t('hideTypeInPracticeHintButton') : t('showTypeInPracticeHintButton')}
                     </Button>
                   )}
 
-                  {showPracticeHint && !isPracticeSubmitted && currentPracticeWord && (
+                  {showTypeInPracticeHint && !isTypeInPracticeSubmitted && currentTypeInPracticeWord && (
                      <p className="text-sm mt-1 text-muted-foreground bg-background p-2 rounded-md shadow-sm">
-                        {t('hintLabel')}: <span className="font-semibold text-primary">{currentPracticeWord.translation.charAt(0)}...</span>
+                        {t('typeInHintLabel')}: <span className="font-semibold text-primary">{currentTypeInPracticeWord.translation.charAt(0)}...</span>
                     </p>
                   )}
                   
                   <div className="pt-2 flex items-center gap-2">
-                    {!isPracticeSubmitted ? (
-                      <Button onClick={handleCheckPractice} disabled={!userPracticeAnswer.trim()}>
-                        {t('practiceCheckButton')}
+                    {!isTypeInPracticeSubmitted ? (
+                      <Button onClick={handleCheckTypeInPracticeAnswer} disabled={!userTypeInAnswer.trim()}>
+                        {t('typeInPracticeCheckButton')}
                       </Button>
                     ) : (
-                      <Button onClick={handleNextPractice}>
-                        {t('practiceNextButton')}
+                      <Button onClick={handleNextTypeInPractice}>
+                        {t('typeInPracticeNextButton')}
                       </Button>
                     )}
-                    {isPracticeSubmitted && practiceFeedback !== t('feedbackCorrect') && !isCurrentPracticeMistakeArchived && (
-                       <Button variant="outline" size="sm" onClick={handleArchivePracticeMistake} className="text-xs">
+                    {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('typeInFeedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
+                       <Button variant="outline" size="sm" onClick={handleArchiveTypeInPracticeMistake} className="text-xs">
                           <Archive className="mr-1.5 h-3.5 w-3.5" />
                           {t('archiveMistakeButton')}
                        </Button>
                     )}
                   </div>
 
-                   {practiceFeedback && !practiceFeedback.startsWith(t('practiceComplete')) && (
+                   {typeInPracticeFeedback && !typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
                     <p className={cn(
                         "text-sm mt-2 flex items-center gap-1",
-                        practiceFeedback === t('feedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        typeInPracticeFeedback === t('typeInFeedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       )}
                     >
-                      {practiceFeedback === t('feedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                      {practiceFeedback}
+                      {typeInPracticeFeedback === t('typeInFeedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {typeInPracticeFeedback}
                     </p>
                   )}
                 </div>
               ) : (
                  <div className="text-center p-4 flex flex-col items-center gap-3">
                     <PartyPopper className="h-12 w-12 text-green-500" />
-                    <p className="text-lg font-semibold text-primary">{practiceFeedback || t('practiceComplete')}</p>
-                    <Button onClick={handleRestartPractice} variant="outline">
-                        {t('practiceAgainButton')}
+                    <p className="text-lg font-semibold text-primary">{typeInPracticeFeedback || t('typeInPracticeComplete')}</p>
+                    <Button onClick={handleRestartTypeInPractice} variant="outline">
+                        {t('typeInPracticeAgainButton')}
+                    </Button>
+                 </div>
+              )}
+            </CardFooter>
+          )}
+
+          {/* Multiple Choice Practice Mode Section */}
+          {practiceWords.length > 0 && (
+            <CardFooter className="flex-col items-start border-t mt-6 pt-6">
+              <CardTitle className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Repeat className="h-6 w-6 text-primary" /> {/* Consider a different icon if Repeat is used above */}
+                {t('mcPracticeTitle')}
+              </CardTitle>
+              {currentMcPracticeWord && !mcPracticeFeedback.startsWith(t('mcPracticeComplete')) ? (
+                <div className="w-full space-y-3">
+                  <p className="text-lg">
+                    <span className="font-semibold">{t('mcPracticeWordLabel').replace('{targetLanguage}', userData.settings!.targetLanguage)}</span> {currentMcPracticeWord.word}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{t('mcPracticeChooseLabel').replace('{interfaceLanguage}', userData.settings!.interfaceLanguage)}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {mcPracticeOptions.map((option, idx) => {
+                      const isSelected = selectedMcOption?.word === option.word;
+                      const isCorrect = currentMcPracticeWord.translation === option.translation;
+                      
+                      let buttonVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
+                      let buttonClassName = "justify-start text-left h-auto py-2";
+
+                      if (isMcPracticeSubmitted) {
+                        if (isCorrect) {
+                           buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30");
+                        } else if (isSelected && !isCorrect) {
+                           buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30");
+                        }
+                      } else if (isSelected) {
+                        buttonVariant = "default";
+                      }
+
+                      return (
+                        <Button
+                          key={`${option.word}-${idx}`}
+                          variant={buttonVariant}
+                          className={buttonClassName}
+                          onClick={() => handleMcOptionSelect(option)}
+                          disabled={isMcPracticeSubmitted}
+                        >
+                          {option.translation}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="pt-2 flex items-center gap-2">
+                    {!isMcPracticeSubmitted ? (
+                      <Button onClick={handleCheckMcPracticeAnswer} disabled={!selectedMcOption}>
+                        {t('mcPracticeCheckButton')}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleNextMcPracticeExercise}>
+                        {t('mcPracticeNextButton')}
+                      </Button>
+                    )}
+                    {isMcPracticeSubmitted && mcPracticeFeedback !== t('mcFeedbackCorrect') && !isCurrentMcPracticeMistakeArchived && (
+                       <Button variant="outline" size="sm" onClick={handleArchiveMcPracticeMistake} className="text-xs">
+                          <Archive className="mr-1.5 h-3.5 w-3.5" />
+                          {t('archiveMistakeButton')}
+                       </Button>
+                    )}
+                  </div>
+
+                   {mcPracticeFeedback && !mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
+                    <p className={cn(
+                        "text-sm mt-2 flex items-center gap-1",
+                        mcPracticeFeedback === t('mcFeedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {mcPracticeFeedback === t('mcFeedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {mcPracticeFeedback}
+                      {mcPracticeFeedback === t('mcFeedbackIncorrect') && currentMcPracticeWord && 
+                        <span className="ml-1">{t('typeInFeedbackIncorrectPrefix')} {currentMcPracticeWord.translation}</span>
+                      }
+                    </p>
+                  )}
+                </div>
+              ) : (
+                 <div className="text-center p-4 flex flex-col items-center gap-3">
+                    <PartyPopper className="h-12 w-12 text-green-500" />
+                    <p className="text-lg font-semibold text-primary">{mcPracticeFeedback || t('mcPracticeComplete')}</p>
+                    <Button onClick={handleRestartMcPractice} variant="outline">
+                        {t('mcPracticeAgainButton')}
                     </Button>
                  </div>
               )}
@@ -533,4 +767,3 @@ export function VocabularyModuleClient() {
   );
 }
     
-
