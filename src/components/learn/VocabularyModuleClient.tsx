@@ -14,7 +14,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,7 +27,7 @@ type VocabularyFormData = z.infer<typeof vocabularySchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Vocabulary Builder",
-  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level. Use the flashcards below to study them.",
+  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level. Use the flashcards below to study them, then try the practice mode.",
   topicLabel: "Topic for Vocabulary",
   topicPlaceholder: "E.g., Travel, Food, Business",
   getWordsButton: "Get Words",
@@ -50,11 +50,20 @@ const baseEnTranslations: Record<string, string> = {
   wordHeader: "Word",
   translationHeader: "Translation",
   exampleSentenceHeader: "Example Sentence",
+  practiceModeTitle: "Practice Mode: Type the Translation",
+  practiceWordLabel: "Word:",
+  practiceYourTranslationLabel: "Your Translation:",
+  practiceCheckButton: "Check",
+  practiceNextButton: "Next",
+  feedbackCorrect: "Correct!",
+  feedbackIncorrectPrefix: "Incorrect. Correct answer was:",
+  practiceComplete: "Practice Complete!",
+  practiceScoreMessage: "Your Score: {correct} out of {total}.",
 };
 
 const baseRuTranslations: Record<string, string> = {
   title: "Конструктор словарного запаса",
-  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню. Используйте карточки ниже для их изучения.",
+  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню. Используйте карточки ниже для их изучения, затем попробуйте режим практики.",
   topicLabel: "Тема для словарного запаса",
   topicPlaceholder: "Напр., Путешествия, Еда, Бизнес",
   getWordsButton: "Получить слова",
@@ -77,6 +86,15 @@ const baseRuTranslations: Record<string, string> = {
   wordHeader: "Слово",
   translationHeader: "Перевод",
   exampleSentenceHeader: "Пример предложения",
+  practiceModeTitle: "Режим практики: Введите перевод",
+  practiceWordLabel: "Слово:",
+  practiceYourTranslationLabel: "Ваш перевод:",
+  practiceCheckButton: "Проверить",
+  practiceNextButton: "Дальше",
+  feedbackCorrect: "Правильно!",
+  feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
+  practiceComplete: "Практика завершена!",
+  practiceScoreMessage: "Ваш результат: {correct} из {total}.",
 };
 
 const generateTranslations = () => {
@@ -103,6 +121,14 @@ export function VocabularyModuleClient() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
 
+  // State for practice mode
+  const [practiceWords, setPracticeWords] = useState<VocabularyWord[]>([]);
+  const [currentPracticeIndex, setCurrentPracticeIndex] = useState(0);
+  const [userPracticeAnswer, setUserPracticeAnswer] = useState("");
+  const [practiceFeedback, setPracticeFeedback] = useState("");
+  const [isPracticeSubmitted, setIsPracticeSubmitted] = useState(false);
+  const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
   });
@@ -127,6 +153,14 @@ export function VocabularyModuleClient() {
     setCurrentTopic(data.topic);
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
+    // Reset practice mode state
+    setPracticeWords([]);
+    setCurrentPracticeIndex(0);
+    setUserPracticeAnswer("");
+    setPracticeFeedback("");
+    setIsPracticeSubmitted(false);
+    setPracticeScore({ correct: 0, total: 0 });
+
     try {
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
@@ -137,6 +171,10 @@ export function VocabularyModuleClient() {
 
       const result = await generateVocabulary(flowInput);
       setVocabularyResult(result);
+      if (result && result.words && result.words.length > 0) {
+        setPracticeWords(result.words); // Initialize words for practice
+        setPracticeScore(prev => ({ ...prev, total: result.words.length }));
+      }
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
@@ -160,6 +198,13 @@ export function VocabularyModuleClient() {
     setCurrentTopic("");
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
+    // Clear practice mode state
+    setPracticeWords([]);
+    setCurrentPracticeIndex(0);
+    setUserPracticeAnswer("");
+    setPracticeFeedback("");
+    setIsPracticeSubmitted(false);
+    setPracticeScore({ correct: 0, total: 0 });
   };
 
   const handleNextCard = () => {
@@ -177,6 +222,41 @@ export function VocabularyModuleClient() {
   };
 
   const currentWordData = vocabularyResult?.words?.[currentCardIndex];
+  const currentPracticeWord = practiceWords[currentPracticeIndex];
+
+  const handleUserPracticeAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserPracticeAnswer(e.target.value);
+  };
+
+  const handleCheckPractice = () => {
+    if (!currentPracticeWord) return;
+    const userAnswer = userPracticeAnswer.trim().toLowerCase();
+    const correctAnswer = currentPracticeWord.translation.trim().toLowerCase();
+    if (userAnswer === correctAnswer) {
+      setPracticeFeedback(t('feedbackCorrect'));
+      setPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+    } else {
+      setPracticeFeedback(`${t('feedbackIncorrectPrefix')} ${currentPracticeWord.translation}`);
+    }
+    setIsPracticeSubmitted(true);
+  };
+
+  const handleNextPractice = () => {
+    if (currentPracticeIndex < practiceWords.length - 1) {
+      setCurrentPracticeIndex(prev => prev + 1);
+      setUserPracticeAnswer("");
+      setPracticeFeedback("");
+      setIsPracticeSubmitted(false);
+    } else {
+      // All words practiced
+      const finalScoreMsg = t('practiceScoreMessage')
+        .replace('{correct}', practiceScore.correct.toString())
+        .replace('{total}', practiceScore.total.toString());
+      setPracticeFeedback(`${t('practiceComplete')} ${finalScoreMsg}`);
+      // Optionally disable further practice or show a "Restart Practice" button
+    }
+  };
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -243,7 +323,7 @@ export function VocabularyModuleClient() {
                     </>
                   ) : (
                     <div className="w-full text-left space-y-3">
-                      <div className="flex justify-between items-start">
+                       <div className="flex justify-between items-start">
                         <h3 className="text-2xl md:text-3xl font-semibold text-primary break-all">
                           {currentWordData.word}
                           <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
@@ -264,21 +344,16 @@ export function VocabularyModuleClient() {
                           </p>
                           <p className="text-lg">{currentWordData.translation}</p>
                         </div>
-                        {currentWordData.exampleSentence ? (
-                          <div>
+                        <div>
                             <p className="text-sm font-semibold text-muted-foreground mb-1 flex items-center">
-                              <MessageSquareText className="mr-2 h-4 w-4" /> {t('exampleSentenceHeader')}:
+                                <MessageSquareText className="mr-2 h-4 w-4" /> {t('exampleSentenceHeader')}:
                             </p>
-                            <p className="text-base italic">{currentWordData.exampleSentence}</p>
-                          </div>
-                        ) : (
-                           <div>
-                             <p className="text-sm font-semibold text-muted-foreground mb-1 flex items-center">
-                               <MessageSquareText className="mr-2 h-4 w-4" /> {t('exampleSentenceHeader')}:
-                             </p>
-                             <p className="text-base italic">{t('noExampleSentence')}</p>
-                           </div>
-                        )}
+                            {currentWordData.exampleSentence ? (
+                                <p className="text-base italic">{currentWordData.exampleSentence}</p>
+                            ) : (
+                                <p className="text-base italic">{t('noExampleSentence')}</p>
+                            )}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -305,6 +380,51 @@ export function VocabularyModuleClient() {
               <p className="text-muted-foreground">{isAiLoading ? t('loading') : t('noWordsForFlashcards')}</p>
             )}
           </CardContent>
+
+          {/* Practice Mode Section */}
+          {practiceWords.length > 0 && (
+            <CardFooter className="flex-col items-start border-t mt-6 pt-6">
+              <CardTitle className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Repeat className="h-6 w-6 text-primary" />
+                {t('practiceModeTitle')}
+              </CardTitle>
+              {currentPracticeWord && currentPracticeIndex < practiceWords.length && !practiceFeedback.startsWith(t('practiceComplete')) ? (
+                <div className="w-full space-y-3">
+                  <p className="text-lg">
+                    <span className="font-semibold">{t('practiceWordLabel')}</span> {currentPracticeWord.word}
+                    <span className="text-sm text-muted-foreground ml-1">({userData.settings?.targetLanguage})</span>
+                  </p>
+                  <div className="space-y-1">
+                    <Label htmlFor="userPracticeAnswer">{t('practiceYourTranslationLabel')} ({userData.settings?.interfaceLanguage})</Label>
+                    <Input
+                      id="userPracticeAnswer"
+                      type="text"
+                      value={userPracticeAnswer}
+                      onChange={handleUserPracticeAnswerChange}
+                      disabled={isPracticeSubmitted}
+                      className={isPracticeSubmitted && practiceFeedback === t('feedbackCorrect') ? 'border-green-500 focus-visible:ring-green-500' : (isPracticeSubmitted ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                    />
+                  </div>
+                  {!isPracticeSubmitted ? (
+                    <Button onClick={handleCheckPractice} disabled={!userPracticeAnswer.trim()}>
+                      {t('practiceCheckButton')}
+                    </Button>
+                  ) : (
+                    <Button onClick={handleNextPractice}>
+                      {t('practiceNextButton')}
+                    </Button>
+                  )}
+                   {practiceFeedback && (
+                    <p className={`text-sm mt-2 ${practiceFeedback === t('feedbackCorrect') ? 'text-green-600' : 'text-red-600'}`}>
+                      {practiceFeedback}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                 <p className="text-lg font-semibold text-primary">{practiceFeedback || t('practiceComplete')}</p>
+              )}
+            </CardFooter>
+          )}
         </Card>
       )}
     </div>
