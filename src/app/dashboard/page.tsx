@@ -9,7 +9,7 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw } from "lucide-react";
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid } from "lucide-react"; // Added LayoutGrid
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
@@ -179,16 +179,6 @@ export default function DashboardPage() {
     return defaultText || key; 
   };
 
-  const getLoadingMessage = (lang: InterfaceLanguage | undefined): string => {
-    if (lang === 'ru') return baseRuTranslations.loadingUserData;
-    return baseEnTranslations.loadingUserData;
-  };
-
-  const getRedirectingMessage = (lang: InterfaceLanguage | undefined): string => {
-    if (lang === 'ru') return baseRuTranslations.redirecting;
-    return baseEnTranslations.redirecting;
-  };
-
   const fetchTutorTip = React.useCallback(async () => {
     if (!userData.settings) return;
     setIsTipLoading(true);
@@ -211,7 +201,7 @@ export default function DashboardPage() {
     } finally {
       setIsTipLoading(false);
     }
-  }, [userData.settings, t, toast]);
+  }, [userData.settings, t, toast]); // Added t and toast to dependencies
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -223,14 +213,16 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
-  }, [isUserDataLoading, userData.settings, fetchTutorTip, currentLang]); 
+  // fetchTutorTip is already memoized with useCallback, so including it directly.
+  // currentLang is derived from userData.settings, which is in fetchTutorTip's deps.
+  }, [isUserDataLoading, userData.settings, fetchTutorTip]); 
   
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getLoadingMessage(userData.settings?.interfaceLanguage)}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
@@ -241,7 +233,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getRedirectingMessage(userData.settings?.interfaceLanguage)}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -307,7 +299,7 @@ export default function DashboardPage() {
                   onClick={fetchTutorTip}
                   disabled={isTipLoading}
                 >
-                  {isTipLoading ? <LoadingSpinner size={16} /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isTipLoading ? <LoadingSpinner size={16} className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                   {t('refreshTipButton')}
                 </Button>
               </CardContent>
@@ -316,7 +308,10 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight mb-4">{t('exploreLearningModules')}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight mb-4 flex items-center gap-2">
+            <LayoutGrid className="text-primary h-6 w-6" /> {/* Added icon */}
+            {t('exploreLearningModules')}
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {learningModules.map((mod) => (
               <ModuleLinkCard
