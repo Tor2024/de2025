@@ -104,11 +104,11 @@ export default function ErrorArchivePage() {
                 {errorArchive.slice().reverse().map((error) => ( // Show newest errors first
                   <Card key={error.id} className="shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
+                      <h3 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
                         <BookOpen className="h-5 w-5 text-primary/80" />
                         {error.module}
-                      </CardTitle>
-                      <CardDescription className="text-xs flex items-center gap-1 text-muted-foreground">
+                      </h3>
+                      <CardDescription className="text-xs flex items-center gap-1 text-muted-foreground pt-1">
                         <CalendarDays className="h-3.5 w-3.5" />
                         {format(new Date(error.date), 'PPP p', { locale: getDateLocale() })}
                       </CardDescription>
