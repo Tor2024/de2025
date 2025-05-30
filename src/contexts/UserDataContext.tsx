@@ -2,55 +2,44 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext } from 'react'; // Removed useState and useEffect
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { UserData, UserSettings, UserProgress, LearningRoadmap } from '@/lib/types';
+import { initialUserProgress } from '@/lib/types'; // Ensured initialUserProgress is imported
 
 interface UserDataContextType {
   userData: UserData;
-  setUserData: (data: UserData) => void;
+  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void; // Updated type for setUserData
   updateSettings: (settings: Partial<UserSettings>) => void;
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
   setLearningRoadmap: (roadmap: LearningRoadmap) => void;
-  isLoading: boolean; // New loading state
+  isLoading: boolean; 
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
 
 const initialUserData: UserData = {
-  settings: null, // Remains null for "not onboarded" after loading
-  progress: {
-    xp: 0,
-    streak: 0,
-    badges: [],
-    moduleCompletion: {},
-    errorArchive: [],
-    learningRoadmap: undefined,
-  },
+  settings: null, 
+  progress: { ...initialUserProgress }, // Use spread to ensure a new object for progress
 };
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const [userData, setUserData] = useLocalStorage<UserData>('lingualab-user', initialUserData);
-  const [isLoading, setIsLoading] = useState(true); // Initialize isLoading to true
-
-  useEffect(() => {
-    // This effect runs once after the component mounts and useLocalStorage has initialized.
-    // At this point, userData reflects the value from localStorage or initialUserData.
-    setIsLoading(false);
-  }, []); // Empty dependency array ensures it runs once on mount
+  const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
   const updateSettings = (newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
       ...prev,
-      settings: { ...prev.settings, ...newSettings } as UserSettings,
+      settings: { ...(prev.settings || {}), ...newSettings } as UserSettings, // Handle if prev.settings is null
     }));
   };
 
   const updateProgress = (newProgress: Partial<UserProgress>) => {
     setUserData(prev => ({
       ...prev,
-      progress: { ...prev.progress, ...newProgress } as UserProgress,
+      // Ensure prev.progress is always an object, even if somehow corrupted or in an unexpected state.
+      // Merge with initialUserProgress as a base for safety.
+      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress } as UserProgress,
     }));
   };
   
@@ -59,11 +48,22 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearUserData = () => {
-    setUserData(initialUserData);
+    setUserData(initialUserData); // Resets to defined initial state
+  };
+
+  // The isLoading for the context now directly comes from useLocalStorage
+  const contextValue = {
+    userData,
+    setUserData, // Directly pass the setter from useLocalStorage
+    updateSettings,
+    updateProgress,
+    clearUserData,
+    setLearningRoadmap,
+    isLoading: isStorageLoading,
   };
 
   return (
-    <UserDataContext.Provider value={{ userData, setUserData, updateSettings, updateProgress, clearUserData, setLearningRoadmap, isLoading }}>
+    <UserDataContext.Provider value={contextValue}>
       {children}
     </UserDataContext.Provider>
   );

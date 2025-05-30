@@ -1,78 +1,90 @@
+
 "use client";
 
 import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 
 type SetValue<T> = Dispatch<SetStateAction<T>>;
 
-function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
-  // Get from local storage then
-  // parse stored json or return initialValue
-  const readValue = (): T => {
-    // Prevent build error "window is undefined" but keep keep working
+function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, boolean] {
+  const [storedValue, setStoredValue] = useState<T>(initialValue);
+  const [isLoading, setIsLoading] = useState(true); // Loading state for this hook
+
+  // Effect to read from localStorage on initial mount (client-side only)
+  useEffect(() => {
     if (typeof window === 'undefined') {
-      return initialValue;
+      setIsLoading(false); // Should not happen in client-side effect, but good practice
+      return;
     }
 
     try {
       const item = window.localStorage.getItem(key);
-      return item ? (JSON.parse(item) as T) : initialValue;
+      if (item) {
+        setStoredValue(JSON.parse(item) as T);
+      } else {
+        // If no item, storedValue remains initialValue (set by useState)
+        // or explicitly set it again if initialValue reference might change, though unlikely for this app's initialUserData
+        setStoredValue(initialValue);
+      }
     } catch (error) {
       console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
+      setStoredValue(initialValue); // Fallback to initialValue on error
     }
-  };
+    setIsLoading(false); // Signal that initial read attempt is complete
+  }, [key, initialValue]); // Rerun if key or initialValue reference changes (though initialValue should be stable)
 
-  // State to store our value
-  // Pass initial state function to useState so logic is only executed once
-  const [storedValue, setStoredValue] = useState<T>(readValue);
 
-  // Return a wrapped version of useState's setter function that ...
-  // ... persists the new value to localStorage.
   const setValue: SetValue<T> = value => {
-    // Prevent build error "window is undefined" but keep keep working
     if (typeof window === 'undefined') {
       console.warn(
         `Tried setting localStorage key "${key}" even though environment is not a client`
       );
+      // Still update the state in memory for SSR consistency if needed, though localStorage won't be hit.
+      // However, for this app, setValue is typically client-side.
+      const newValue = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(newValue);
+      return;
     }
 
     try {
-      // Allow value to be a function so we have same API as useState
       const newValue = value instanceof Function ? value(storedValue) : value;
-      // Save to local storage
       window.localStorage.setItem(key, JSON.stringify(newValue));
-      // Save state
       setStoredValue(newValue);
-      // We dispatch a custom event so other tabs can react to changes
-      window.dispatchEvent(new Event("local-storage"));
+      window.dispatchEvent(new Event("local-storage")); // For same-tab updates
     } catch (error) {
       console.warn(`Error setting localStorage key "${key}":`, error);
     }
   };
 
+  // Effect for listening to storage events from other tabs/windows
   useEffect(() => {
-    setStoredValue(readValue());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (typeof window === 'undefined') {
+      return;
+    }
 
-  useEffect(() => {
     const handleStorageChange = () => {
-      setStoredValue(readValue());
+      try {
+        const item = window.localStorage.getItem(key);
+        if (item) {
+          setStoredValue(JSON.parse(item) as T);
+        } else {
+          setStoredValue(initialValue);
+        }
+      } catch (error) {
+        console.warn(`Error reading localStorage key "${key}" on storage event:`, error);
+        setStoredValue(initialValue);
+      }
     };
 
-    // this only works for other documents, not the current one
     window.addEventListener("storage", handleStorageChange);
-    // this is for the current document
-    window.addEventListener("local-storage", handleStorageChange);
+    window.addEventListener("local-storage", handleStorageChange); // For same-tab updates triggered by setValue
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("local-storage", handleStorageChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [key, initialValue]); // Rerun if key or initialValue reference changes
 
-  return [storedValue, setValue];
+  return [storedValue, setValue, isLoading];
 }
 
 export default useLocalStorage;
