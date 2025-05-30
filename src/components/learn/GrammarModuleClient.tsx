@@ -15,9 +15,9 @@ import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
 import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
 import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
-import type { ExplainGrammarTaskErrorInput } from "@/ai/flows/explain-grammar-task-error-flow";
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
-import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47 } from "@/lib/types";
+import type { ExplainGrammarTaskErrorInput, ExplainGrammarTaskErrorOutput } from "@/ai/flows/explain-grammar-task-error-flow";
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel, TargetLanguage as AppTargetLanguage } from "@/lib/types";
+import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles, XCircle, CheckCircle2, Volume2, Ban, BookOpen } from "lucide-react";
@@ -120,42 +120,64 @@ const germanArticleHighlights: Record<string, { color: string; hintKey: string }
   'das': { color: 'green', hintKey: 'hintDas' },
 };
 
-const HighlightedTextRenderer: React.FC<{ text: string | undefined; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ text, highlights, translateFn }) => {
-  if (!text) return <>{text}</>;
-  const highlightKeys = Object.keys(highlights);
-  if (highlightKeys.length === 0) return <>{text}</>;
-  
-  // Match whole words, case-insensitive
-  const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
-  const parts = text.split(regex);
+const TARGET_LANG_START_DELIMITER = "##TARGET_LANG_START##";
+const TARGET_LANG_END_DELIMITER = "##TARGET_LANG_END##";
+
+interface TextSegment {
+  text: string;
+  langCode: string;
+}
+
+const HighlightedTextRenderer: React.FC<{ textSegments: TextSegment[]; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ textSegments, highlights, translateFn }) => {
+  if (!textSegments || textSegments.length === 0) return null;
 
   return (
     <>
-      {parts.map((part, index) => {
-        const lowerPart = part.toLowerCase();
-        const highlightConfig = highlights[lowerPart];
-        if (highlightConfig) {
-          return (
-            <Tooltip key={`${part}-${index}-${Math.random().toString(36).substring(2,9)}`}>
-              <TooltipTrigger asChild>
-                <span style={{ color: highlightConfig.color, fontWeight: 'bold', cursor: 'help' }}>
-                  {part}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}
-              </TooltipContent>
-            </Tooltip>
-          );
+      {textSegments.map((segment, segmentIndex) => {
+        const highlightKeys = Object.keys(highlights);
+        // Only apply germanArticleHighlights if the segment is in German (or a related target language)
+        // For simplicity, let's assume targetLanguage is German if highlights are present
+        // A more robust way would be to pass the targetLanguage to HighlightedTextRenderer
+        const shouldHighlight = segment.langCode.startsWith('de') && highlightKeys.length > 0; 
+
+        if (!shouldHighlight) {
+          return <React.Fragment key={`segment-${segmentIndex}`}>{segment.text}</React.Fragment>;
         }
-        return part;
+
+        const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+        const parts = segment.text.split(regex);
+
+        return (
+          <React.Fragment key={`segment-${segmentIndex}`}>
+            {parts.map((part, index) => {
+              const lowerPart = part.toLowerCase();
+              const highlightConfig = highlights[lowerPart];
+              if (highlightConfig) {
+                return (
+                  <Tooltip key={`${part}-${index}-${segmentIndex}`}>
+                    <TooltipTrigger asChild>
+                      <span style={{ color: highlightConfig.color, fontWeight: 'bold', cursor: 'help' }}>
+                        {part}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+              return part;
+            })}
+          </React.Fragment>
+        );
       })}
     </>
   );
 };
 
+
 export function GrammarModuleClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
@@ -209,7 +231,7 @@ export function GrammarModuleClient() {
       console.warn('TTS: GrammarModuleClient - Voices not available or synthesis not supported.');
       return undefined;
     }
-     console.log(`TTS: GrammarModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+    console.log(`TTS: GrammarModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
 
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
@@ -276,6 +298,43 @@ export function GrammarModuleClient() {
     return sanitizedText.trim();
   }, []);
 
+  const parseMultiLanguageText = useCallback((
+    text: string,
+    interfaceLangBcp47: string,
+    targetLangBcp47: string
+  ): TextSegment[] => {
+    const segments: TextSegment[] = [];
+    let lastIndex = 0;
+    const regex = new RegExp(`${TARGET_LANG_START_DELIMITER}(.*?)${TARGET_LANG_END_DELIMITER}`, 'gs');
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      // Add text before the target language segment (interface language)
+      if (match.index > lastIndex) {
+        segments.push({
+          text: text.substring(lastIndex, match.index),
+          langCode: interfaceLangBcp47,
+        });
+      }
+      // Add the target language segment
+      segments.push({
+        text: match[1], // Content between delimiters
+        langCode: targetLangBcp47,
+      });
+      lastIndex = regex.lastIndex;
+    }
+
+    // Add any remaining text after the last target language segment (interface language)
+    if (lastIndex < text.length) {
+      segments.push({
+        text: text.substring(lastIndex),
+        langCode: interfaceLangBcp47,
+      });
+    }
+    return segments.filter(segment => segment.text.trim() !== "");
+  }, []);
+
+
   const speakNext = useCallback((currentPlayId: number) => {
     if (playTextInternalIdRef.current !== currentPlayId) {
         if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -302,25 +361,28 @@ export function GrammarModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+      // Check if the first utterance was the start cue. If so, play end cue.
       if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
         const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
         if (voice) endSignalUtterance.voice = voice;
         endSignalUtterance.rate = 0.95;
         endSignalUtterance.pitch = 1.1;
-        window.speechSynthesis.speak(endSignalUtterance);
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.speak(endSignalUtterance);
+        }
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [userData.settings?.interfaceLanguage, t, toast, selectPreferredVoice]); // Added dependencies
 
-  const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
+  const playText = useCallback((textId: string, textToSpeak: string | undefined) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
 
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
       toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
       return;
     }
@@ -330,13 +392,16 @@ export function GrammarModuleClient() {
     utteranceQueueRef.current = [];
     currentUtteranceIndexRef.current = 0;
 
-    const sanitizedText = sanitizeTextForTTS(textToSpeak);
-    if (!sanitizedText) {
+    const sanitizedFullText = sanitizeTextForTTS(textToSpeak);
+    if (!sanitizedFullText) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
+
+    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
+    const targetLangBcp47 = mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage);
     
-    const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    // Add start "Пииип"
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -345,21 +410,26 @@ export function GrammarModuleClient() {
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
 
-    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
-    sentences.forEach(sentence => {
-      if (sentence.trim()) {
-        const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode;
-        const voice = selectPreferredVoice(langCode, voicesRef.current || []);
-        if (voice) utterance.voice = voice;
-        utterance.rate = 0.95;
-        utterance.pitch = 1.1;
-        utteranceQueueRef.current.push(utterance);
-      }
+    const textSegments = parseMultiLanguageText(sanitizedFullText, interfaceLangBcp47, targetLangBcp47);
+
+    textSegments.forEach(segment => {
+      const sentences = segment.text.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
+      sentences.forEach(sentenceText => {
+        if (sentenceText.trim()) {
+          const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
+          utterance.lang = segment.langCode;
+          const voice = selectPreferredVoice(segment.langCode, voicesRef.current || []);
+          if (voice) utterance.voice = voice;
+          utterance.rate = 0.95;
+          utterance.pitch = 1.1;
+          utteranceQueueRef.current.push(utterance);
+        }
+      });
     });
+    
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText]); // Added parseMultiLanguageText
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -465,6 +535,18 @@ export function GrammarModuleClient() {
   const hasExplanationText = !!(explanationResult && explanationResult.explanation && explanationResult.explanation.trim().length > 0);
   const ttsPlayButtonId = `tts-grammar-${currentTopic.replace(/\s+/g, '-') || 'explanation'}`;
   const isCurrentlySpeakingThisExplanation = currentlySpeakingTTSId === ttsPlayButtonId;
+  
+  const explanationSegments = React.useMemo(() => {
+    if (explanationResult?.explanation && userData.settings) {
+      return parseMultiLanguageText(
+        explanationResult.explanation,
+        mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage),
+        mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage)
+      );
+    }
+    return [];
+  }, [explanationResult?.explanation, userData.settings, parseMultiLanguageText]);
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -531,8 +613,7 @@ export function GrammarModuleClient() {
                             if (isCurrentlySpeakingThisExplanation) {
                               stopSpeech();
                             } else {
-                               const langCode = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-                               playText(ttsPlayButtonId, explanationResult.explanation, langCode);
+                               playText(ttsPlayButtonId, explanationResult.explanation);
                             }
                           }}
                           aria-label={isCurrentlySpeakingThisExplanation ? t('ttsStopExplanation') : t('ttsPlayExplanation')}
@@ -550,7 +631,7 @@ export function GrammarModuleClient() {
               </div>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                   <HighlightedTextRenderer text={explanationResult.explanation} highlights={germanArticleHighlights} translateFn={t} />
+                   <HighlightedTextRenderer textSegments={explanationSegments} highlights={germanArticleHighlights} translateFn={t} />
                 </div>
               </ScrollArea>
             </div>
@@ -605,9 +686,9 @@ export function GrammarModuleClient() {
                                 </div>
                             )}
                             {taskErrorExplanations[task.id] && !isFetchingExplanation[task.id] && (
-                                <div className="mt-2 p-2 border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 rounded-r-md">
-                                    <h4 className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-1">{t('aiErrorAnalysisHeader')}</h4>
-                                    <p className="text-xs text-yellow-600 dark:text-yellow-200 whitespace-pre-wrap">{taskErrorExplanations[task.id]}</p>
+                                <div className="mt-2 p-2 border-l-4 border-primary/30 bg-primary/5 dark:bg-primary/10 rounded-r-md">
+                                    <h4 className="text-xs font-semibold text-primary/90 dark:text-primary/80 mb-1">{t('aiErrorAnalysisHeader')}</h4>
+                                    <p className="text-xs text-foreground/80 dark:text-foreground/70 whitespace-pre-wrap">{taskErrorExplanations[task.id]}</p>
                                 </div>
                             )}
                           </div>
@@ -616,7 +697,7 @@ export function GrammarModuleClient() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">{t('noPracticeTasks')}</p>
+                  <p className="text-sm text-muted-foreground italic p-3">{t('noPracticeTasks')}</p>
                 )}
               </ScrollArea>
             </div>

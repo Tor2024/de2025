@@ -11,12 +11,13 @@
  * - adaptiveGrammarExplanations - A function that handles the adaptive grammar explanations process.
  * - AdaptiveGrammarExplanationsInput - The input type for the adaptiveGrammarExplanations function.
  * - AdaptiveGrammarExplanationsOutput - The return type for the adaptiveGrammarExplanations function.
+ * - PracticeTask - The type for individual practice tasks.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { proficiencyLevels as appProficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
-import type { ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+import type { ProficiencyLevel as AppProficiencyLevel, InterfaceLanguage as AppInterfaceLanguage } from '@/lib/types';
 
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
@@ -37,8 +38,8 @@ const PracticeTaskSchema = z.object({
 export type PracticeTask = z.infer<typeof PracticeTaskSchema>;
 
 const AdaptiveGrammarExplanationsOutputSchema = z.object({
-  explanation: z.string().describe('A clear and concise explanation of the grammar topic. Ensure the text is well-suited for text-to-speech conversion (clear, concise, avoids complex sentence structures if possible). ABSOLUTELY NO MARKDOWN-LIKE FORMATTING. Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in your response. Present all text plainly. This explanation must be in the {{{interfaceLanguage}}}.'),
-  practiceTasks: z.array(PracticeTaskSchema).describe('A list of practice tasks tailored to the user. These tasks must be in the {{{interfaceLanguage}}}.'),
+  explanation: z.string().describe('A clear and concise explanation of the grammar topic. Ensure the text is well-suited for text-to-speech conversion (clear, concise, avoids complex sentence structures if possible). This explanation must be in the {{{interfaceLanguage}}}. When target language examples are included, they MUST be marked with ##TARGET_LANG_START## and ##TARGET_LANG_END## delimiters. For example: "В немецком языке это будет звучать так: ##TARGET_LANG_START##Das ist ein Beispiel.##TARGET_LANG_END## Обратите внимание на порядок слов." ABSOLUTELY NO OTHER MARKDOWN-LIKE FORMATTING.'),
+  practiceTasks: z.array(PracticeTaskSchema).min(10).describe('A list of at least 10 practice tasks tailored to the user. These tasks must be in the {{{interfaceLanguage}}}.'),
 });
 export type AdaptiveGrammarExplanationsOutput = z.infer<typeof AdaptiveGrammarExplanationsOutputSchema>;
 
@@ -48,18 +49,26 @@ export async function adaptiveGrammarExplanations(input: AdaptiveGrammarExplanat
 
 const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
   name: 'adaptiveGrammarExplanationsPrompt',
-  input: {schema: AdaptiveGrammarExplanationsInputSchema}, 
+  input: {schema: AdaptiveGrammarExplanationsInputSchema},
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
   prompt: `You are an expert language tutor, specializing in grammar explanations.
 
 You will generate a grammar explanation and structured practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, easy to understand, and TTS-friendly.
 
-CRITICAL INSTRUCTIONS:
-1.  **Interface Language ({{{interfaceLanguage}}})**: 
-    *   ALL textual content of your 'explanation' field MUST be in this language.
+CRITICAL INSTRUCTIONS FOR LANGUAGE AND FORMATTING:
+1.  **Interface Language ({{{interfaceLanguage}}})**:
+    *   ALL textual content of your 'explanation' field MUST be in this language. This includes all instructions, subheadings, and explanatory text.
     *   For EACH task in the 'practiceTasks' array, the 'taskDescription' field (which includes the instructions for the task) MUST be in this language.
-2.  **Target Language Examples**: When explaining the '{{{grammarTopic}}}' for the target language the user is learning, all example sentences demonstrating the grammar rule MUST be IN THE TARGET LANGUAGE. If you provide translations for these example sentences to help the user understand, these translations MUST be into the '{{{interfaceLanguage}}}'. The primary examples illustrating the target language grammar must be in the target language itself.
-3.  **ABSOLUTELY NO MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, task descriptions). Present all text plainly.
+2.  **Target Language Examples (within the 'explanation' field)**:
+    *   When explaining the '{{{grammarTopic}}}' for the target language the user is learning, all example sentences or phrases demonstrating the grammar rule MUST be IN THE TARGET LANGUAGE.
+    *   You MUST enclose these target language examples with special delimiters:
+        *   Start of target language example: \`##TARGET_LANG_START##\`
+        *   End of target language example: \`##TARGET_LANG_END##\`
+    *   For instance, if \`{{{interfaceLanguage}}}\` is Russian and the target language is German, an explanation segment might look like:
+        "В немецком языке это будет звучать так: ##TARGET_LANG_START##Das ist ein Beispiel.##TARGET_LANG_END## Обратите внимание на порядок слов."
+    *   Ensure these delimiters are used precisely and only around text that is strictly in the target language. The surrounding explanatory text remains in \`{{{interfaceLanguage}}}\`.
+    *   If you provide translations for these target language example sentences to help the user understand, these translations MUST be into the '{{{interfaceLanguage}}}' and be OUTSIDE the ##TARGET_LANG_START##...##TARGET_LANG_END## delimiters.
+3.  **ABSOLUTELY NO OTHER MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, task descriptions), EXCEPT for the required ##TARGET_LANG_START## and ##TARGET_LANG_END## delimiters. Present all text plainly.
 4.  **Practice Task Structure**: Each task in the 'practiceTasks' array MUST be an object with:
     *   'id': A unique ID (e.g., "task_1").
     *   'type': Currently only "fill-in-the-blank".
@@ -79,9 +88,12 @@ Module: {{{firstPastErrorModule}}}, Context: {{{firstPastErrorContext}}}, User a
 {{/if}}
 
 Your task:
-1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
-2.  If the {{{userPastErrors}}} are provided (and accessible in the userPastErrors variable above) and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
-3.  Generate a list of **Practice Tasks** (usually 2-3 tasks). These tasks should:
+1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}.
+    *   This explanation must be in the {{{interfaceLanguage}}}.
+    *   Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
+    *   Embed target language examples using ##TARGET_LANG_START## and ##TARGET_LANG_END## delimiters as specified above.
+2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, correctly delimited, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
+3.  Generate a list of **at least 10 Practice Tasks**. These tasks should:
     *   Follow the structured format described in "Practice Task Structure" above.
     *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}} and be extremely clear.
     *   The 'correctAnswer' MUST be in the target language.
@@ -103,7 +115,6 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
   async (input: AdaptiveGrammarExplanationsInput) => {
     const promptData: Record<string, any> = { ...input };
 
-    // Initialize default values for parsed error fields
     promptData.firstPastErrorModule = 'N/A';
     promptData.firstPastErrorContext = 'N/A';
     promptData.firstPastErrorUserAttempt = 'N/A';
@@ -113,12 +124,10 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
       const firstErrorLine = input.userPastErrors.split('\n')[0];
       if (firstErrorLine) {
         const parts = firstErrorLine.split(',').map(p => p.trim());
-        
         const extractValue = (fullString: string | undefined, keyName: string) => {
           if (!fullString || !fullString.startsWith(keyName + ':')) return 'N/A';
           return fullString.substring(keyName.length + 1).trim() || 'N/A';
         };
-        
         promptData.firstPastErrorModule = extractValue(parts[0], 'Module');
         promptData.firstPastErrorContext = extractValue(parts[1], 'Context');
         promptData.firstPastErrorUserAttempt = extractValue(parts[2], 'User attempt');
@@ -133,4 +142,3 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output;
   }
 );
-
