@@ -59,6 +59,10 @@ const translations: Record<string, Record<string, string>> = {
     wordPractice: "Word Practice",
     wordPracticeDescription: "Reinforce with fun drills.",
     aiTutorTipsTitle: "AI Tutor Tips",
+    yourGoalPrefix: "Your Goal:",
+    noGoalSet: "No goal set.",
+    progressLabel: "Progress",
+    progressMessage: "You're {value}% closer to achieving your goal! Keep it up!",
   },
   ru: {
     loadingUserData: "Загрузка данных пользователя...",
@@ -93,6 +97,10 @@ const translations: Record<string, Record<string, string>> = {
     wordPractice: "Практика слов",
     wordPracticeDescription: "Закрепляйте знания с помощью увлекательных упражнений.",
     aiTutorTipsTitle: "Советы от AI-Репетитора",
+    yourGoalPrefix: "Ваша цель:",
+    noGoalSet: "Цель не установлена.",
+    progressLabel: "Прогресс",
+    progressMessage: "Вы на {value}% ближе к достижению цели! Продолжайте в том же духе!",
   },
   // Add other languages as needed
 };
@@ -148,6 +156,9 @@ export default function DashboardPage() {
     return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
   };
 
+  const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
+  const userGoalText = userData.settings.goal || t('noGoalSet', 'No goal set.');
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -156,7 +167,13 @@ export default function DashboardPage() {
             <RoadmapDisplay />
           </div>
           <div className="md:w-1/3 space-y-6">
-            <GoalTracker />
+            <GoalTracker
+              titlePrefix={t('yourGoalPrefix', 'Your Goal:')}
+              targetLanguageDisplayName={targetLanguageDisplayName}
+              goalText={userGoalText}
+              progressLabelText={t('progressLabel', 'Progress')}
+              progressMessageTextTemplate={t('progressMessage', "You're {value}% closer to achieving your goal! Keep it up!")}
+            />
             <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>{t('aiTutorTipsTitle')}</CardTitle>
