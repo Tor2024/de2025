@@ -34,7 +34,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const onboardingSchema = z.object({
-  userName: z.string().min(1, "Name is required"),
+  userName: z.string().min(1, "Nickname is required"),
   interfaceLanguage: z.enum(interfaceLanguageCodes, { required_error: "Interface language is required" }),
   targetLanguage: z.enum(targetLanguageNames, { required_error: "Target language is required" }),
   proficiencyLevel: z.enum(["A1-A2", "B1-B2", "C1-C2"], { required_error: "Proficiency level is required" }),
@@ -77,16 +77,16 @@ export function OnboardingFlow() {
     try {
       const userSettings: UserSettings = {
         userName: data.userName,
-        interfaceLanguage: data.interfaceLanguage, // Already a code
-        targetLanguage: data.targetLanguage, // Already a name
+        interfaceLanguage: data.interfaceLanguage,
+        targetLanguage: data.targetLanguage,
         proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
         goal: data.goal,
       };
       updateSettings(userSettings);
 
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
-        interfaceLanguage: data.interfaceLanguage, // Pass the code
-        targetLanguage: data.targetLanguage, // Pass the name
+        interfaceLanguage: data.interfaceLanguage,
+        targetLanguage: data.targetLanguage,
         proficiencyLevel: data.proficiencyLevel as "A1-A2" | "B1-B2" | "C1-C2",
         personalGoal: data.goal,
       };
@@ -116,7 +116,7 @@ export function OnboardingFlow() {
       <>
         {stepConfig.fields.includes("userName") && (
           <div className="space-y-2">
-            <Label htmlFor="userName">What should we call you?</Label>
+            <Label htmlFor="userName">Your Nickname</Label>
             <Input id="userName" placeholder="E.g., Alex" {...register("userName")} />
             {errors.userName && <p className="text-sm text-destructive">{errors.userName.message}</p>}
           </div>
@@ -225,3 +225,4 @@ export function OnboardingFlow() {
     </div>
   );
 }
+
