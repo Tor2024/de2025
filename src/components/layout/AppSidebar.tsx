@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { LucideIcon } from "lucide-react";
-import { interfaceLanguageCodes } from "@/lib/types"; 
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types"; 
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 interface NavItemDef {
@@ -160,28 +160,25 @@ export function AppSidebar() {
     return (
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-2">
-          <div className="flex items-center justify-center group-data-[collapsible=icon]:justify-center p-2 rounded-md">
-            <Skeleton className="h-8 w-8 rounded-md group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
-            <Skeleton className="ml-2 h-4 w-20 group-data-[collapsible=icon]:hidden" />
-          </div>
+          <Link href="/dashboard" className="block text-sidebar-foreground hover:text-sidebar-primary transition-colors">
+            <div className="flex items-center justify-center group-data-[collapsible=icon]:justify-center p-2 rounded-md hover:bg-sidebar-accent group-data-[collapsible=icon]:p-0">
+              <Skeleton className="h-8 w-8 rounded-md group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
+              <Skeleton className="ml-2 h-4 w-20 group-data-[collapsible=icon]:hidden" />
+            </div>
+          </Link>
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
+            {Array.from({ length: 8 }).map((_, index) => (
+              <SidebarMenuSkeleton key={`skel-top-${index}`} showIcon={true} />
+            ))}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2">
           <SidebarMenu>
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
-            <SidebarMenuSkeleton showIcon={true} />
+            {Array.from({ length: 3 }).map((_, index) => (
+              <SidebarMenuSkeleton key={`skel-bottom-${index}`} showIcon={true} />
+            ))}
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
@@ -210,7 +207,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {navItems.map((item) => (
-            <SidebarMenuItem key={item.href} className={item.disabled ? "cursor-not-allowed" : ""}>
+            <SidebarMenuItem key={item.href} className={item.disabled ? "" : ""}>
               <Link href={item.disabled ? "#" : item.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   asChild
@@ -252,3 +249,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
