@@ -16,7 +16,7 @@ interface UserDataContextType {
   setLearningRoadmap: (roadmap: LearningRoadmap) => void;
   toggleLessonCompletion: (lessonId: string) => void;
   addErrorToArchive: (errorData: Omit<ErrorRecord, 'id' | 'date'>) => void;
-  clearErrorArchive: () => void; // New function
+  clearErrorArchive: () => void;
   isLoading: boolean;
 }
 
@@ -34,6 +34,8 @@ const BADGE_STREAK_3_DAYS = "3-Day Streak";
 const BADGE_XP_500 = "500 XP Milestone";
 const BADGE_STREAK_7_DAYS = "7-Day Learning Habit";
 const BADGE_LESSONS_5_COMPLETED = "5 Lessons Conquered";
+const BADGE_XP_1000 = "1000 XP Power Up!";
+const BADGE_STREAK_14_DAYS = "14-Day Dedication!";
 
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
@@ -59,7 +61,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   const toggleLessonCompletion = useCallback((lessonId: string) => {
     setUserData(prev => {
-      const currentProgress = prev.progress; // No need for initialUserProgress here if progress is guaranteed
+      const currentProgress = prev.progress;
       const currentCompletedIds = currentProgress.completedLessonIds || [];
       const isCompleted = currentCompletedIds.includes(lessonId);
       
@@ -71,11 +73,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       if (isCompleted) {
         newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
         newXp = Math.max(0, newXp - 25); 
+        // Streak and badges are not removed when un-completing a lesson
       } else {
         newCompletedLessonIds = [...currentCompletedIds, lessonId];
         newXp += 25; 
         newStreak += 1; 
 
+        // Award badges
         if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
           newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
         }
@@ -85,11 +89,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (newXp >= 500 && !newBadges.includes(BADGE_XP_500)) {
           newBadges.push(BADGE_XP_500);
         }
+        if (newXp >= 1000 && !newBadges.includes(BADGE_XP_1000)) {
+          newBadges.push(BADGE_XP_1000);
+        }
         if (newStreak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) {
           newBadges.push(BADGE_STREAK_3_DAYS);
         }
         if (newStreak >= 7 && !newBadges.includes(BADGE_STREAK_7_DAYS)) {
           newBadges.push(BADGE_STREAK_7_DAYS);
+        }
+        if (newStreak >= 14 && !newBadges.includes(BADGE_STREAK_14_DAYS)) {
+          newBadges.push(BADGE_STREAK_14_DAYS);
         }
         if (newCompletedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
           newBadges.push(BADGE_LESSONS_5_COMPLETED);
@@ -117,6 +127,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
       };
       const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
+      // Limit error archive to last 50 entries
       const limitedErrorArchive = updatedErrorArchive.slice(-50); 
 
       return {
@@ -152,7 +163,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     setLearningRoadmap,
     toggleLessonCompletion,
     addErrorToArchive,
-    clearErrorArchive, // Expose new function
+    clearErrorArchive,
     isLoading: isStorageLoading,
   };
 
