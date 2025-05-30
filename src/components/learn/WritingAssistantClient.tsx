@@ -15,11 +15,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
-import type { ProficiencyLevel as AiProficiencyLevel } from "@/ai/flows/adaptive-grammar-explanations"; // Import AI ProficiencyLevel type
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Edit, CheckCircle } from "lucide-react";
-import { interfaceLanguageCodes, type InterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType } from "@/lib/types";
+import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -46,8 +45,8 @@ const baseEnTranslations = {
   toastErrorTitle: "Error",
   toastErrorDescription: "Failed to get writing assistance. Please try again.",
   resultsCardTitle: "Feedback & Corrections",
-  feedbackSectionTitle: "Feedback:",
-  correctedTextSectionTitle: "Corrected Text:",
+  feedbackSectionTitle: "Feedback",
+  correctedTextSectionTitle: "Corrected Text",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
   informalLetterEmail: "Informal Letter/Email",
@@ -73,8 +72,8 @@ const baseRuTranslations = {
   toastErrorTitle: "Ошибка",
   toastErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
   resultsCardTitle: "Обратная связь и исправления",
-  feedbackSectionTitle: "Обратная связь:",
-  correctedTextSectionTitle: "Исправленный текст:",
+  feedbackSectionTitle: "Обратная связь",
+  correctedTextSectionTitle: "Исправленный текст",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
   informalLetterEmail: "Неофициальное письмо/E-Mail",
@@ -91,7 +90,7 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) { 
+    if (code !== 'en' && code !== 'ru') { 
       translations[code] = { ...baseEnTranslations };
     }
   });
@@ -106,7 +105,7 @@ export function WritingAssistantClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm<WritingFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<WritingFormData>({
     resolver: zodResolver(writingSchema),
   });
 
@@ -138,17 +137,21 @@ export function WritingAssistantClient() {
       const writingInput: AIPoweredWritingAssistanceInput = {
         prompt: data.writingPrompt,
         text: data.userText,
-        interfaceLanguage: userData.settings!.interfaceLanguage as InterfaceLanguage,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
         writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
+      if (!result) {
+        throw new Error("AI failed to generate writing assistance. Output was null.");
+      }
       setAssistanceResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
+      reset(); // Clear form on success
     } catch (error) {
       console.error("Writing assistance error:", error);
       toast({
@@ -191,7 +194,7 @@ export function WritingAssistantClient() {
                 name="writingTaskType"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}> {/* Ensure value is controlled, default to empty string if undefined */}
                     <SelectTrigger id="writingTaskType">
                       <SelectValue placeholder={t('writingTaskTypePlaceholder')} />
                     </SelectTrigger>
@@ -250,4 +253,3 @@ export function WritingAssistantClient() {
     </div>
   );
 }
-

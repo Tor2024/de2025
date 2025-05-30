@@ -16,47 +16,62 @@ import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutpu
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles } from "lucide-react";
-import type { InterfaceLanguage } from "@/lib/types";
+import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types"; // Renamed to avoid conflict
+import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } from "@/lib/types";
+
 
 const grammarSchema = z.object({
-  grammarTopic: z.string().min(3, "Topic should be at least 3 characters"), // Validation messages can be localized if using a more robust i18n solution
+  grammarTopic: z.string().min(3, "Topic should be at least 3 characters"),
 });
 
 type GrammarFormData = z.infer<typeof grammarSchema>;
 
-const translations: Record<string, Record<string, string>> = {
-  en: {
-    title: "Adaptive Grammar Explanations",
-    description: "Enter a grammar topic you want to understand better. Our AI tutor will provide a clear explanation and practice tasks tailored to your level and goals.",
-    grammarTopicLabel: "Grammar Topic",
-    grammarTopicPlaceholder: "E.g., Dative Case, Modal Verbs, Subjunctive II",
-    getExplanationButton: "Get Explanation",
-    resultsTitlePrefix: "Explanation:",
-    explanationHeader: "Explanation:",
-    practiceTasksHeader: "Practice Tasks:",
-    toastSuccessTitle: "Explanation Generated!",
-    toastSuccessDescriptionTemplate: "Grammar explanation for \"{topic}\" is ready.",
-    toastErrorTitle: "Error",
-    toastErrorDescription: "Failed to generate grammar explanation. Please try again.",
-    onboardingMissing: "Please complete onboarding first.",
-  },
-  ru: {
-    title: "Адаптивные объяснения грамматики",
-    description: "Введите грамматическую тему, которую вы хотите лучше понять. Наш AI-репетитор предоставит четкое объяснение и практические задания, адаптированные к вашему уровню и целям.",
-    grammarTopicLabel: "Грамматическая тема",
-    grammarTopicPlaceholder: "Напр., Дательный падеж, Модальные глаголы, Сослагательное наклонение II",
-    getExplanationButton: "Получить объяснение",
-    resultsTitlePrefix: "Объяснение:",
-    explanationHeader: "Объяснение:",
-    practiceTasksHeader: "Практические задания:",
-    toastSuccessTitle: "Объяснение создано!",
-    toastSuccessDescriptionTemplate: "Объяснение грамматики для темы \"{topic}\" готово.",
-    toastErrorTitle: "Ошибка",
-    toastErrorDescription: "Не удалось создать объяснение грамматики. Пожалуйста, попробуйте снова.",
-    onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
-  },
-  // Add other languages as needed
+const baseEnTranslations = {
+  title: "Adaptive Grammar Explanations",
+  description: "Enter a grammar topic you want to understand better. Our AI tutor will provide a clear explanation and practice tasks tailored to your level and goals.",
+  grammarTopicLabel: "Grammar Topic",
+  grammarTopicPlaceholder: "E.g., Dative Case, Modal Verbs, Subjunctive II",
+  getExplanationButton: "Get Explanation",
+  resultsTitlePrefix: "Explanation for:",
+  explanationHeader: "Explanation",
+  practiceTasksHeader: "Practice Tasks",
+  toastSuccessTitle: "Explanation Generated!",
+  toastSuccessDescriptionTemplate: "Grammar explanation for \"{topic}\" is ready.",
+  toastErrorTitle: "Error",
+  toastErrorDescription: "Failed to generate grammar explanation. Please try again.",
+  onboardingMissing: "Please complete onboarding first.",
 };
+
+const baseRuTranslations = {
+  title: "Адаптивные объяснения грамматики",
+  description: "Введите грамматическую тему, которую вы хотите лучше понять. Наш AI-репетитор предоставит четкое объяснение и практические задания, адаптированные к вашему уровню и целям.",
+  grammarTopicLabel: "Грамматическая тема",
+  grammarTopicPlaceholder: "Напр., Дательный падеж, Модальные глаголы, Сослагательное наклонение II",
+  getExplanationButton: "Получить объяснение",
+  resultsTitlePrefix: "Объяснение для:",
+  explanationHeader: "Объяснение",
+  practiceTasksHeader: "Практические задания",
+  toastSuccessTitle: "Объяснение создано!",
+  toastSuccessDescriptionTemplate: "Объяснение грамматики для темы \"{topic}\" готово.",
+  toastErrorTitle: "Ошибка",
+  toastErrorDescription: "Не удалось создать объяснение грамматики. Пожалуйста, попробуйте снова.",
+  onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+};
+
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {
+    en: baseEnTranslations,
+    ru: baseRuTranslations,
+  };
+  interfaceLanguageCodes.forEach(code => {
+    if (code !== 'en' && code !== 'ru') { // Ensure only 'en' and 'ru' are explicitly set if others fallback
+      translations[code] = { ...baseEnTranslations }; // Fallback to English for other languages
+    }
+  });
+  return translations;
+};
+
+const componentTranslations = generateTranslations();
 
 export function GrammarModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -64,22 +79,30 @@ export function GrammarModuleClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<GrammarFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
   });
 
-  // Determine current language for translations
-  // Defaults to 'en' if userData or settings are not yet loaded to prevent hydration errors during initial load.
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
-    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
+    const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = componentTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key];
+    }
+    return defaultText || key;
   };
 
 
+  if (isUserDataLoading && !userData.settings) {
+     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading', 'Loading...')}</p></div>;
+  }
+  
   if (!userData.settings || !userData.progress) {
-    // This check is fine for after data has loaded. 
-    // If isUserDataLoading is true, the parent page component handles the loading state.
-    return <p>{t('onboardingMissing', "Please complete onboarding first.")}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
@@ -95,11 +118,15 @@ export function GrammarModuleClient() {
       };
       
       const result = await adaptiveGrammarExplanations(grammarInput);
+      if (!result) {
+        throw new Error("AI failed to generate grammar explanation. Output was null.");
+      }
       setExplanationResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.grammarTopic),
       });
+      reset(); // Clear form on success
     } catch (error) {
       console.error("Grammar explanation error:", error);
       toast({
