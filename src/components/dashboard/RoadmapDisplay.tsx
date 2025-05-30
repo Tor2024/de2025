@@ -8,7 +8,29 @@ import { useUserData } from "@/contexts/UserDataContext";
 import { BookMarked, ListChecks, Clock, Info } from "lucide-react";
 import type { Lesson } from "@/lib/types"; // Import the Lesson type
 
-export function RoadmapDisplay() {
+interface RoadmapDisplayProps {
+  titleText: string;
+  descriptionText: string;
+  loadingTitleText: string;
+  loadingDescriptionText: string;
+  loadingContentText: string;
+  introductionHeaderText: string;
+  topicsToCoverText: string;
+  estimatedDurationText: string;
+  conclusionHeaderText: string;
+}
+
+export function RoadmapDisplay({
+  titleText,
+  descriptionText,
+  loadingTitleText,
+  loadingDescriptionText,
+  loadingContentText,
+  introductionHeaderText,
+  topicsToCoverText,
+  estimatedDurationText,
+  conclusionHeaderText,
+}: RoadmapDisplayProps) {
   const { userData } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
 
@@ -16,11 +38,11 @@ export function RoadmapDisplay() {
     return (
       <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>Learning Roadmap</CardTitle>
-          <CardDescription>Your personalized learning plan is being prepared, not yet available, or is empty.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{loadingTitleText}</CardTitle>
+          <CardDescription>{loadingDescriptionText}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p>If you've just completed onboarding, it might take a moment for the AI to generate your plan. Otherwise, please check your settings or try generating it again if an option is available.</p>
+          <p>{loadingContentText}</p>
         </CardContent>
       </Card>
     );
@@ -29,14 +51,14 @@ export function RoadmapDisplay() {
   return (
     <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>Your Learning Roadmap</CardTitle>
-        <CardDescription>Follow this structured plan to achieve your language goals. All instructions and descriptions are in your chosen interface language.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{titleText}</CardTitle>
+        <CardDescription>{descriptionText}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden"> {/* Added overflow-hidden for ScrollArea */}
         <ScrollArea className="h-[400px] rounded-md border p-1 bg-muted/30"> {/* Reduced padding for Accordion spacing */}
           {roadmap.introduction && (
             <div className="p-3 mb-4 bg-background rounded-md shadow">
-              <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />Introduction</h3>
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />{introductionHeaderText}</h3>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roadmap.introduction}</p>
             </div>
           )}
@@ -55,7 +77,7 @@ export function RoadmapDisplay() {
                   
                   {lesson.topics && lesson.topics.length > 0 && (
                     <div className="mb-3">
-                      <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>Topics to Cover:</h4>
+                      <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
                       <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
                         {lesson.topics.map((topic, topicIndex) => (
                           <li key={topicIndex} className="ml-2">{topic}</li>
@@ -65,7 +87,7 @@ export function RoadmapDisplay() {
                   )}
 
                   {lesson.estimatedDuration && (
-                    <p className="text-xs text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>Estimated duration: {lesson.estimatedDuration}</p>
+                    <p className="text-xs text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>{estimatedDurationText} {lesson.estimatedDuration}</p>
                   )}
                 </AccordionContent>
               </AccordionItem>
@@ -74,7 +96,7 @@ export function RoadmapDisplay() {
 
           {roadmap.conclusion && (
              <div className="p-3 mt-4 bg-background rounded-md shadow">
-              <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />Conclusion</h3>
+              <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />{conclusionHeaderText}</h3>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{roadmap.conclusion}</p>
             </div>
           )}
@@ -83,3 +105,5 @@ export function RoadmapDisplay() {
     </Card>
   );
 }
+
+    

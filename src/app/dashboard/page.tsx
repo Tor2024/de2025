@@ -63,6 +63,15 @@ const translations: Record<string, Record<string, string>> = {
     noGoalSet: "No goal set.",
     progressLabel: "Progress",
     progressMessage: "You're {value}% closer to achieving your goal! Keep it up!",
+    roadmapTitle: "Your Learning Roadmap",
+    roadmapDescription: "Follow this structured plan to achieve your language goals. All instructions and descriptions are in your chosen interface language.",
+    roadmapLoadingTitle: "Learning Roadmap",
+    roadmapLoadingDescription: "Your personalized learning plan is being prepared, not yet available, or is empty.",
+    roadmapLoadingContent: "If you've just completed onboarding, it might take a moment for the AI to generate your plan. Otherwise, please check your settings or try generating it again if an option is available.",
+    roadmapIntroduction: "Introduction",
+    roadmapTopicsToCover: "Topics to Cover:",
+    roadmapEstimatedDuration: "Estimated duration:",
+    roadmapConclusion: "Conclusion",
   },
   ru: {
     loadingUserData: "Загрузка данных пользователя...",
@@ -101,6 +110,15 @@ const translations: Record<string, Record<string, string>> = {
     noGoalSet: "Цель не установлена.",
     progressLabel: "Прогресс",
     progressMessage: "Вы на {value}% ближе к достижению цели! Продолжайте в том же духе!",
+    roadmapTitle: "Ваш учебный план",
+    roadmapDescription: "Следуйте этому структурированному плану для достижения ваших языковых целей. Все инструкции и описания на выбранном вами языке интерфейса.",
+    roadmapLoadingTitle: "Учебный план",
+    roadmapLoadingDescription: "Ваш персональный учебный план готовится, еще не доступен или пуст.",
+    roadmapLoadingContent: "Если вы только что завершили первоначальную настройку, ИИ может потребоваться некоторое время для генерации вашего плана. В противном случае, пожалуйста, проверьте настройки или попробуйте сгенерировать его снова, если такая опция доступна.",
+    roadmapIntroduction: "Введение",
+    roadmapTopicsToCover: "Темы для изучения:",
+    roadmapEstimatedDuration: "Предполагаемая длительность:",
+    roadmapConclusion: "Заключение",
   },
   // Add other languages as needed
 };
@@ -164,7 +182,17 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3">
-            <RoadmapDisplay />
+            <RoadmapDisplay
+              titleText={t('roadmapTitle', 'Your Learning Roadmap')}
+              descriptionText={t('roadmapDescription', 'Follow this structured plan...')}
+              loadingTitleText={t('roadmapLoadingTitle', 'Learning Roadmap')}
+              loadingDescriptionText={t('roadmapLoadingDescription', 'Your personalized learning plan is being prepared...')}
+              loadingContentText={t('roadmapLoadingContent', "If you've just completed onboarding...")}
+              introductionHeaderText={t('roadmapIntroduction', 'Introduction')}
+              topicsToCoverText={t('roadmapTopicsToCover', 'Topics to Cover:')}
+              estimatedDurationText={t('roadmapEstimatedDuration', 'Estimated duration:')}
+              conclusionHeaderText={t('roadmapConclusion', 'Conclusion')}
+            />
           </div>
           <div className="md:w-1/3 space-y-6">
             <GoalTracker
@@ -237,3 +265,5 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+    
