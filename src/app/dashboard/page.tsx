@@ -9,7 +9,7 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid } from "lucide-react"; 
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
@@ -356,11 +356,23 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/>{t('quickSettings')}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground">{t('interface')}: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
-                <p className="text-sm text-muted-foreground">{t('learning')}: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
-                <p className="text-sm text-muted-foreground">{t('proficiencyLabel')}: {userData.settings.proficiencyLevel}</p>
-                <p className="text-sm text-muted-foreground">{t('currentGoalLabel')}: {userData.settings.goal || t('noGoalSet')}</p>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Languages className="h-4 w-4 text-primary/70" />
+                  <span>{t('interface')}: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <GraduationCap className="h-4 w-4 text-primary/70" />
+                  <span>{t('learning')}: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <BarChartHorizontalBig className="h-4 w-4 text-primary/70" />
+                  <span>{t('proficiencyLabel')}: {userData.settings.proficiencyLevel}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Flag className="h-4 w-4 text-primary/70" />
+                  <span>{t('currentGoalLabel')}: {userData.settings.goal || t('noGoalSet')}</span>
+                </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
                   {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -373,5 +385,7 @@ export default function DashboardPage() {
   );
 }
 
+
+    
 
     
