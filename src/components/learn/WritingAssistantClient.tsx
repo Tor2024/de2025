@@ -17,7 +17,7 @@ import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assist
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle, Sparkles } from "lucide-react"; 
+import { Edit, CheckCircle, Sparkles, XCircle } from "lucide-react"; 
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -55,6 +55,7 @@ const baseEnTranslations: Record<string, string> = {
   announcementNotice: "Announcement/Notice",
   chatSmsNote: "Chat/SMS/Short Note",
   essayArgumentative: "Essay/Argumentative Text",
+  clearResultsButton: "Clear Results",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -82,6 +83,7 @@ const baseRuTranslations: Record<string, string> = {
   announcementNotice: "Объявление/Заметка",
   chatSmsNote: "Сообщение в чате/SMS",
   essayArgumentative: "Эссе/Аргументативный текст",
+  clearResultsButton: "Очистить результаты",
 };
 
 const generateTranslations = () => {
@@ -111,14 +113,7 @@ export function WritingAssistantClient() {
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = componentTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key]; 
-    }
-    return defaultText || key; 
+    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
   if (isUserDataLoading) {
@@ -159,6 +154,10 @@ export function WritingAssistantClient() {
     } finally {
       setIsAiLoading(false);
     }
+  };
+
+  const handleClearResults = () => {
+    setAssistanceResult(null);
   };
   
   const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
@@ -226,10 +225,16 @@ export function WritingAssistantClient() {
       {assistanceResult && (
         <Card className="shadow-lg">
            <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                {t('resultsCardTitle')}
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  {t('resultsCardTitle')}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                <XCircle className="mr-2 h-4 w-4" />
+                {t('clearResultsButton')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -250,3 +255,5 @@ export function WritingAssistantClient() {
     </div>
   );
 }
+
+    

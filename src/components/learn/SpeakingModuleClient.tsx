@@ -15,7 +15,7 @@ import { generateSpeakingTopic } from "@/ai/flows/generate-speaking-topic-flow";
 import type { GenerateSpeakingTopicInput, GenerateSpeakingTopicOutput } from "@/ai/flows/generate-speaking-topic-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Mic, Sparkles, Lightbulb, MessageSquare } from "lucide-react";
+import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const speakingSchema = z.object({
@@ -40,6 +40,7 @@ const baseEnTranslations: Record<string, string> = {
   toastErrorDescription: "Failed to generate a speaking topic. Please try again.",
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
+  clearResultsButton: "Clear Results",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -58,6 +59,7 @@ const baseRuTranslations: Record<string, string> = {
   toastErrorDescription: "Не удалось сгенерировать тему для говорения. Пожалуйста, попробуйте снова.",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
+  clearResultsButton: "Очистить результаты",
 };
 
 const generateTranslations = () => {
@@ -129,6 +131,10 @@ export function SpeakingModuleClient() {
     }
   };
 
+  const handleClearResults = () => {
+    setSpeakingResult(null);
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
@@ -159,10 +165,16 @@ export function SpeakingModuleClient() {
       {speakingResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              {t('resultsTitlePrefix')}
-            </CardTitle>
+             <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                {t('resultsTitlePrefix')}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                <XCircle className="mr-2 h-4 w-4" />
+                {t('clearResultsButton')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>

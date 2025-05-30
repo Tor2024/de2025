@@ -15,7 +15,7 @@ import { generateListeningMaterial } from "@/ai/flows/generate-listening-materia
 import type { GenerateListeningMaterialInput, GenerateListeningMaterialOutput } from "@/ai/flows/generate-listening-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info, CheckCircle2, XCircle, Target } from "lucide-react";
+import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info, CheckCircle2, XCircle, Target, XCircle as ClearIcon } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -53,6 +53,7 @@ const baseEnTranslations: Record<string, string> = {
   noScriptGenerated: "The AI did not generate a script for this topic. Please try a different topic or try again.",
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
+  clearResultsButton: "Clear Results",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -82,6 +83,7 @@ const baseRuTranslations: Record<string, string> = {
   noScriptGenerated: "ИИ не сгенерировал скрипт для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
+  clearResultsButton: "Очистить результаты",
 };
 
 const generateTranslations = () => {
@@ -237,6 +239,14 @@ export function ListeningModuleClient() {
       setIsAiLoading(false);
     }
   };
+
+  const handleClearResults = () => {
+    setListeningResult(null);
+    setCurrentTopic("");
+    setSelectedAnswers({});
+    setIsAnswersSubmitted(false);
+    stopSpeech();
+  };
   
   const handleAnswerChange = (questionIndex: number, value: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
@@ -262,10 +272,11 @@ export function ListeningModuleClient() {
             <Headphones className="h-8 w-8 text-primary" />
             {t('title')}
           </CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
+          <CardDescription>{t('description')}
            {typeof window !== 'undefined' && window.speechSynthesis && (
-            <p className="text-xs text-muted-foreground mt-1 italic">{t('ttsExperimentalText')}</p>
+            <span className="block text-xs text-muted-foreground mt-1 italic">{t('ttsExperimentalText')}</span>
           )}
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
@@ -287,11 +298,17 @@ export function ListeningModuleClient() {
       {listeningResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary" />
-              {t('resultsTitlePrefix')} {currentTopic}
-              {listeningResult.title && <span className="block text-lg text-muted-foreground mt-1">({listeningResult.title})</span>}
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                {t('resultsTitlePrefix')} {currentTopic}
+                {listeningResult.title && <span className="block text-lg text-muted-foreground mt-1">({listeningResult.title})</span>}
+              </CardTitle>
+               <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                <ClearIcon className="mr-2 h-4 w-4" />
+                {t('clearResultsButton')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {listeningResult.scenario && (
@@ -392,11 +409,11 @@ export function ListeningModuleClient() {
                               })}
                             </RadioGroup>
                           ) : (
-                            q.answer && hasSubmitted && ( // Show AI answer for open questions after submission
+                            q.answer && hasSubmitted && ( 
                                <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
                             )
                           )}
-                           {q.answer && !q.options && !hasSubmitted && ( // Placeholder for open question input (future)
+                           {q.answer && !q.options && !hasSubmitted && ( 
                               <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
                           )}
                         </li>
@@ -404,17 +421,19 @@ export function ListeningModuleClient() {
                     })}
                   </ul>
                 </ScrollArea>
-                <div className="mt-4">
-                  {!isAnswersSubmitted ? (
-                    <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
-                      {t('checkAnswersButton')}
-                    </Button>
-                  ) : (
-                    <Button onClick={handleTryAgain} variant="outline">
-                      {t('tryAgainButton')}
-                    </Button>
-                  )}
-                </div>
+                {hasQuestions && (
+                  <div className="mt-4">
+                    {!isAnswersSubmitted ? (
+                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
+                        {t('checkAnswersButton')}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleTryAgain} variant="outline">
+                        {t('tryAgainButton')}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {(!listeningResult.comprehensionQuestions || listeningResult.comprehensionQuestions.length === 0) && !isAiLoading && (
@@ -426,3 +445,5 @@ export function ListeningModuleClient() {
     </div>
   );
 }
+
+    

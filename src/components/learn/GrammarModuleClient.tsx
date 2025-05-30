@@ -16,7 +16,7 @@ import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutpu
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, XCircle } from "lucide-react";
 import { interfaceLanguageCodes } from "@/lib/types";
 
 
@@ -42,6 +42,7 @@ const baseEnTranslations: Record<string, string> = {
   toastErrorDescription: "Failed to generate grammar explanation. Please try again.",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
+  clearResultsButton: "Clear Results",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -60,6 +61,7 @@ const baseRuTranslations: Record<string, string> = {
   toastErrorDescription: "Не удалось создать объяснение грамматики. Пожалуйста, попробуйте снова.",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
+  clearResultsButton: "Очистить результаты",
 };
 
 const generateTranslations = () => {
@@ -90,14 +92,7 @@ export function GrammarModuleClient() {
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = componentTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key;
+    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
 
@@ -142,6 +137,11 @@ export function GrammarModuleClient() {
     }
   };
 
+  const handleClearResults = () => {
+    setExplanationResult(null);
+    setCurrentTopic("");
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
@@ -172,10 +172,16 @@ export function GrammarModuleClient() {
       {explanationResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                {t('resultsTitlePrefix')} {currentTopic}
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  {t('resultsTitlePrefix')} {currentTopic}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                <XCircle className="mr-2 h-4 w-4" />
+                {t('clearResultsButton')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -205,3 +211,5 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+
+    

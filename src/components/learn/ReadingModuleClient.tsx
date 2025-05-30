@@ -15,7 +15,7 @@ import { generateReadingMaterial } from "@/ai/flows/generate-reading-material-fl
 import type { GenerateReadingMaterialInput, GenerateReadingMaterialOutput } from "@/ai/flows/generate-reading-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target } from "lucide-react";
+import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target, XCircle as ClearIcon } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -52,6 +52,7 @@ const baseEnTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
+  clearResultsButton: "Clear Results",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -79,6 +80,7 @@ const baseRuTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
+  clearResultsButton: "Очистить результаты",
 };
 
 const generateTranslations = () => {
@@ -116,14 +118,7 @@ export function ReadingModuleClient() {
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = componentTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key;
+    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
   useEffect(() => {
@@ -242,6 +237,14 @@ export function ReadingModuleClient() {
       setIsAiLoading(false);
     }
   };
+
+  const handleClearResults = () => {
+    setReadingResult(null);
+    setCurrentTopic("");
+    setSelectedAnswers({});
+    setIsAnswersSubmitted(false);
+    stopSpeech();
+  };
   
   const handleAnswerChange = (questionIndex: number, value: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
@@ -294,11 +297,17 @@ export function ReadingModuleClient() {
       {readingResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-               <Sparkles className="h-6 w-6 text-primary" />
-              {t('resultsTitlePrefix')} {currentTopic}
-              {readingResult.title && <span className="block text-lg text-muted-foreground mt-1">({readingResult.title})</span>}
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                {t('resultsTitlePrefix')} {currentTopic}
+                {readingResult.title && <span className="block text-lg text-muted-foreground mt-1">({readingResult.title})</span>}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                <ClearIcon className="mr-2 h-4 w-4" />
+                {t('clearResultsButton')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
              <div>
@@ -400,17 +409,19 @@ export function ReadingModuleClient() {
                     })}
                   </ul>
                 </ScrollArea>
-                <div className="mt-4">
-                  {!isAnswersSubmitted ? (
-                    <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
-                      {t('checkAnswersButton')}
-                    </Button>
-                  ) : (
-                    <Button onClick={handleTryAgain} variant="outline">
-                      {t('tryAgainButton')}
-                    </Button>
-                  )}
-                </div>
+                {hasQuestions && (
+                  <div className="mt-4">
+                    {!isAnswersSubmitted ? (
+                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
+                        {t('checkAnswersButton')}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleTryAgain} variant="outline">
+                        {t('tryAgainButton')}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {(!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
@@ -422,3 +433,5 @@ export function ReadingModuleClient() {
     </div>
   );
 }
+
+    
