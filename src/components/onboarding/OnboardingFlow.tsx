@@ -58,8 +58,6 @@ const translations: Record<InterfaceLanguage, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Select language",
     targetLanguageLabel: "Target Language",
     targetLanguagePlaceholder: "Select language to learn",
-    // proficiencyLabel: "Proficiency Level", // Removed
-    // proficiencyPlaceholder: "Select proficiency", // Removed
     goalLabel: "Your Personal Goal",
     goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
     previousButton: "Previous",
@@ -77,8 +75,6 @@ const translations: Record<InterfaceLanguage, Record<string, string>> = {
     interfaceLanguagePlaceholder: "Выберите язык",
     targetLanguageLabel: "Изучаемый язык",
     targetLanguagePlaceholder: "Выберите язык для изучения",
-    // proficiencyLabel: "Уровень владения", // Removed
-    // proficiencyPlaceholder: "Выберите уровень", // Removed
     goalLabel: "Ваша личная цель",
     goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
     previousButton: "Назад",
@@ -438,7 +434,7 @@ export function OnboardingFlow() {
 
   const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
-    mode: "onChange", 
+    mode: "onChange",
   });
 
   const selectedInterfaceLanguage = watch("interfaceLanguage");
@@ -448,7 +444,7 @@ export function OnboardingFlow() {
     }
   }, [selectedInterfaceLanguage, uiLang]);
 
-  const currentTranslations = translations[uiLang] || translations.en; 
+  const currentTranslations = translations[uiLang] || translations.en;
 
   const steps = [
     { id: 1, titleKey: "step1Title", fields: ["userName", "interfaceLanguage"] },
@@ -487,11 +483,18 @@ export function OnboardingFlow() {
         personalGoal: data.goal,
       };
       const roadmapOutput = await generatePersonalizedLearningRoadmap(roadmapInput);
-      setLearningRoadmap({ rawContent: roadmapOutput.roadmap });
-      
+
+      const MAX_ROADMAP_LENGTH = 50000; // Approx 50KB as a safe limit for localStorage
+      let roadmapToStore = roadmapOutput.roadmap;
+      if (roadmapToStore.length > MAX_ROADMAP_LENGTH) {
+        console.warn(`Roadmap too long (${roadmapToStore.length} chars), truncating for localStorage.`);
+        roadmapToStore = roadmapOutput.roadmap.substring(0, MAX_ROADMAP_LENGTH) + "\n\n... (план был сокращен из-за большого размера)";
+      }
+      setLearningRoadmap({ rawContent: roadmapToStore });
+
       toast({
-        title: "Setup Complete!",
-        description: "Your personalized learning roadmap has been generated.",
+        title: currentTranslations.submitButton || "Setup Complete!", // Use translated title
+        description: currentTranslations.stepDescription?.replace("{current}", (steps.length).toString()).replace("{total}", (steps.length).toString()) || "Your personalized learning roadmap has been generated.",
       });
     } catch (error) {
       console.error("Onboarding error:", error);
@@ -504,7 +507,7 @@ export function OnboardingFlow() {
       setIsLoading(false);
     }
   };
-  
+
   const renderStepContent = () => {
     const stepConfig = steps[currentStep];
     return (
@@ -519,15 +522,15 @@ export function OnboardingFlow() {
         {stepConfig.fields.includes("interfaceLanguage") && (
           <div className="space-y-2">
             <Label htmlFor="interfaceLanguage">{currentTranslations.interfaceLanguageLabel || "Interface Language"}</Label>
-            <Controller 
-              name="interfaceLanguage" 
-              control={control} 
+            <Controller
+              name="interfaceLanguage"
+              control={control}
               render={({ field }) => (
-                <Select 
+                <Select
                   onValueChange={(value) => {
                     field.onChange(value);
                     setUiLang(value as InterfaceLanguage);
-                  }} 
+                  }}
                   defaultValue={field.value}
                 >
                   <SelectTrigger id="interfaceLanguage">
@@ -541,7 +544,7 @@ export function OnboardingFlow() {
                     ))}
                   </SelectContent>
                 </Select>
-              )} 
+              )}
             />
             {errors.interfaceLanguage && <p className="text-sm text-destructive">{errors.interfaceLanguage.message}</p>}
           </div>
@@ -570,11 +573,11 @@ export function OnboardingFlow() {
         {stepConfig.fields.includes("goal") && (
           <div className="space-y-2">
             <Label htmlFor="goal">{currentTranslations.goalLabel || "Your Personal Goal"}</Label>
-            <Textarea 
-              id="goal" 
-              placeholder={currentTranslations.goalPlaceholder || "E.g., Pass B2 TELC exam, Speak fluently with colleagues..."} 
-              {...register("goal")} 
-              className="min-h-[100px]" 
+            <Textarea
+              id="goal"
+              placeholder={currentTranslations.goalPlaceholder || "E.g., Pass B2 TELC exam, Speak fluently with colleagues..."}
+              {...register("goal")}
+              className="min-h-[100px]"
             />
             {errors.goal && <p className="text-sm text-destructive">{errors.goal.message}</p>}
           </div>

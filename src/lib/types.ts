@@ -1,11 +1,11 @@
 
-export type InterfaceLanguage = 
-  | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi' 
+export type InterfaceLanguage =
+  | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi'
   | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja' | 'ar';
 
-export type TargetLanguage = 
-  | 'English' | 'Russian' | 'German' | 'Spanish' | 'French' | 'Italian' | 'Dutch' | 'Finnish' | 'Chinese' | 'Hindi' 
-  | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian' 
+export type TargetLanguage =
+  | 'English' | 'Russian' | 'German' | 'Spanish' | 'French' | 'Italian' | 'Dutch' | 'Finnish' | 'Chinese' | 'Hindi'
+  | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian'
   | 'Polish' | 'Romanian' | 'Japanese' | 'Arabic';
 
 export const proficiencyLevels = ['A1-A2', 'B1-B2', 'C1-C2'] as const;
@@ -37,14 +37,14 @@ export interface UserProgress {
   xp: number;
   streak: number;
   badges: string[];
-  moduleCompletion: Record<string, number | boolean>; 
+  moduleCompletion: Record<string, number | boolean>;
   errorArchive: ErrorRecord[];
-  onboardingStep?: number; 
+  onboardingStep?: number;
 }
 
 export interface UserData {
   settings: UserSettings | null;
-  progress: UserProgress | null;
+  progress: UserProgress; // Changed from UserProgress | null
 }
 
 export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLanguage; nativeName: string }> = [
