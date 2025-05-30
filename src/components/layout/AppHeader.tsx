@@ -6,7 +6,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useUserData } from "@/contexts/UserDataContext";
-import { LogOut, Settings, UserCircle } from "lucide-react";
+import { LogOut, Settings } from "lucide-react"; // Removed UserCircle
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,18 +16,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton"; 
 
 const baseEnTranslations = {
-  profile: "Profile",
   settings: "Settings",
   logout: "Log out",
   learnerSuffix: "Learner",
 };
 
 const baseRuTranslations = {
-  profile: "Профиль",
   settings: "Настройки",
   logout: "Выйти",
   learnerSuffix: "Ученик",
@@ -106,23 +104,19 @@ export function AppHeader() {
                <div className="flex flex-col space-y-1">
                  <p className="text-sm font-medium leading-none">{userData.settings.userName || "Learner"}</p>
                  <p className="text-xs leading-none text-muted-foreground">
-                   {userData.settings.targetLanguage} {t('learnerSuffix')}
+                   {userData.settings.targetLanguage} {t('learnerSuffix', 'Learner')}
                  </p>
                </div>
              </DropdownMenuLabel>
              <DropdownMenuSeparator />
              <DropdownMenuItem onClick={() => router.push('/settings')}>
-               <UserCircle className="mr-2 h-4 w-4" />
-               <span>{t('profile')}</span>
-             </DropdownMenuItem>
-             <DropdownMenuItem onClick={() => router.push('/settings')}>
                <Settings className="mr-2 h-4 w-4" />
-               <span>{t('settings')}</span>
+               <span>{t('settings', 'Settings')}</span>
              </DropdownMenuItem>
              <DropdownMenuSeparator />
              <DropdownMenuItem onClick={handleLogout}>
                <LogOut className="mr-2 h-4 w-4" />
-               <span>{t('logout')}</span>
+               <span>{t('logout', 'Log out')}</span>
              </DropdownMenuItem>
            </DropdownMenuContent>
          </DropdownMenu>
