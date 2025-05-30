@@ -15,11 +15,12 @@ import { generateReadingMaterial } from "@/ai/flows/generate-reading-material-fl
 import type { GenerateReadingMaterialInput, GenerateReadingMaterialOutput } from "@/ai/flows/generate-reading-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target, XCircle as ClearIcon } from "lucide-react";
+import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
 
 
 const readingSchema = z.object({
@@ -58,6 +59,9 @@ const baseEnTranslations: Record<string, string> = {
   scoreMessagePart3: "questions correctly.",
   scoreMessagePerfect: "Perfect! All {totalQuestions} questions correct.",
   scoreMessageNone: "No correct answers this time. Try again!",
+  archiveMistakeButton: "Archive this mistake",
+  mistakeArchivedToastTitle: "Mistake Archived",
+  mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -91,6 +95,9 @@ const baseRuTranslations: Record<string, string> = {
   scoreMessagePart3: "вопросов.",
   scoreMessagePerfect: "Отлично! Все {totalQuestions} вопросов правильно.",
   scoreMessageNone: "В этот раз нет правильных ответов. Попробуйте снова!",
+  archiveMistakeButton: "Добавить ошибку в архив",
+  mistakeArchivedToastTitle: "Ошибка добавлена в архив",
+  mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
 };
 
 const generateTranslations = () => {
@@ -108,7 +115,7 @@ const generateTranslations = () => {
 const componentTranslations = generateTranslations();
 
 export function ReadingModuleClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [readingResult, setReadingResult] = useState<GenerateReadingMaterialOutput | null>(null);
@@ -121,6 +128,8 @@ export function ReadingModuleClient() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+  const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
+
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ReadingFormData>({
     resolver: zodResolver(readingSchema),
@@ -220,6 +229,7 @@ export function ReadingModuleClient() {
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
+    setMistakeArchiveStatus({});
     stopSpeech();
     setCurrentTopic(data.topic); 
     try {
@@ -256,6 +266,7 @@ export function ReadingModuleClient() {
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
+    setMistakeArchiveStatus({});
     stopSpeech();
   };
   
@@ -279,6 +290,27 @@ export function ReadingModuleClient() {
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
+    setMistakeArchiveStatus({});
+  };
+
+  const handleArchiveMistake = (questionIndex: number) => {
+    if (!readingResult || !readingResult.comprehensionQuestions || !userData.settings) return;
+    const question = readingResult.comprehensionQuestions[questionIndex];
+    const userAnswer = selectedAnswers[questionIndex];
+
+    if (question && userAnswer && question.answer !== userAnswer) {
+      addErrorToArchive({
+        module: "Reading Practice",
+        context: question.question,
+        userAttempt: userAnswer,
+        correctAnswer: question.answer,
+      });
+      setMistakeArchiveStatus(prev => ({ ...prev, [questionIndex]: true }));
+      toast({
+        title: t('mistakeArchivedToastTitle'),
+        description: t('mistakeArchivedToastDescription'),
+      });
+    }
   };
 
   const hasTextToRead = readingResult && readingResult.readingText && readingResult.readingText.trim().length > 0;
@@ -415,11 +447,11 @@ export function ReadingModuleClient() {
                                 const isActualCorrectAnswer = q.answer === opt;
                                 let labelClassName = "text-sm";
                                 if (hasSubmitted && isSelected && isCorrect) {
-                                  labelClassName = "text-sm font-semibold text-green-600";
+                                  labelClassName = "text-sm font-semibold text-green-600 dark:text-green-400";
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
-                                  labelClassName = "text-sm font-semibold text-red-600";
+                                  labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700"; 
+                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500"; 
                                 }
 
 
@@ -443,6 +475,17 @@ export function ReadingModuleClient() {
                           )}
                           {q.answer && !q.options && !hasSubmitted && (
                               <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
+                          )}
+                           {hasSubmitted && !isCorrect && q.answer && !mistakeArchiveStatus[index] && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-2 text-xs"
+                              onClick={() => handleArchiveMistake(index)}
+                            >
+                              <Archive className="mr-1.5 h-3.5 w-3.5" />
+                              {t('archiveMistakeButton')}
+                            </Button>
                           )}
                         </li>
                       );
