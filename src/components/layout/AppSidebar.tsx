@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { LucideIcon } from "lucide-react";
+import { interfaceLanguageCodes } from "@/lib/types"; // Added import
 
 interface NavItemDef {
   href: string;
@@ -54,72 +55,103 @@ const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/settings", icon: Settings, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
 ];
 
-const translations: Record<string, Record<string, string>> = {
-  en: {
-    dashboard: "Dashboard",
-    dashboardTooltip: "Dashboard",
-    grammar: "Grammar",
-    grammarTooltip: "Grammar",
-    vocabulary: "Vocabulary",
-    vocabularyTooltip: "Vocabulary",
-    listening: "Listening",
-    listeningTooltip: "Listening",
-    reading: "Reading",
-    readingTooltip: "Reading (variant)",
-    writing: "Writing",
-    writingTooltip: "Writing",
-    speaking: "Speaking",
-    speakingTooltip: "Speaking",
-    wordPractice: "Word Practice",
-    wordPracticeTooltip: "Word Practice",
-    progress: "Progress",
-    progressTooltip: "Progress",
-    achievements: "Achievements",
-    achievementsTooltip: "Achievements",
-    settings: "Settings",
-    settingsTooltip: "Settings",
-    aiTutor: "AI Tutor",
-  },
-  ru: {
-    dashboard: "Панель",
-    dashboardTooltip: "Панель управления",
-    grammar: "Грамматика",
-    grammarTooltip: "Грамматика",
-    vocabulary: "Словарь",
-    vocabularyTooltip: "Словарный запас",
-    listening: "Аудирование",
-    listeningTooltip: "Аудирование",
-    reading: "Чтение",
-    readingTooltip: "Чтение",
-    writing: "Письмо",
-    writingTooltip: "Письмо",
-    speaking: "Говорение",
-    speakingTooltip: "Говорение",
-    wordPractice: "Практика слов",
-    wordPracticeTooltip: "Практика слов",
-    progress: "Прогресс",
-    progressTooltip: "Прогресс",
-    achievements: "Достижения",
-    achievementsTooltip: "Достижения",
-    settings: "Настройки",
-    settingsTooltip: "Настройки",
-    aiTutor: "AI Репетитор",
-  },
-  // Add other languages as needed
+// Base translations
+const baseEnTranslations: Record<string, string> = {
+  dashboard: "Dashboard",
+  dashboardTooltip: "Dashboard",
+  grammar: "Grammar",
+  grammarTooltip: "Grammar",
+  vocabulary: "Vocabulary",
+  vocabularyTooltip: "Vocabulary",
+  listening: "Listening",
+  listeningTooltip: "Listening",
+  reading: "Reading",
+  readingTooltip: "Reading (variant)",
+  writing: "Writing",
+  writingTooltip: "Writing",
+  speaking: "Speaking",
+  speakingTooltip: "Speaking",
+  wordPractice: "Word Practice",
+  wordPracticeTooltip: "Word Practice",
+  progress: "Progress",
+  progressTooltip: "Progress",
+  achievements: "Achievements",
+  achievementsTooltip: "Achievements",
+  settings: "Settings",
+  settingsTooltip: "Settings",
+  aiTutor: "AI Tutor",
 };
+
+const baseRuTranslations: Record<string, string> = {
+  dashboard: "Панель",
+  dashboardTooltip: "Панель управления",
+  grammar: "Грамматика",
+  grammarTooltip: "Грамматика",
+  vocabulary: "Словарь",
+  vocabularyTooltip: "Словарный запас",
+  listening: "Аудирование",
+  listeningTooltip: "Аудирование",
+  reading: "Чтение",
+  readingTooltip: "Чтение",
+  writing: "Письмо",
+  writingTooltip: "Письмо",
+  speaking: "Говорение",
+  speakingTooltip: "Говорение",
+  wordPractice: "Практика слов",
+  wordPracticeTooltip: "Практика слов",
+  progress: "Прогресс",
+  progressTooltip: "Прогресс",
+  achievements: "Достижения",
+  achievementsTooltip: "Достижения",
+  settings: "Настройки",
+  settingsTooltip: "Настройки",
+  aiTutor: "AI Репетитор",
+};
+
+// Generate full translations object at module level
+const generateSidebarTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {
+    en: baseEnTranslations,
+    ru: baseRuTranslations,
+  };
+  interfaceLanguageCodes.forEach(code => {
+    if (code !== 'en' && code !== 'ru') {
+      translations[code] = { ...baseEnTranslations }; // Fallback to English for other languages
+    }
+  });
+  return translations;
+};
+
+const sidebarTranslations = generateSidebarTranslations();
 
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
+  // Determine language to use for translations *for this render cycle*
+  // Crucial for hydration safety: defaults to 'en' if data is still loading.
+  const currentDisplayLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+
+  // Sidebar should not render at all if settings are not loaded,
+  // or if onboarding is not complete. This prevents trying to translate before language is known.
   if (isUserDataLoading || !userData.settings) {
-    return null; // Don't render sidebar if user data is loading or not set up
+    return null;
   }
 
-  const currentLang = userData.settings.interfaceLanguage || 'en';
-  const t = (key: string, defaultText: string) => {
-    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText;
+  // At this point, userData.settings is guaranteed to be non-null.
+  const actualInterfaceLang = userData.settings.interfaceLanguage || 'en';
+
+  const t = (key: string, defaultText?: string): string => {
+    const langTranslations = sidebarTranslations[actualInterfaceLang as keyof typeof sidebarTranslations];
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = sidebarTranslations['en']; // Fallback to English
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key];
+    }
+    return defaultText || key; // Fallback to defaultText or key itself
   };
 
   const mapNavItem = (itemDef: NavItemDef) => ({
@@ -137,7 +169,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-2">
         <div className="flex items-center justify-center group-data-[collapsible=icon]:justify-center p-2 rounded-md hover:bg-sidebar-accent group-data-[collapsible=icon]:p-0">
            <Bot className="h-8 w-8 text-sidebar-primary group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
-           <span className="ml-2 text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">{t('aiTutor', 'AI Tutor')}</span>
+           <span className="ml-2 text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">{t('aiTutor', baseEnTranslations.aiTutor)}</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
