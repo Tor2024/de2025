@@ -39,10 +39,12 @@ export interface LearningRoadmap {
 
 export interface ErrorRecord {
   id: string;
-  topic: string;
-  error: string;
-  feedback: string;
-  date: string;
+  module: string; // e.g., "WordPractice", "WritingAssistant"
+  context?: string; // e.g., The sentence with blank, or the writing prompt
+  userAttempt: string;
+  correctAnswer?: string; // Or expected pattern
+  aiFeedback?: string; // If AI provided feedback on this error
+  date: string; // ISO string
 }
 
 export interface UserProgress {
@@ -52,8 +54,7 @@ export interface UserProgress {
   badges: string[];
   moduleCompletion: Record<string, number | boolean>;
   errorArchive: ErrorRecord[];
-  onboardingStep?: number;
-  completedLessonIds: string[]; // Added for tracking completed lessons
+  completedLessonIds: string[];
 }
 
 export const initialUserProgress: UserProgress = {
@@ -63,7 +64,7 @@ export const initialUserProgress: UserProgress = {
   moduleCompletion: {},
   errorArchive: [],
   learningRoadmap: undefined,
-  completedLessonIds: [], // Initialized
+  completedLessonIds: [],
 };
 
 export interface UserData {

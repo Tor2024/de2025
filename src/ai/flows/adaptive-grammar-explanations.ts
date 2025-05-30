@@ -24,7 +24,7 @@ const AdaptiveGrammarExplanationsInputSchema = z.object({
   grammarTopic: z.string().describe('The grammar topic to explain.'),
   proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
   learningGoal: z.string().describe('The user defined learning goal.'),
-  userPastErrors: z.string().describe('A list of the user prior known errors in their past practice tasks. This could be a comma-separated list or a more structured description of errors.'),
+  userPastErrors: z.string().describe('A list of the user prior known errors in their past practice tasks. This could be a comma-separated list or a more structured description of errors. Example format for one error: "Module: Word Practice, Context: The cat ____ on the mat., User attempt: jump, Correct: sat"'),
 });
 export type AdaptiveGrammarExplanationsInput = z.infer<typeof AdaptiveGrammarExplanationsInputSchema>;
 
@@ -51,11 +51,12 @@ Interface Language (ISO 639-1 code): {{{interfaceLanguage}}}
 Grammar Topic: {{{grammarTopic}}}
 Proficiency Level: {{{proficiencyLevel}}}
 Learning Goal: {{{learningGoal}}}
-User's Past Errors related to various topics (if any, pay attention to those relevant to the current Grammar Topic): {{{userPastErrors}}}
+User's Past Errors (if any, pay attention to those relevant to the current Grammar Topic):
+{{{userPastErrors}}}
 
 Your task:
 1.  Provide a clear and concise Explanation of the {{{grammarTopic}}} in the {{{interfaceLanguage}}}.
-2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples or a slightly different angle on the parts of the topic the user struggled with.
+2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples or a slightly different angle on the parts of the topic the user struggled with. For example, if a past error indicates confusion with a specific verb tense related to the {{{grammarTopic}}}, provide more examples of that tense.
 3.  Generate a list of Practice Tasks. These tasks should:
     *   Be in the {{{interfaceLanguage}}}.
     *   Be suitable for the user's {{{proficiencyLevel}}}.

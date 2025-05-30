@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import type { UserData, UserSettings, UserProgress, LearningRoadmap } from '@/lib/types';
+import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord } from '@/lib/types';
 import { initialUserProgress } from '@/lib/types';
 
 interface UserDataContextType {
@@ -14,12 +14,14 @@ interface UserDataContextType {
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
   setLearningRoadmap: (roadmap: LearningRoadmap) => void;
-  toggleLessonCompletion: (lessonId: string) => void; // Added
+  toggleLessonCompletion: (lessonId: string) => void;
+  addErrorToArchive: (errorData: Omit<ErrorRecord, 'id' | 'date'>) => void;
   isLoading: boolean;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
 
+// Moved to module scope to ensure stable reference
 const initialUserData: UserData = {
   settings: null,
   progress: { ...initialUserProgress },
@@ -38,7 +40,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const updateProgress = useCallback((newProgress: Partial<UserProgress>) => {
     setUserData(prev => ({
       ...prev,
-      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress },
+      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress } as UserProgress,
     }));
   }, [setUserData]);
   
@@ -63,6 +65,28 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     });
   }, [setUserData]);
 
+  const addErrorToArchive = useCallback((errorData: Omit<ErrorRecord, 'id' | 'date'>) => {
+    setUserData(prev => {
+      const newError: ErrorRecord = {
+        ...errorData,
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+        date: new Date().toISOString(),
+      };
+      const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
+      // Optional: Limit archive size, e.g., keep last 50 errors
+      // if (updatedErrorArchive.length > 50) {
+      //   updatedErrorArchive.splice(0, updatedErrorArchive.length - 50);
+      // }
+      return {
+        ...prev,
+        progress: {
+          ...(prev.progress || initialUserProgress),
+          errorArchive: updatedErrorArchive,
+        },
+      };
+    });
+  }, [setUserData]);
+
   const clearUserData = useCallback(() => {
     setUserData(initialUserData);
   }, [setUserData]);
@@ -74,7 +98,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     updateProgress,
     clearUserData,
     setLearningRoadmap,
-    toggleLessonCompletion, // Added
+    toggleLessonCompletion,
+    addErrorToArchive,
     isLoading: isStorageLoading,
   };
 

@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateFillInTheBlankExercises } from "@/ai/flows/generate-fill-in-the-blank-flow";
 import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput as FillBlankExerciseOutput } from "@/ai/flows/generate-fill-in-the-blank-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon } from "lucide-react";
+import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +54,9 @@ const baseEnTranslations: Record<string, string> = {
   viewResultsButton: "View Results",
   allExercisesCompleted: "All exercises completed! Well done.",
   scoreMessage: "You got {correct} out of {total} correct.",
+  archiveMistakeButton: "Archive this mistake",
+  mistakeArchivedToastTitle: "Mistake Archived",
+  mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -87,6 +89,9 @@ const baseRuTranslations: Record<string, string> = {
   viewResultsButton: "Показать результаты",
   allExercisesCompleted: "Все упражнения выполнены! Молодец.",
   scoreMessage: "Вы правильно ответили на {correct} из {total}.",
+  archiveMistakeButton: "Добавить ошибку в архив",
+  mistakeArchivedToastTitle: "Ошибка добавлена в архив",
+  mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
 };
 
 const generateTranslations = () => {
@@ -108,10 +113,11 @@ interface ExerciseState {
   isSubmitted: boolean;
   isCorrect?: boolean;
   showHint: boolean;
+  isMistakeArchived: boolean;
 }
 
 export function WordPracticeClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [exerciseResult, setExerciseResult] = useState<FillBlankExerciseOutput | null>(null);
@@ -132,7 +138,7 @@ export function WordPracticeClient() {
   };
 
   const currentExercise = exerciseResult?.exercises?.[currentExerciseIndex];
-  const currentExerciseState = exerciseStates[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false };
+  const currentExerciseState = exerciseStates[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false };
 
   const onSubmitTopic: SubmitHandler<ExerciseFormData> = async (data) => {
     setIsAiLoading(true);
@@ -160,7 +166,7 @@ export function WordPracticeClient() {
       if (result.exercises && result.exercises.length > 0) {
         const initialStates: Record<number, ExerciseState> = {};
         result.exercises.forEach((_, index) => {
-          initialStates[index] = { userAnswer: "", isSubmitted: false, showHint: false };
+          initialStates[index] = { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false };
         });
         setExerciseStates(initialStates);
       }
@@ -185,7 +191,7 @@ export function WordPracticeClient() {
   const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), userAnswer: e.target.value, isCorrect: undefined }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false }), userAnswer: e.target.value, isCorrect: undefined }
     }));
   };
 
@@ -194,15 +200,33 @@ export function WordPracticeClient() {
     const isCorrect = currentExerciseState.userAnswer.trim().toLowerCase() === currentExercise.correctAnswer.trim().toLowerCase();
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), isSubmitted: true, isCorrect }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex]), isSubmitted: true, isCorrect }
     }));
   };
 
   const handleToggleHint = () => {
      setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), showHint: !currentExerciseState.showHint }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex]), showHint: !currentExerciseState.showHint }
     }));
+  };
+
+  const handleArchiveMistake = () => {
+    if (!currentExercise || !userData.settings) return;
+    addErrorToArchive({
+      module: "Word Practice",
+      context: currentExercise.sentenceWithBlank,
+      userAttempt: currentExerciseState.userAnswer,
+      correctAnswer: currentExercise.correctAnswer,
+    });
+    setExerciseStates(prev => ({
+      ...prev,
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex]), isMistakeArchived: true }
+    }));
+    toast({
+      title: t('mistakeArchivedToastTitle'),
+      description: t('mistakeArchivedToastDescription'),
+    });
   };
 
   const handleNextExercise = () => {
@@ -327,9 +351,17 @@ export function WordPracticeClient() {
                 )}
                 
                 {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && (
-                  <p className="text-sm mt-1 text-muted-foreground">
-                    {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
-                  </p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
+                    </p>
+                    {!currentExerciseState.isMistakeArchived && (
+                        <Button variant="outline" size="sm" onClick={handleArchiveMistake} className="text-xs">
+                            <Archive className="mr-1.5 h-3.5 w-3.5" />
+                            {t('archiveMistakeButton')}
+                        </Button>
+                    )}
+                  </div>
                 )}
 
                 {!currentExerciseState.isSubmitted && (
