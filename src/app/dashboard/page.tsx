@@ -174,6 +174,8 @@ export default function DashboardPage() {
   const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
   const { toast } = useToast();
+  const [tipCooldownEndTime, setTipCooldownEndTime] = useState<number | null>(null);
+  const cooldownTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
@@ -190,7 +192,7 @@ export default function DashboardPage() {
 
   const fetchTutorTip = React.useCallback(async () => {
     if (!userData.settings) {
-      setAiTutorTip(t('aiTutorTipStatic')); // Set static tip if settings are not available
+      setAiTutorTip(t('aiTutorTipStatic'));
       return;
     }
     setIsTipLoading(true);
@@ -202,6 +204,11 @@ export default function DashboardPage() {
         learningGoal: userData.settings.goal,
       });
       setAiTutorTip(response.tip);
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+        cooldownTimeoutRef.current = null;
+      }
+      setTipCooldownEndTime(null); // Clear cooldown on success
     } catch (error) {
       console.error("Failed to generate tutor tip:", error);
       setAiTutorTip(t('aiTutorTipStatic')); 
@@ -211,27 +218,45 @@ export default function DashboardPage() {
         description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
+      const cooldownDuration = 60 * 1000; // 60 seconds
+      setTipCooldownEndTime(Date.now() + cooldownDuration);
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+      }
+      cooldownTimeoutRef.current = setTimeout(() => {
+        setTipCooldownEndTime(null);
+        cooldownTimeoutRef.current = null;
+      }, cooldownDuration);
     } finally {
       setIsTipLoading(false);
     }
-  }, [userData.settings, t, toast]); 
+  }, [userData.settings?.interfaceLanguage, userData.settings?.targetLanguage, userData.settings?.proficiencyLevel, userData.settings?.goal, t, toast]); 
 
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+      fetchTutorTip();
+    }
+  }, [isUserDataLoading, userData.settings?.interfaceLanguage, userData.settings?.targetLanguage, userData.settings?.proficiencyLevel, userData.settings?.goal, fetchTutorTip, tipCooldownEndTime]);
+  
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
   }, [userData, isUserDataLoading, router]);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
-    if (!isUserDataLoading && userData.settings) {
-      fetchTutorTip();
-    }
-  }, [isUserDataLoading, userData.settings, userData.settings?.goal, fetchTutorTip]); 
+    return () => {
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+      }
+    };
+  }, []);
   
   if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
         </div>
@@ -242,7 +267,7 @@ export default function DashboardPage() {
   if (userData.settings === null) {
     return (
        <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
         </div>
@@ -262,6 +287,7 @@ export default function DashboardPage() {
 
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
   const userGoalText = userData.settings.goal || t('noGoalSet');
+  const isRefreshButtonDisabled = isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime);
 
   return (
     <AppShell>
@@ -312,7 +338,7 @@ export default function DashboardPage() {
                   size="sm" 
                   className="mt-3 w-full" 
                   onClick={fetchTutorTip}
-                  disabled={isTipLoading}
+                  disabled={isRefreshButtonDisabled}
                 >
                   {isTipLoading && <LoadingSpinner size={16} className="mr-2" />}
                   <RefreshCw className="mr-2 h-4 w-4" />
@@ -421,3 +447,4 @@ export default function DashboardPage() {
   );
 }
 
+    
