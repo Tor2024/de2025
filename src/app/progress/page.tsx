@@ -3,14 +3,16 @@
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, TrendingUp, Activity } from "lucide-react"; // Added more icons
+import { BarChart3, TrendingUp, Activity, Archive, ArrowRight } from "lucide-react"; 
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 const baseEnTranslations = {
   title: "Your Progress Overview",
-  description: "Detailed progress tracking, including a personalized CEFR tree, error archive, and custom review modes, will be available here soon.",
+  description: "Detailed progress tracking, including a personalized CEFR tree and custom review modes, will be available here soon.",
   loading: "Loading progress...",
   currentXPLabel: "Current XP:",
   currentStreakLabel: "Streak:",
@@ -19,12 +21,13 @@ const baseEnTranslations = {
   roadmapProgressTitle: "Roadmap Progress",
   roadmapProgressDesc: "Track your journey through the CEFR levels and completed lessons. (Coming Soon)",
   errorArchiveTitle: "Error Insights",
-  errorArchiveDesc: "Review common mistakes and focus areas for improvement. (Coming Soon)",
+  errorArchiveDesc: "Review common mistakes and focus areas for improvement.",
+  viewErrorArchiveButton: "View Error Archive",
 };
 
 const baseRuTranslations = {
   title: "Обзор вашего прогресса",
-  description: "Подробное отслеживание прогресса, включая персонализированное дерево CEFR, архив ошибок и настраиваемые режимы повторения, скоро будут доступны здесь.",
+  description: "Подробное отслеживание прогресса, включая персонализированное дерево CEFR и настраиваемые режимы повторения, скоро будут доступны здесь.",
   loading: "Загрузка прогресса...",
   currentXPLabel: "Текущие XP:",
   currentStreakLabel: "Серия:",
@@ -33,7 +36,8 @@ const baseRuTranslations = {
   roadmapProgressTitle: "Прогресс по плану",
   roadmapProgressDesc: "Отслеживайте свой путь по уровням CEFR и выполненным урокам. (Скоро)",
   errorArchiveTitle: "Анализ ошибок",
-  errorArchiveDesc: "Просматривайте частые ошибки и области для улучшения. (Скоро)",
+  errorArchiveDesc: "Просматривайте частые ошибки и области для улучшения.",
+  viewErrorArchiveButton: "Просмотреть архив ошибок",
 };
 
 const generateTranslations = () => {
@@ -52,6 +56,7 @@ const pageTranslations = generateTranslations();
 
 export default function ProgressPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
+  const router = useRouter();
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
@@ -66,10 +71,10 @@ export default function ProgressPage() {
     return defaultText || key;
   };
 
-  if (isUserDataLoading) { 
+  if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={32} />
           <p className="ml-2">{t('loading')}</p>
         </div>
@@ -109,10 +114,13 @@ export default function ProgressPage() {
             
             <Card>
               <CardHeader>
-                <h3 className="text-xl font-semibold flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-accent"/>{t('errorArchiveTitle')}</h3>
+                <h3 className="text-xl font-semibold flex items-center"><Archive className="mr-2 h-5 w-5 text-accent"/>{t('errorArchiveTitle')}</h3>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{t('errorArchiveDesc')}</p>
+                <p className="text-muted-foreground mb-3">{t('errorArchiveDesc')}</p>
+                <Button onClick={() => router.push('/errors')} variant="outline" className="w-full">
+                  {t('viewErrorArchiveButton')} <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
 
