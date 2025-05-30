@@ -175,14 +175,13 @@ export function RoadmapDisplay({
                   <AccordionContent className="p-4 pt-0">
                     <div className="flex justify-between items-start mb-2">
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{lesson.description}</p>
-                      {typeof window !== 'undefined' && window.speechSynthesis && (
+                      {typeof window !== 'undefined' && window.speechSynthesis && hasDescription && (
                          <Tooltip>
                            <TooltipTrigger asChild>
                              <Button
                                variant="ghost"
                                size="icon"
                                onClick={() => {
-                                 if (!hasDescription) return;
                                  if (currentlySpeakingLessonId === lessonSpeechId) {
                                    stopSpeech();
                                  } else {
@@ -191,7 +190,6 @@ export function RoadmapDisplay({
                                }}
                                className="ml-2 shrink-0"
                                aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
-                               disabled={!hasDescription}
                              >
                                {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                              </Button>
