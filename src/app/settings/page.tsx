@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -6,7 +7,7 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-
+import { supportedLanguages } from "@/lib/types";
 
 export default function SettingsPage() {
   const { userData, clearUserData } = useUserData();
@@ -16,6 +17,18 @@ export default function SettingsPage() {
     clearUserData();
     router.push('/');
   };
+
+  const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
+    if (!codeOrName) return 'N/A';
+    if (type === 'interface') {
+      const lang = supportedLanguages.find(l => l.code === codeOrName);
+      return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+    }
+    // For target language, it's already stored as English name
+    const lang = supportedLanguages.find(l => l.name === codeOrName);
+    return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+  };
+
 
   return (
     <AppShell>
@@ -34,8 +47,8 @@ export default function SettingsPage() {
             {userData.settings && (
               <div className="text-left text-sm bg-muted/50 p-4 rounded-md">
                 <p><strong>User:</strong> {userData.settings.userName}</p>
-                <p><strong>Interface Language:</strong> {userData.settings.interfaceLanguage === 'en' ? 'English' : 'Русский'}</p>
-                <p><strong>Target Language:</strong> {userData.settings.targetLanguage}</p>
+                <p><strong>Interface Language:</strong> {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
+                <p><strong>Target Language:</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
                 <p><strong>Proficiency:</strong> {userData.settings.proficiencyLevel}</p>
                 <p><strong>Goal:</strong> {userData.settings.goal}</p>
               </div>

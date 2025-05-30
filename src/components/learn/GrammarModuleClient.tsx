@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -40,14 +41,10 @@ export function GrammarModuleClient() {
     setIsLoading(true);
     setExplanationResult(null);
     try {
-      // Map UserData types to AI flow types
-      const aiInterfaceLanguage = userData.settings!.interfaceLanguage === 'ru' ? 'Russian' : 'English';
-      const aiProficiencyLevel = userData.settings!.proficiencyLevel as AiProficiencyLevel; // Assuming direct match
-
       const grammarInput: AdaptiveGrammarExplanationsInput = {
-        interfaceLanguage: aiInterfaceLanguage as AiInterfaceLanguage,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AiInterfaceLanguage, // Pass code directly
         grammarTopic: data.grammarTopic,
-        proficiencyLevel: aiProficiencyLevel,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel, // Assuming direct match
         learningGoal: userData.settings!.goal,
         userPastErrors: userData.progress!.errorArchive.map(e => `${e.topic}: ${e.error}`).join('\n') || "No past errors recorded.",
       };

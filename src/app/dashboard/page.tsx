@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -9,6 +10,9 @@ import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { supportedLanguages } from '@/lib/types'; // Import for language display
 
 const learningModules = [
   { title: "Grammar", description: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen },
@@ -25,8 +29,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (userData.settings === null) { // Explicitly check for null after loading attempt
-      router.replace('/'); // Redirect to onboarding if no settings
+    if (userData.settings === null) { 
+      router.replace('/'); 
     }
   }, [userData, router]);
 
@@ -38,6 +42,16 @@ export default function DashboardPage() {
       </div>
     );
   }
+  
+  const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
+    if (!codeOrName) return 'N/A';
+    if (type === 'interface') {
+      const lang = supportedLanguages.find(l => l.code === codeOrName);
+      return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+    }
+    const lang = supportedLanguages.find(l => l.name === codeOrName);
+    return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+  };
 
   return (
     <AppShell>
@@ -83,7 +97,6 @@ export default function DashboardPage() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">XP: {userData.progress?.xp || 0}</p>
                 <p className="text-sm text-muted-foreground">Streak: {userData.progress?.streak || 0} days</p>
-                {/* Placeholder for CEFR tree */}
                 <p className="text-sm mt-2 italic">Detailed CEFR progress tree coming soon!</p>
               </CardContent>
             </Card>
@@ -101,9 +114,9 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/>Quick Settings</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Interface: {userData.settings.interfaceLanguage === 'en' ? 'English' : 'Russian'}</p>
-                <p className="text-sm text-muted-foreground">Learning: {userData.settings.targetLanguage}</p>
-                <Button variant="outline" size="sm" className="mt-2">Go to Settings</Button>
+                <p className="text-sm text-muted-foreground">Interface: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
+                <p className="text-sm text-muted-foreground">Learning: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push('/settings')}>Go to Settings</Button>
               </CardContent>
             </Card>
         </div>
@@ -112,7 +125,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-// Required imports
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";

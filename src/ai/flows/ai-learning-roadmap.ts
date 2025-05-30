@@ -1,3 +1,4 @@
+
 // Use server directive is required for all Genkit flows.
 'use server';
 
@@ -13,12 +14,13 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { interfaceLanguageCodes, targetLanguageNames } from '@/lib/types';
 
 const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   interfaceLanguage: z
-    .string()
-    .describe('The interface language of the user (e.g., Russian or English).'),
-  targetLanguage: z.string().describe('The target language to study (e.g., German).'),
+    .enum(interfaceLanguageCodes)
+    .describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),
+  targetLanguage: z.enum(targetLanguageNames).describe('The target language to study (e.g., German, English).'),
   proficiencyLevel: z
     .enum(['A1-A2', 'B1-B2', 'C1-C2'])
     .describe('The proficiency level of the user (e.g., A1-A2, B1-B2, C1-C2).'),
@@ -51,15 +53,17 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   output: {schema: GeneratePersonalizedLearningRoadmapOutputSchema},
   prompt: `You are an AI language tutor specializing in creating personalized learning roadmaps for language learners.
 
-  Based on the user's interface language, target language, proficiency level, and personal goal, generate a complete and adaptive learning roadmap.
+  Based on the user's interface language (provided as an ISO 639-1 code), target language, proficiency level, and personal goal, generate a complete and adaptive learning roadmap.
 
   The roadmap should cover all necessary skills and topics, and be divided into modular learning paths.
 
-  The roadmap must be in the target language: ${'{{targetLanguage}}'}
+  The roadmap itself must be written in the target language: {{{targetLanguage}}}
+  The instructions or meta-comments in the roadmap can be in the interface language if it helps clarity for the user.
 
-  Interface language: ${'{{interfaceLanguage}}'}
-  Proficiency level: ${'{{proficiencyLevel}}'}
-  Personal goal: ${'{{personalGoal}}'}
+  Interface language code: {{{interfaceLanguage}}}
+  Target language: {{{targetLanguage}}}
+  Proficiency level: {{{proficiencyLevel}}}
+  Personal goal: {{{personalGoal}}}
 
   Roadmap:
   `,

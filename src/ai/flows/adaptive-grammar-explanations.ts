@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -14,15 +15,18 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+import { interfaceLanguageCodes } from '@/lib/types';
 
-const InterfaceLanguageSchema = z.enum(['Russian', 'English']);
+
+const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
 export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>;
 
 const ProficiencyLevelSchema = z.enum(['A1-A2', 'B1-B2', 'C1-C2']);
 export type ProficiencyLevel = z.infer<typeof ProficiencyLevelSchema>;
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
-  interfaceLanguage: InterfaceLanguageSchema.describe('The interface language of the user'),
+  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),
   grammarTopic: z.string().describe('The grammar topic to explain.'),
   proficiencyLevel: ProficiencyLevelSchema.describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
   learningGoal: z.string().describe('The user defined learning goal.'),
@@ -44,11 +48,11 @@ const prompt = ai.definePrompt({
   name: 'adaptiveGrammarExplanationsPrompt',
   input: {schema: AdaptiveGrammarExplanationsInputSchema},
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
-  prompt: `You are an expert German language tutor, specializing in grammar explanations for Russian and English speakers.
+  prompt: `You are an expert language tutor, specializing in grammar explanations.
 
-You will generate a grammar explanation and practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, and easy to understand.
+You will generate a grammar explanation and practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, and easy to understand. All explanations and practice tasks must be in the language specified by the interfaceLanguage code.
 
-Interface Language: {{{interfaceLanguage}}}
+Interface Language (ISO 639-1 code): {{{interfaceLanguage}}}
 Grammar Topic: {{{grammarTopic}}}
 Proficiency Level: {{{proficiencyLevel}}}
 Learning Goal: {{{learningGoal}}}
@@ -65,7 +69,13 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     outputSchema: AdaptiveGrammarExplanationsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    // Ensure the input types from the app match the flow's expected types
+    const typedInput: AdaptiveGrammarExplanationsInput = {
+        ...input,
+        interfaceLanguage: input.interfaceLanguage as InterfaceLanguage,
+        proficiencyLevel: input.proficiencyLevel as ProficiencyLevel,
+    };
+    const {output} = await prompt(typedInput);
     return output!;
   }
 );

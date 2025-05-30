@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -25,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { InterfaceLanguage, ProficiencyLevel, TargetLanguage, UserSettings } from "@/lib/types";
+import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames } from "@/lib/types";
 import { generatePersonalizedLearningRoadmap } from "@/ai/flows/ai-learning-roadmap";
 import type { GeneratePersonalizedLearningRoadmapInput } from "@/ai/flows/ai-learning-roadmap";
 import { useToast } from "@/hooks/use-toast";
@@ -33,8 +35,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const onboardingSchema = z.object({
   userName: z.string().min(1, "Name is required"),
-  interfaceLanguage: z.enum(["en", "ru"], { required_error: "Interface language is required" }),
-  targetLanguage: z.enum(["German", "English", "Spanish", "French"], { required_error: "Target language is required" }),
+  interfaceLanguage: z.enum(interfaceLanguageCodes, { required_error: "Interface language is required" }),
+  targetLanguage: z.enum(targetLanguageNames, { required_error: "Target language is required" }),
   proficiencyLevel: z.enum(["A1-A2", "B1-B2", "C1-C2"], { required_error: "Proficiency level is required" }),
   goal: z.string().min(10, "Goal should be at least 10 characters").max(200, "Goal should be at most 200 characters"),
 });
@@ -75,16 +77,16 @@ export function OnboardingFlow() {
     try {
       const userSettings: UserSettings = {
         userName: data.userName,
-        interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
-        targetLanguage: data.targetLanguage as TargetLanguage,
+        interfaceLanguage: data.interfaceLanguage, // Already a code
+        targetLanguage: data.targetLanguage, // Already a name
         proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
         goal: data.goal,
       };
       updateSettings(userSettings);
 
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
-        interfaceLanguage: data.interfaceLanguage,
-        targetLanguage: data.targetLanguage,
+        interfaceLanguage: data.interfaceLanguage, // Pass the code
+        targetLanguage: data.targetLanguage, // Pass the name
         proficiencyLevel: data.proficiencyLevel as "A1-A2" | "B1-B2" | "C1-C2",
         personalGoal: data.goal,
       };
@@ -126,8 +128,11 @@ export function OnboardingFlow() {
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <SelectTrigger id="interfaceLanguage"><SelectValue placeholder="Select language" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="ru">Русский (Russian)</SelectItem>
+                  {supportedLanguages.map(lang => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      {lang.nativeName} ({lang.name})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )} />
@@ -141,10 +146,11 @@ export function OnboardingFlow() {
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <SelectTrigger id="targetLanguage"><SelectValue placeholder="Select language to learn" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="German">German</SelectItem>
-                    <SelectItem value="English">English</SelectItem>
-                    <SelectItem value="Spanish">Spanish</SelectItem>
-                    <SelectItem value="French">French</SelectItem>
+                    {supportedLanguages.map(lang => (
+                      <SelectItem key={lang.name} value={lang.name}>
+                        {lang.nativeName} ({lang.name})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )} />

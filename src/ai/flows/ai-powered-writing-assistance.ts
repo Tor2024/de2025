@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI-powered writing assistance flow.
@@ -9,11 +10,12 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { interfaceLanguageCodes } from '@/lib/types';
 
 const AIPoweredWritingAssistanceInputSchema = z.object({
   prompt: z.string().describe('The writing prompt or topic.'),
   text: z.string().describe('The user-generated text to be evaluated.'),
-  interfaceLanguage: z.string().describe('The language for explanations and feedback (e.g., Russian).'),
+  interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
@@ -35,7 +37,7 @@ const writingAssistantPrompt = ai.definePrompt({
 
   Provide feedback on the structure, grammar, and tone of the text.
   Correct any errors and provide a revised version of the text.
-  All explanations and feedback must be in the specified interface language: {{{interfaceLanguage}}}.
+  All explanations and feedback must be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
   Prompt: {{{prompt}}}
   Text: {{{text}}}

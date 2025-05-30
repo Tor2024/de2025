@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -45,7 +46,7 @@ export function WritingAssistantClient() {
       const writingInput: AIPoweredWritingAssistanceInput = {
         prompt: data.writingPrompt,
         text: data.userText,
-        interfaceLanguage: userData.settings!.interfaceLanguage === 'ru' ? 'Russian' : 'English',
+        interfaceLanguage: userData.settings!.interfaceLanguage, // Pass code directly
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);

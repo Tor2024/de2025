@@ -1,7 +1,12 @@
 
-export type InterfaceLanguage = 'en' | 'ru';
-export type ProficiencyLevel = 'A1-A2' | 'B1-B2' | 'C1-C2';
-export type TargetLanguage = 'German' | 'English' | 'Spanish' | 'French'; // Example, can be extended
+export type InterfaceLanguage = 
+  | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi' 
+  | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja';
+
+export type TargetLanguage = 
+  | 'English' | 'Russian' | 'German' | 'Spanish' | 'French' | 'Italian' | 'Dutch' | 'Finnish' | 'Chinese' | 'Hindi' 
+  | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian' 
+  | 'Polish' | 'Romanian' | 'Japanese';
 
 export interface UserSettings {
   interfaceLanguage: InterfaceLanguage;
@@ -11,20 +16,10 @@ export interface UserSettings {
   userName?: string;
 }
 
+export type ProficiencyLevel = 'A1-A2' | 'B1-B2' | 'C1-C2';
+
 export interface LearningRoadmap {
-  // Assuming the AI returns a markdown string or structured text
-  // This could be parsed into a more structured format if needed
   rawContent: string;
-  // Example structured format (optional, for future enhancement)
-  // weeks?: Array<{
-  //   weekNumber: number;
-  //   theme: string;
-  //   skills: Array<{
-  //     type: 'Grammar' | 'Vocabulary' | 'Listening' | 'Reading' | 'Writing' | 'Speaking' | 'WordPractice';
-  //     topic: string;
-  //     completed: boolean;
-  //   }>;
-  // }>;
 }
 
 export interface ErrorRecord {
@@ -40,10 +35,8 @@ export interface UserProgress {
   xp: number;
   streak: number;
   badges: string[];
-  // Key: module or lesson ID, Value: completion status (e.g., percentage or boolean)
   moduleCompletion: Record<string, number | boolean>; 
   errorArchive: ErrorRecord[];
-  // Tracks current step in onboarding if not completed in one go
   onboardingStep?: number; 
 }
 
@@ -52,8 +45,29 @@ export interface UserData {
   progress: UserProgress | null;
 }
 
-// For AI flow inputs/outputs - already defined in src/ai/flows, but good to be aware
-// Example:
-// import type { GeneratePersonalizedLearningRoadmapInput } from '@/ai/flows/ai-learning-roadmap';
-// import type { AdaptiveGrammarExplanationsInput } from '@/ai/flows/adaptive-grammar-explanations';
-// import type { AIPoweredWritingAssistanceInput } from '@/ai/flows/ai-powered-writing-assistance';
+export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLanguage; nativeName: string }> = [
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español' },
+  { code: 'fr', name: 'French', nativeName: 'Français' },
+  { code: 'it', name: 'Italian', nativeName: 'Italiano' },
+  { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'no', name: 'Norwegian', nativeName: 'Norsk' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+  { code: 'bg', name: 'Bulgarian', nativeName: 'Български' },
+  { code: 'sl', name: 'Slovenian', nativeName: 'Slovenščina' },
+  { code: 'uk', name: 'Ukrainian', nativeName: 'Українська' },
+  { code: 'be', name: 'Belarusian', nativeName: 'Беларуская' },
+  { code: 'pl', name: 'Polish', nativeName: 'Polski' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Română' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+];
+
+export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
+export const targetLanguageNames = supportedLanguages.map(lang => lang.name) as [TargetLanguage, ...TargetLanguage[]];
