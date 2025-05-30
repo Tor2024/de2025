@@ -13,7 +13,7 @@ import {z} from 'genkit';
 import { InterfaceLanguageSchema } from '@/lib/types';
 
 
-export const ExplainGrammarTaskErrorInputSchema = z.object({
+const ExplainGrammarTaskErrorInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for the explanation (e.g., en, ru).'),
   grammarTopic: z.string().describe('The grammar topic the user was practicing.'),
   taskDescription: z.string().describe('The description of the task the user attempted.'),
@@ -22,7 +22,7 @@ export const ExplainGrammarTaskErrorInputSchema = z.object({
 });
 export type ExplainGrammarTaskErrorInput = z.infer<typeof ExplainGrammarTaskErrorInputSchema>;
 
-export const ExplainGrammarTaskErrorOutputSchema = z.object({
+const ExplainGrammarTaskErrorOutputSchema = z.object({
   explanation: z.string().describe('A detailed explanation of why the user\'s answer was incorrect, in the specified interfaceLanguage. This explanation should be clear, constructive, and refer to grammar rules related to the grammarTopic. It should also be TTS-friendly and avoid markdown-like formatting.'),
 });
 export type ExplainGrammarTaskErrorOutput = z.infer<typeof ExplainGrammarTaskErrorOutputSchema>;
