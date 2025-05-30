@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, Eye, EyeOff } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, ArrowLeft, ArrowRight } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 
@@ -27,11 +26,11 @@ type VocabularyFormData = z.infer<typeof vocabularySchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Vocabulary Builder",
-  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level.",
+  description: "Enter a topic and our AI will generate a list of relevant words, their translations, and example sentences, tailored to your proficiency level. Use the flashcards below to study them.",
   topicLabel: "Topic for Vocabulary",
   topicPlaceholder: "E.g., Travel, Food, Business",
   getWordsButton: "Get Words",
-  resultsTitlePrefix: "Vocabulary for:",
+  resultsTitlePrefix: "Vocabulary Flashcards for:",
   wordHeader: "Word",
   translationHeader: "Translation",
   exampleSentenceHeader: "Example Sentence",
@@ -43,17 +42,21 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
   noExampleSentence: "No example sentence provided.",
-  showDetailsButton: "Show Details",
-  hideDetailsButton: "Hide Details",
+  previousButton: "Previous",
+  nextButton: "Next",
+  showAnswerButton: "Show Answer",
+  hideAnswerButton: "Hide Answer",
+  currentCardOfTotal: "Card {current} of {total}",
+  noWordsForFlashcards: "No words generated for this topic to display as flashcards.",
 };
 
 const baseRuTranslations: Record<string, string> = {
   title: "Конструктор словарного запаса",
-  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню.",
+  description: "Введите тему, и наш ИИ сгенерирует список соответствующих слов, их переводы и примеры предложений, адаптированные к вашему уровню. Используйте карточки ниже для их изучения.",
   topicLabel: "Тема для словарного запаса",
   topicPlaceholder: "Напр., Путешествия, Еда, Бизнес",
   getWordsButton: "Получить слова",
-  resultsTitlePrefix: "Словарный запас по теме:",
+  resultsTitlePrefix: "Карточки со словами по теме:",
   wordHeader: "Слово",
   translationHeader: "Перевод",
   exampleSentenceHeader: "Пример предложения",
@@ -65,8 +68,12 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
   noExampleSentence: "Пример предложения не предоставлен.",
-  showDetailsButton: "Показать детали",
-  hideDetailsButton: "Скрыть детали",
+  previousButton: "Назад",
+  nextButton: "Вперед",
+  showAnswerButton: "Показать ответ",
+  hideAnswerButton: "Скрыть ответ",
+  currentCardOfTotal: "Карточка {current} из {total}",
+  noWordsForFlashcards: "Для этой темы не сгенерировано слов для отображения в виде карточек.",
 };
 
 const generateTranslations = () => {
@@ -89,7 +96,9 @@ export function VocabularyModuleClient() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
-  const [revealedStates, setRevealedStates] = useState<Record<number, boolean>>({});
+
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [isCardRevealed, setIsCardRevealed] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
@@ -99,10 +108,6 @@ export function VocabularyModuleClient() {
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
-
-  const toggleReveal = (index: number) => {
-    setRevealedStates(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
   if (isUserDataLoading) {
@@ -117,7 +122,8 @@ export function VocabularyModuleClient() {
     setIsAiLoading(true);
     setVocabularyResult(null);
     setCurrentTopic(data.topic);
-    setRevealedStates({}); 
+    setCurrentCardIndex(0);
+    setIsCardRevealed(false);
     try {
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage,
@@ -146,6 +152,22 @@ export function VocabularyModuleClient() {
     }
   };
 
+  const handleNextCard = () => {
+    if (vocabularyResult && vocabularyResult.words) {
+      setCurrentCardIndex((prevIndex) => (prevIndex + 1) % vocabularyResult.words.length);
+      setIsCardRevealed(false);
+    }
+  };
+
+  const handlePrevCard = () => {
+    if (vocabularyResult && vocabularyResult.words) {
+      setCurrentCardIndex((prevIndex) => (prevIndex - 1 + vocabularyResult.words.length) % vocabularyResult.words.length);
+      setIsCardRevealed(false);
+    }
+  };
+
+  const currentWordData = vocabularyResult?.words?.[currentCardIndex];
+
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
@@ -173,52 +195,74 @@ export function VocabularyModuleClient() {
         </form>
       </Card>
 
-      {vocabularyResult && (
+      {vocabularyResult && currentTopic && (
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-primary" />
               {t('resultsTitlePrefix')} {currentTopic}
             </CardTitle>
+            {vocabularyResult.words && vocabularyResult.words.length > 0 && (
+              <CardDescription>
+                {t('currentCardOfTotal')
+                  .replace('{current}', (currentCardIndex + 1).toString())
+                  .replace('{total}', vocabularyResult.words.length.toString())}
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
-            {vocabularyResult.words && vocabularyResult.words.length > 0 ? (
-              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <div className="space-y-4">
-                  {vocabularyResult.words.map((item: VocabularyWord, index: number) => (
-                    <div key={index} className="p-4 rounded-md bg-card shadow border border-border/50 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
-                          {item.word}
-                          <span className="text-sm font-normal text-muted-foreground">({userData.settings?.targetLanguage})</span>
-                        </h3>
-                        <Button variant="ghost" size="sm" onClick={() => toggleReveal(index)} className="px-2">
-                          {revealedStates[index] ? <EyeOff className="mr-1 h-4 w-4" /> : <Eye className="mr-1 h-4 w-4" />}
-                          {revealedStates[index] ? t('hideDetailsButton') : t('showDetailsButton')}
-                        </Button>
+            {currentWordData ? (
+              <div className="space-y-4">
+                <Card 
+                  className="min-h-[200px] flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setIsCardRevealed(!isCardRevealed)}
+                >
+                  <h3 className="text-3xl font-semibold text-primary mb-3">
+                    {currentWordData.word}
+                    <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
+                  </h3>
+                  {isCardRevealed && (
+                    <div className="space-y-3 text-left w-full">
+                      <div className="border-t pt-3">
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Languages className="h-4 w-4" />
+                          <strong>{t('translationHeader')}:</strong> {currentWordData.translation} ({userData.settings?.interfaceLanguage})
+                        </p>
                       </div>
-                      {revealedStates[index] && (
-                        <div className="pl-1 space-y-1 border-l-2 border-primary/20 ml-1 pt-1">
-                          <p className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Languages className="h-4 w-4" />
-                            <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
-                          </p>
-                          <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2">
+                      {currentWordData.exampleSentence && (
+                        <div className="border-t pt-3">
+                            <p className="text-sm italic text-muted-foreground/80 flex items-start gap-2">
                             <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
-                            {item.exampleSentence ? (
-                              <span><strong>{t('exampleSentenceHeader')}:</strong> {item.exampleSentence}</span>
-                            ) : (
-                              <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
-                            )}
-                          </div>
+                            <span><strong>{t('exampleSentenceHeader')}:</strong> {currentWordData.exampleSentence}</span>
+                            </p>
+                        </div>
+                      )}
+                      {!currentWordData.exampleSentence && (
+                         <div className="border-t pt-3">
+                            <p className="text-sm text-muted-foreground italic flex items-start gap-2">
+                                <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
+                                {t('noExampleSentence')}
+                            </p>
                         </div>
                       )}
                     </div>
-                  ))}
+                  )}
+                </Card>
+
+                <div className="flex justify-between items-center mt-4">
+                  <Button onClick={handlePrevCard} variant="outline" disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> {t('previousButton')}
+                  </Button>
+                  <Button onClick={() => setIsCardRevealed(!isCardRevealed)} variant="secondary" className="w-1/3">
+                    {isCardRevealed ? t('hideAnswerButton') : t('showAnswerButton')}
+                  </Button>
+                  <Button onClick={handleNextCard} variant="outline" disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}>
+                    {t('nextButton')} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
-              </ScrollArea>
+              </div>
             ) : (
-              <p className="text-muted-foreground">{t('noWordsGenerated')}</p>
+              <p className="text-muted-foreground">{t('noWordsForFlashcards')}</p>
             )}
           </CardContent>
         </Card>
@@ -226,3 +270,5 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
+
+    
