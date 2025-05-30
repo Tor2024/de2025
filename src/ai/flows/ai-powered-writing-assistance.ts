@@ -28,7 +28,7 @@ export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAss
 
 const AIPoweredWritingAssistanceOutputSchema = z.object({
   feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type. CRITICALLY: This feedback MUST be in the {{{interfaceLanguage}}}. Feedback should be tailored to the user proficiency level. Ensure the text is clear, concise, and well-suited for text-to-speech conversion if applicable.'),
-  markedCorrectedText: z.string().describe('The corrected version of the input text, with corrections clearly marked. Use `<ins>inserted text</ins>` for additions/changes and `<del>deleted text</del>` for deletions. This text should be suitable for direct HTML rendering. ONLY use `<ins>` and `<del>` tags, no other HTML elements, attributes, or styles. The text should be appropriate for the user proficiency level.'),
+  markedCorrectedText: z.string().describe('The corrected version of the input text, with corrections clearly marked. Use <ins>inserted text</ins> for additions/changes and <del>deleted text</del> for deletions. This text should be suitable for direct HTML rendering. ONLY use <ins> and <del> tags, no other HTML elements, attributes, or styles. The text should be appropriate for the user proficiency level.'),
 });
 export type AIPoweredWritingAssistanceOutput = z.infer<typeof AIPoweredWritingAssistanceOutputSchema>;
 
@@ -147,7 +147,7 @@ For example, if the task is a "Formal Letter/Email", assess if the user employed
 Your tasks:
 1.  Provide feedback on the structure, grammar, and tone of the user's text. This feedback MUST be in the {{{interfaceLanguage}}} and be appropriate for the user's {{{proficiencyLevel}}}.
 2.  Provide a corrected version of the user's text in the 'markedCorrectedText' field. In this field, you MUST highlight the changes you made compared to the original user's text.
-    Use ONLY the HTML tags `<ins>inserted or changed text</ins>` for any text you add or modify, and `<del>deleted text</del>` for any text you remove from the original.
+    Use ONLY the HTML tags <ins>inserted or changed text</ins> for any text you add or modify, and <del>deleted text</del> for any text you remove from the original.
     For example, if the original was "I go to store" and you correct it to "I went to the store.", your markedCorrectedText should be "I <ins>went</ins> to <ins>the </ins>store<del>go</del>."
     If the original was "I like apples bananas and oranges" and you correct it to "I like apples, bananas, and oranges.", your markedCorrectedText should be "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges."
     Do NOT use any other HTML tags, attributes, or styles in 'markedCorrectedText'. The corrected text should also be appropriate for the user's {{{proficiencyLevel}}}.
