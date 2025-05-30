@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import * as React from 'react'; // Ensure React is imported
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -14,7 +15,6 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from "@/lib/types";
-import * as React from 'react';
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
 import { useToast } from "@/hooks/use-toast";
 import { appModulesConfig } from "@/lib/modulesConfig"; 
@@ -171,7 +171,7 @@ const pageTranslations = generateTranslations();
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
-  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
+  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null); // Initial state is null
   const [isTipLoading, setIsTipLoading] = useState(false);
   const { toast } = useToast();
   const [tipCooldownEndTime, setTipCooldownEndTime] = useState<number | null>(null);
@@ -191,10 +191,17 @@ export default function DashboardPage() {
   };
 
   const fetchTutorTip = React.useCallback(async () => {
+    // Guard to prevent fetching if already loading or in cooldown
+    if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
+      return;
+    }
     if (!userData.settings) {
+      // This should ideally not happen if isUserDataLoading is false and settings are null (redirect would have happened)
+      // But as a safeguard, set static tip.
       setAiTutorTip(t('aiTutorTipStatic'));
       return;
     }
+
     setIsTipLoading(true);
     try {
       const response = await generateTutorTip({
@@ -208,7 +215,7 @@ export default function DashboardPage() {
         clearTimeout(cooldownTimeoutRef.current);
         cooldownTimeoutRef.current = null;
       }
-      setTipCooldownEndTime(null); // Clear cooldown on success
+      setTipCooldownEndTime(null); 
     } catch (error) {
       console.error("Failed to generate tutor tip:", error);
       setAiTutorTip(t('aiTutorTipStatic')); 
@@ -218,7 +225,7 @@ export default function DashboardPage() {
         description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
-      const cooldownDuration = 60 * 1000; // 60 seconds
+      const cooldownDuration = 60 * 1000; 
       setTipCooldownEndTime(Date.now() + cooldownDuration);
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -230,13 +237,19 @@ export default function DashboardPage() {
     } finally {
       setIsTipLoading(false);
     }
-  }, [userData.settings?.interfaceLanguage, userData.settings?.targetLanguage, userData.settings?.proficiencyLevel, userData.settings?.goal, t, toast]); 
+  }, [
+    userData.settings?.interfaceLanguage, 
+    userData.settings?.targetLanguage, 
+    userData.settings?.proficiencyLevel, 
+    userData.settings?.goal, 
+    t, 
+    toast, 
+    isTipLoading, 
+    tipCooldownEndTime
+  ]); 
 
-  useEffect(() => {
-    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-      fetchTutorTip();
-    }
-  }, [isUserDataLoading, userData.settings?.interfaceLanguage, userData.settings?.targetLanguage, userData.settings?.proficiencyLevel, userData.settings?.goal, fetchTutorTip, tipCooldownEndTime]);
+  // Removed useEffect that automatically fetched tutor tip on load.
+  // Tip will now only be fetched via the "Refresh Tip" button.
   
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -301,8 +314,8 @@ export default function DashboardPage() {
               loadingDescriptionText={t('roadmapLoadingDescription')}
               loadingContentText={t('roadmapLoadingContent')}
               introductionHeaderText={t('roadmapIntroduction')}
-              topicsToCoverText={t('roadmapTopicsToCover')}
-              estimatedDurationText={t('roadmapEstimatedDuration')}
+              topicsToCoverText={t('topicsToCoverText')}
+              estimatedDurationText={t('estimatedDurationText')}
               conclusionHeaderText={t('roadmapConclusion')}
               ttsPlayText={t('ttsPlayText')}
               ttsStopText={t('ttsStopText')}
@@ -331,6 +344,7 @@ export default function DashboardPage() {
                     <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
                   </div>
                 ) : (
+                  // Display static tip if aiTutorTip is null (initial state or after error if not explicitly reset)
                   <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
                 )}
                 <Button 
@@ -446,5 +460,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
     
