@@ -18,7 +18,7 @@ export default function GrammarPage() {
     if (!isLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData.settings, isLoading, router]);
+  }, [userData, isLoading, router]); // Changed userData.settings to userData
 
   // Show loading spinner if user data context is still loading.
   if (isLoading) {
