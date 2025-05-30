@@ -57,13 +57,12 @@ export function RoadmapDisplay({
   const completedLessonIds = userData.progress?.completedLessonIds || [];
   const { toast } = useToast();
 
-  const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
-  const playTextInternalIdRef = React.useRef<string | null>(null); // To track which lesson's description is being played
+  const playTextInternalIdRef = React.useRef<string | null>(null); 
 
   React.useEffect(() => {
-    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -80,80 +79,74 @@ export function RoadmapDisplay({
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingLessonId(null); // Reset on error
+        setCurrentlySpeakingTTSId(null); 
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      // All main text segments are spoken
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
-        endCue.lang = interfaceLanguage as AppInterfaceLanguage;
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0) { // Play end cue only if something was spoken
+        const endCue = new SpeechSynthesisUtterance("Дзынь"); 
+        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
         window.speechSynthesis.speak(endCue);
       }
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
     }
-  }, [interfaceLanguage, setCurrentlySpeakingLessonId]);
+  }, [userData.settings, setCurrentlySpeakingTTSId]);
 
-  const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
-    playTextInternalIdRef.current = lessonId;
+  const playText = React.useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
+    playTextInternalIdRef.current = textId;
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
         title: ttsNotSupportedTitle,
         description: ttsNotSupportedDescription,
         variant: 'destructive',
       });
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    // If currently speaking this lesson's text, cancel it (acts as a stop button)
-    if (window.speechSynthesis.speaking && currentlySpeakingLessonId === lessonId) {
+    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
       window.speechSynthesis.cancel();
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    // If speaking something else, cancel that first
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel();
     }
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-      setCurrentlySpeakingLessonId(null);
-      return; // Don't play if text is empty
+      setCurrentlySpeakingTTSId(null);
+      return; 
     }
     
-    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
-    startCue.lang = interfaceLanguage as AppInterfaceLanguage;
+    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь"); 
+    startCueUtterance.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    // If splitting results in no sentences but there was text, use the whole text as one sentence
-    if (sentences.length === 0 && trimmedTextToSpeak) {
-      sentences.push(trimmedTextToSpeak);
-    }
+    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
     utteranceQueueRef.current = [
-        startCue,
+        startCueUtterance,
         ...sentences.map(sentence => {
             const utterance = new SpeechSynthesisUtterance(sentence.trim());
-            utterance.lang = langCode; // Main content uses the target language of the content
+            utterance.lang = langCode; 
             return utterance;
         })
     ];
     
     currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingLessonId(lessonId);
+    setCurrentlySpeakingTTSId(textId);
     speakNext();
 
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, interfaceLanguage, setCurrentlySpeakingLessonId]);
+  }, [currentlySpeakingTTSId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, userData.settings, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingLessonId(null);
-  }, [setCurrentlySpeakingLessonId]);
+    setCurrentlySpeakingTTSId(null);
+  }, [setCurrentlySpeakingTTSId]);
 
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
@@ -205,10 +198,8 @@ export function RoadmapDisplay({
                     <div className="flex items-center gap-3 w-full">
                        <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 shrink-0"
+                          <span // Changed from Button to span
+                            className="h-7 w-7 shrink-0 flex items-center justify-center cursor-pointer" 
                             onClick={(e) => {
                               e.stopPropagation(); 
                               toggleLessonCompletion(lesson.id);
@@ -216,7 +207,7 @@ export function RoadmapDisplay({
                             aria-label={isCompleted ? markIncompleteTooltip : markCompleteTooltip}
                           >
                             {isCompleted ? <CheckSquare className="h-5 w-5 text-green-600" /> : <Square className="h-5 w-5 text-muted-foreground" />}
-                          </Button>
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>{isCompleted ? markIncompleteTooltip : markCompleteTooltip}</p>
@@ -242,22 +233,22 @@ export function RoadmapDisplay({
                                variant="ghost"
                                size="icon"
                                onClick={() => {
-                                 if (!hasDescription || !lesson.description) return; // Guard against empty description
-                                 if (currentlySpeakingLessonId === lessonSpeechId) {
+                                 if (!hasDescription || !lesson.description) return; 
+                                 if (currentlySpeakingTTSId === lessonSpeechId) {
                                    stopSpeech();
                                  } else {
                                    playText(lessonSpeechId, lesson.description, interfaceLanguage as AppInterfaceLanguage);
                                  }
                                }}
                                className="ml-2 shrink-0"
-                               aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
+                               aria-label={currentlySpeakingTTSId === lessonSpeechId ? ttsStopText : ttsPlayText}
                                disabled={!hasDescription}
                              >
-                               {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                               {currentlySpeakingTTSId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                              </Button>
                            </TooltipTrigger>
                            <TooltipContent>
-                             <p>{currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}</p>
+                             <p>{currentlySpeakingTTSId === lessonSpeechId ? ttsStopText : ttsPlayText}</p>
                            </TooltipContent>
                          </Tooltip>
                       )}
@@ -294,5 +285,6 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+    
 
     
