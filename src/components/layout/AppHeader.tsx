@@ -23,14 +23,14 @@ const baseEnTranslations = {
   settings: "Settings",
   logout: "Log out",
   learnerSuffix: "Learner",
-  fallbackLearnerName: "Learner", // Added
+  fallbackLearnerName: "Learner",
 };
 
 const baseRuTranslations = {
   settings: "Настройки",
   logout: "Выйти",
   learnerSuffix: "Ученик",
-  fallbackLearnerName: "Ученик", // Added
+  fallbackLearnerName: "Ученик",
 };
 
 const generateHeaderTranslations = () => {
@@ -71,7 +71,7 @@ export function AppHeader() {
 
   const userInitial = !isUserDataLoading && userData.settings?.userName && userData.settings.userName.length > 0
     ? userData.settings.userName.charAt(0).toUpperCase()
-    : "L";
+    : t('fallbackLearnerName', 'Learner').charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur md:px-6">
