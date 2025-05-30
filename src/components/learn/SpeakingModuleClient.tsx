@@ -190,7 +190,7 @@ export function SpeakingModuleClient() {
                 </ScrollArea>
               </div>
             )}
-            {(!speakingResult.tips || speakingResult.tips.length === 0) && (
+            {(!speakingResult.tips || speakingResult.tips.length === 0) && !isAiLoading && (
               <p className="text-sm text-muted-foreground italic mt-2">{t('noTipsGenerated')}</p>
             )}
           </CardContent>
@@ -199,3 +199,5 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+
+    
