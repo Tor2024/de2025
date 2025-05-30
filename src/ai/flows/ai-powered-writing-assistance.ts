@@ -10,8 +10,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { interfaceLanguageCodes, germanWritingTaskTypes } from '@/lib/types';
-import { ProficiencyLevelSchema, type ProficiencyLevel } from './adaptive-grammar-explanations'; // Import from grammar flow
+import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels } from '@/lib/types'; // Added proficiencyLevels
+import type { ProficiencyLevel } from './adaptive-grammar-explanations'; // Keep type import
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -21,7 +21,7 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should consider the conventions of this type.'),
-  proficiencyLevel: ProficiencyLevelSchema.describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
+  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'), // Changed to use imported proficiencyLevels
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 

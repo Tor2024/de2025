@@ -11,7 +11,6 @@
  * - adaptiveGrammarExplanations - A function that handles the adaptive grammar explanations process.
  * - AdaptiveGrammarExplanationsInput - The input type for the adaptiveGrammarExplanations function.
  * - AdaptiveGrammarExplanationsOutput - The return type for the adaptiveGrammarExplanations function.
- * - ProficiencyLevelSchema - Zod schema for proficiency level.
  * - ProficiencyLevel - Type for proficiency level.
  */
 
@@ -24,7 +23,7 @@ import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } fro
 const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
 export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>;
 
-export const ProficiencyLevelSchema = z.enum(appProficiencyLevels);
+const ProficiencyLevelSchema = z.enum(appProficiencyLevels); // Removed export
 export type ProficiencyLevel = z.infer<typeof ProficiencyLevelSchema>;
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
