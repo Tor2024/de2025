@@ -63,6 +63,7 @@ const baseEnTranslations: Record<string, string> = {
   showPracticeHintButton: "Show Hint (First Letter)",
   hidePracticeHintButton: "Hide Hint",
   hintLabel: "Hint:",
+  practiceAgainButton: "Practice Again",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -102,6 +103,7 @@ const baseRuTranslations: Record<string, string> = {
   showPracticeHintButton: "Показать подсказку (первая буква)",
   hidePracticeHintButton: "Скрыть подсказку",
   hintLabel: "Подсказка:",
+  practiceAgainButton: "Практиковать снова",
 };
 
 const generateTranslations = () => {
@@ -247,7 +249,7 @@ export function VocabularyModuleClient() {
       setPracticeFeedback(`${t('feedbackIncorrectPrefix')} ${currentPracticeWord.translation}`);
     }
     setIsPracticeSubmitted(true);
-    setShowPracticeHint(false); // Hide hint after submission
+    setShowPracticeHint(false); 
   };
 
   const handleNextPractice = () => {
@@ -262,12 +264,20 @@ export function VocabularyModuleClient() {
         .replace('{correct}', practiceScore.correct.toString())
         .replace('{total}', practiceScore.total.toString());
       setPracticeFeedback(`${t('practiceComplete')} ${finalScoreMsg}`);
-      // isPracticeSubmitted remains true to show final score
     }
   };
   
   const handleTogglePracticeHint = () => {
     setShowPracticeHint(prev => !prev);
+  };
+
+  const handleRestartPractice = () => {
+    setCurrentPracticeIndex(0);
+    setUserPracticeAnswer("");
+    setPracticeFeedback("");
+    setIsPracticeSubmitted(false);
+    setPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct answers, total remains
+    setShowPracticeHint(false);
   };
 
   return (
@@ -403,7 +413,7 @@ export function VocabularyModuleClient() {
                 <Repeat className="h-6 w-6 text-primary" />
                 {t('practiceModeTitle')}
               </CardTitle>
-              {currentPracticeWord && currentPracticeIndex < practiceWords.length && !practiceFeedback.startsWith(t('practiceComplete')) ? (
+              {currentPracticeWord && !practiceFeedback.startsWith(t('practiceComplete')) ? (
                 <div className="w-full space-y-3">
                   <p className="text-lg">
                     <span className="font-semibold">{t('practiceWordLabel')}</span> {currentPracticeWord.word}
@@ -454,7 +464,7 @@ export function VocabularyModuleClient() {
                     )}
                   </div>
 
-                   {practiceFeedback && (
+                   {practiceFeedback && !practiceFeedback.startsWith(t('practiceComplete')) && (
                     <p className={cn(
                         "text-sm mt-2 flex items-center gap-1",
                         practiceFeedback === t('feedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
@@ -466,7 +476,12 @@ export function VocabularyModuleClient() {
                   )}
                 </div>
               ) : (
-                 <p className="text-lg font-semibold text-primary">{practiceFeedback || t('practiceComplete')}</p>
+                 <div className="text-center p-4">
+                    <p className="text-lg font-semibold text-primary mb-2">{practiceFeedback || t('practiceComplete')}</p>
+                    <Button onClick={handleRestartPractice} variant="outline">
+                        {t('practiceAgainButton')}
+                    </Button>
+                 </div>
               )}
             </CardFooter>
           )}
