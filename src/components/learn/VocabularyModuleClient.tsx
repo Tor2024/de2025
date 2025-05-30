@@ -82,9 +82,9 @@ const baseEnTranslations: Record<string, string> = {
   mcPracticeTitle: "Practice Mode: Choose Correct Translation",
   mcPracticeWordLabel: "Word (in {targetLanguage}):",
   mcPracticeChooseLabel: "Choose the correct translation (in {interfaceLanguage}):",
-  practiceCheckMcButton: "Check Answer", // Renamed from mcPracticeCheckButton
-  practiceNextMcButton: "Next Question",   // Renamed from mcPracticeNextButton
-  practiceAgainMcButton: "Practice This Set Again", // Renamed from mcPracticeAgainButton
+  practiceCheckMcButton: "Check Answer",
+  practiceNextMcButton: "Next Question",
+  practiceAgainMcButton: "Practice This Set Again",
   mcFeedbackCorrect: "Correct!",
   mcFeedbackIncorrect: "Not quite!",
   mcPracticeComplete: "Multiple Choice Practice Complete!",
@@ -137,9 +137,9 @@ const baseRuTranslations: Record<string, string> = {
   mcPracticeTitle: "Режим практики: Выберите правильный перевод",
   mcPracticeWordLabel: "Слово (на {targetLanguage}):",
   mcPracticeChooseLabel: "Выберите правильный перевод (на {interfaceLanguage}):",
-  practiceCheckMcButton: "Проверить ответ", // Renamed
-  practiceNextMcButton: "Следующий вопрос",   // Renamed
-  practiceAgainMcButton: "Практиковать этот набор снова", // Renamed
+  practiceCheckMcButton: "Проверить ответ",
+  practiceNextMcButton: "Следующий вопрос",
+  practiceAgainMcButton: "Практиковать этот набор снова",
   mcFeedbackCorrect: "Правильно!",
   mcFeedbackIncorrect: "Не совсем!",
   mcPracticeComplete: "Практика 'Множественный выбор' завершена!",
@@ -161,7 +161,7 @@ const generateTranslations = () => {
 const componentTranslations = generateTranslations();
 
 export function VocabularyModuleClient() {
-  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
@@ -229,11 +229,11 @@ export function VocabularyModuleClient() {
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
@@ -369,6 +369,7 @@ export function VocabularyModuleClient() {
         .replace('{correct}', typeInPracticeScore.correct.toString())
         .replace('{total}', typeInPracticeScore.total.toString());
       setTypeInPracticeFeedback(`${t('typeInPracticeComplete')} ${finalScoreMsg}`);
+      recordPracticeSetCompletion();
     }
   };
   
@@ -381,7 +382,7 @@ export function VocabularyModuleClient() {
     setUserTypeInAnswer("");
     setTypeInPracticeFeedback("");
     setIsTypeInPracticeSubmitted(false);
-    setTypeInPracticeScore(prev => ({ ...prev, correct: 0 }));
+    setTypeInPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct count, total remains
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
   };
@@ -423,17 +424,20 @@ export function VocabularyModuleClient() {
   const handleNextMcPracticeExercise = () => {
     if (currentMcPracticeIndex < practiceWords.length - 1) {
       setCurrentMcPracticeIndex(prev => prev + 1);
+      // setupMcPracticeExercise is called via useEffect
     } else {
       const finalScoreMsg = t('mcPracticeScoreMessage')
         .replace('{correct}', mcPracticeScore.correct.toString())
         .replace('{total}', mcPracticeScore.total.toString());
       setMcPracticeFeedback(`${t('mcPracticeComplete')} ${finalScoreMsg}`);
+      recordPracticeSetCompletion();
     }
   };
 
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
-    setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
+    setMcPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct count
+    // setupMcPracticeExercise is called via useEffect
   };
 
   const handleArchiveMcPracticeMistake = () => {
@@ -575,7 +579,7 @@ export function VocabularyModuleClient() {
                 )}
               </div>
             ) : (
-              <p className="text-muted-foreground">{isAiLoading ? t('loading') : t('noWordsForFlashcards')}</p>
+              <p className="text-muted-foreground p-4 md:p-6 lg:p-8">{isAiLoading ? t('loading') : t('noWordsForFlashcards')}</p>
             )}
           </CardContent>
 
@@ -615,7 +619,7 @@ export function VocabularyModuleClient() {
                   {!isTypeInPracticeSubmitted && (
                     <Button onClick={handleToggleTypeInPracticeHint} variant="link" size="sm" className="p-0 h-auto text-xs">
                         <Lightbulb className="h-3 w-3 mr-1"/>
-                        {showTypeInPracticeHint ? t('hideTypeInPracticeHintButton') : t('showTypeInPracticeHintButton')}
+                        {showTypeInPracticeHint ? t('hideTypeInPracticeHintButton') : t('typeInPracticeAgainButton')} 
                     </Button>
                   )}
 
@@ -630,11 +634,16 @@ export function VocabularyModuleClient() {
                       <Button onClick={handleCheckTypeInPracticeAnswer} disabled={!userTypeInAnswer.trim()}>
                         {t('typeInPracticeCheckButton')}
                       </Button>
-                    ) : (
+                    ) : currentTypeInPracticeIndex < practiceWords.length - 1 ? (
                       <Button onClick={handleNextTypeInPractice}>
                         {t('typeInPracticeNextButton')}
                       </Button>
-                    )}
+                    ) : (
+                       <Button onClick={handleRestartTypeInPractice} variant="outline">
+                        {t('typeInPracticeAgainButton')}
+                      </Button>
+                    )
+                    }
                     {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('typeInFeedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
                        <Button variant="outline" size="sm" onClick={handleArchiveTypeInPracticeMistake} className="text-xs">
                           <Archive className="mr-1.5 h-3.5 w-3.5" />
@@ -681,16 +690,16 @@ export function VocabularyModuleClient() {
                   <p className="text-sm text-muted-foreground">{t('mcPracticeChooseLabel').replace('{interfaceLanguage}', userData.settings!.interfaceLanguage)}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {mcPracticeOptions.map((option, idx) => {
-                      const isSelected = selectedMcOption?.translation === option.translation; // Compare by translation for consistency
+                      const isSelected = selectedMcOption?.translation === option.translation; 
                       const isCorrect = currentMcPracticeWord.translation === option.translation;
                       
                       let buttonClassName = "justify-start text-left h-auto py-2 transition-colors duration-200";
 
                       if (isMcPracticeSubmitted) {
                         if (isCorrect) {
-                           buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30");
+                           buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30 dark:bg-green-700/30 dark:text-green-400 dark:border-green-600");
                         } else if (isSelected && !isCorrect) {
-                           buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30");
+                           buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30 dark:bg-red-700/30 dark:text-red-400 dark:border-red-600");
                         } else {
                            buttonClassName = cn(buttonClassName, "border-border");
                         }
@@ -702,7 +711,7 @@ export function VocabularyModuleClient() {
 
                       return (
                         <Button
-                          key={`${option.word}-${idx}`} // Use word for key if available
+                          key={`${option.word}-${idx}-${option.translation}`}
                           variant="outline"
                           className={buttonClassName}
                           onClick={() => handleMcOptionSelect(option)}

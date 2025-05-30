@@ -17,6 +17,7 @@ interface UserDataContextType {
   toggleLessonCompletion: (lessonId: string) => void;
   addErrorToArchive: (errorData: Omit<ErrorRecord, 'id' | 'date'>) => void;
   clearErrorArchive: () => void;
+  recordPracticeSetCompletion: () => void;
   isLoading: boolean;
 }
 
@@ -36,6 +37,8 @@ const BADGE_STREAK_7_DAYS = "7-Day Learning Habit";
 const BADGE_LESSONS_5_COMPLETED = "5 Lessons Conquered";
 const BADGE_XP_1000 = "1000 XP Power Up!";
 const BADGE_STREAK_14_DAYS = "14-Day Dedication!";
+const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
+const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
 
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
@@ -150,6 +153,30 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [setUserData]);
 
+  const recordPracticeSetCompletion = useCallback(() => {
+    setUserData(prev => {
+      const currentProgress = prev.progress;
+      const newPracticeSetsCompleted = (currentProgress.practiceSetsCompleted || 0) + 1;
+      let newBadges = [...(currentProgress.badges || [])];
+
+      if (newPracticeSetsCompleted === 1 && !newBadges.includes(BADGE_FIRST_PRACTICE_SET_COMPLETED)) {
+        newBadges.push(BADGE_FIRST_PRACTICE_SET_COMPLETED);
+      }
+      if (newPracticeSetsCompleted === 5 && !newBadges.includes(BADGE_PRACTICE_SETS_5_COMPLETED)) {
+        newBadges.push(BADGE_PRACTICE_SETS_5_COMPLETED);
+      }
+      
+      return {
+        ...prev,
+        progress: {
+          ...currentProgress,
+          practiceSetsCompleted: newPracticeSetsCompleted,
+          badges: newBadges,
+        },
+      };
+    });
+  }, [setUserData]);
+
   const clearUserData = useCallback(() => {
     setUserData(initialUserData);
   }, [setUserData]);
@@ -164,6 +191,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     toggleLessonCompletion,
     addErrorToArchive,
     clearErrorArchive,
+    recordPracticeSetCompletion,
     isLoading: isStorageLoading,
   };
 

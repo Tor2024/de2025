@@ -117,7 +117,7 @@ interface ExerciseState {
 }
 
 export function WordPracticeClient() {
-  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [exerciseResult, setExerciseResult] = useState<FillBlankExerciseOutput | null>(null);
@@ -147,7 +147,7 @@ export function WordPracticeClient() {
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
-    resetTopicForm();
+    
 
     try {
       if (!userData.settings) {
@@ -175,6 +175,7 @@ export function WordPracticeClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic || t('noTopicProvided')),
       });
+      resetTopicForm();
     } catch (error) {
       console.error("Exercise generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -234,6 +235,7 @@ export function WordPracticeClient() {
       setCurrentExerciseIndex(prev => prev + 1);
     } else {
       setShowOverallResults(true);
+      recordPracticeSetCompletion();
     }
   };
   
@@ -354,7 +356,7 @@ export function WordPracticeClient() {
                     <p className="text-sm text-muted-foreground">
                       {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
                     </p>
-                    {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && !currentExerciseState.isMistakeArchived && (
+                     {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && !currentExerciseState.isMistakeArchived && (
                         <Button variant="outline" size="sm" onClick={handleArchiveMistake} className="text-xs">
                             <Archive className="mr-1.5 h-3.5 w-3.5" />
                             {t('archiveMistakeButton')}
@@ -404,4 +406,3 @@ export function WordPracticeClient() {
     </div>
   );
 }
-

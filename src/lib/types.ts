@@ -57,6 +57,7 @@ export interface UserProgress {
   moduleCompletion: Record<string, number | boolean>;
   errorArchive: ErrorRecord[];
   completedLessonIds: string[];
+  practiceSetsCompleted: number;
 }
 
 export const initialUserProgress: UserProgress = {
@@ -67,6 +68,7 @@ export const initialUserProgress: UserProgress = {
   errorArchive: [],
   learningRoadmap: undefined,
   completedLessonIds: [],
+  practiceSetsCompleted: 0,
 };
 
 export interface UserData {
@@ -102,7 +104,7 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
   { code: 'kk', name: 'Kazakh', nativeName: 'Қазақша' },
   { code: 'ka', name: 'Georgian', nativeName: 'ქართული' },
-  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' }, // Using 'syr' (ISO 639-2/3) and simple native name for UI
+  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' },
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو' },
   { code: 'prs', name: 'Dari', nativeName: 'دری' },
 ];
