@@ -14,12 +14,12 @@ interface UserDataContextType {
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
   setLearningRoadmap: (roadmap: LearningRoadmap) => void;
-  isLoading: boolean; 
+  toggleLessonCompletion: (lessonId: string) => void; // Added
+  isLoading: boolean;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
 
-// Сделаем initialUserData константой на уровне модуля для стабильности ссылки
 const initialUserData: UserData = {
   settings: null,
   progress: { ...initialUserProgress },
@@ -31,20 +31,37 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
       ...prev,
-      settings: { ...(prev.settings || {}), ...newSettings } as UserSettings,
+      settings: { ...(prev.settings || {} as UserSettings), ...newSettings },
     }));
   }, [setUserData]);
 
   const updateProgress = useCallback((newProgress: Partial<UserProgress>) => {
     setUserData(prev => ({
       ...prev,
-      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress } as UserProgress,
+      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress },
     }));
   }, [setUserData]);
   
   const setLearningRoadmap = useCallback((roadmap: LearningRoadmap) => {
     updateProgress({ learningRoadmap: roadmap });
-  }, [updateProgress]); // Зависит от updateProgress, который уже мемоизирован
+  }, [updateProgress]);
+
+  const toggleLessonCompletion = useCallback((lessonId: string) => {
+    setUserData(prev => {
+      const currentCompletedIds = prev.progress?.completedLessonIds || [];
+      const isCompleted = currentCompletedIds.includes(lessonId);
+      const newCompletedLessonIds = isCompleted
+        ? currentCompletedIds.filter(id => id !== lessonId)
+        : [...currentCompletedIds, lessonId];
+      return {
+        ...prev,
+        progress: {
+          ...(prev.progress || initialUserProgress),
+          completedLessonIds: newCompletedLessonIds,
+        },
+      };
+    });
+  }, [setUserData]);
 
   const clearUserData = useCallback(() => {
     setUserData(initialUserData);
@@ -57,6 +74,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     updateProgress,
     clearUserData,
     setLearningRoadmap,
+    toggleLessonCompletion, // Added
     isLoading: isStorageLoading,
   };
 

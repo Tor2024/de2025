@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUserData } from "@/contexts/UserDataContext";
-import { BookMarked, ListChecks, Clock, Info, Volume2, Ban } from "lucide-react";
-import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
+import { BookMarked, ListChecks, Clock, Info, Volume2, Ban, Square, CheckSquare } from "lucide-react";
+import type { Lesson } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 
 interface RoadmapDisplayProps {
@@ -25,6 +26,10 @@ interface RoadmapDisplayProps {
   ttsPlayText: string;
   ttsStopText: string;
   ttsExperimentalText: string;
+  ttsNotSupportedTitle: string;
+  ttsNotSupportedDescription: string;
+  markCompleteTooltip: string;
+  markIncompleteTooltip: string;
 }
 
 export function RoadmapDisplay({
@@ -40,17 +45,21 @@ export function RoadmapDisplay({
   ttsPlayText,
   ttsStopText,
   ttsExperimentalText,
+  ttsNotSupportedTitle,
+  ttsNotSupportedDescription,
+  markCompleteTooltip,
+  markIncompleteTooltip,
 }: RoadmapDisplayProps) {
-  const { userData } = useUserData();
+  const { userData, toggleLessonCompletion } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
   const interfaceLanguage = userData.settings?.interfaceLanguage || 'en';
+  const completedLessonIds = userData.progress?.completedLessonIds || [];
 
   const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
 
   React.useEffect(() => {
-    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -67,17 +76,18 @@ export function RoadmapDisplay({
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingLessonId(null); // Stop on error
+        setCurrentlySpeakingLessonId(null); 
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      setCurrentlySpeakingLessonId(null); // Finished queue or TTS not available
+      setCurrentlySpeakingLessonId(null); 
     }
   }, []);
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      alert("Text-to-Speech is not supported by your browser.");
+      // toast is not available here directly, but this case should ideally be handled by disabling the button
+      console.warn(ttsNotSupportedDescription);
       setCurrentlySpeakingLessonId(null);
       return;
     }
@@ -89,25 +99,23 @@ export function RoadmapDisplay({
     }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel(); // Stop any other speech
+        window.speechSynthesis.cancel(); 
     }
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
         setCurrentlySpeakingLessonId(null);
-        return; // Do not proceed if text is empty
+        return; 
     }
-
-    // Basic sentence splitting. More robust splitting might be needed for complex texts.
+    
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     
-    if (sentences.length === 0 && trimmedTextToSpeak) { // If splitting results in no sentences (e.g. text without standard delimiters)
-        sentences.push(trimmedTextToSpeak); // Speak the whole trimmed text
+    if (sentences.length === 0 && trimmedTextToSpeak) { 
+        sentences.push(trimmedTextToSpeak); 
     }
 
     utteranceQueueRef.current = sentences.map(sentence => {
       const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      // Map app language codes to BCP 47 if necessary, or use directly if they match
       utterance.lang = langCode; 
       return utterance;
     });
@@ -115,7 +123,7 @@ export function RoadmapDisplay({
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext]);
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -159,17 +167,39 @@ export function RoadmapDisplay({
             {roadmap.lessons.map((lesson: Lesson, index: number) => {
               const lessonSpeechId = lesson.id || `lesson-speech-${index}`;
               const hasDescription = lesson.description && lesson.description.trim().length > 0;
+              const isCompleted = completedLessonIds.includes(lesson.id);
 
               return (
                 <AccordionItem 
                   value={`lesson-item-${index}`} 
                   key={`lesson-key-${index}`}    
-                  className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow"
+                  className={cn(
+                    "bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow",
+                    isCompleted && "bg-green-500/10 border-green-500/30"
+                  )}
                 >
                   <AccordionTrigger className="p-4 text-base hover:no-underline">
                     <div className="flex items-center gap-3 w-full">
-                      <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
-                      <span className="font-medium text-left flex-1">{lesson.title}</span>
+                       <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent accordion from toggling
+                              toggleLessonCompletion(lesson.id);
+                            }}
+                          >
+                            {isCompleted ? <CheckSquare className="h-5 w-5 text-green-600" /> : <Square className="h-5 w-5 text-muted-foreground" />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{isCompleted ? markIncompleteTooltip : markCompleteTooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <span className={cn("bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm", isCompleted && "line-through text-muted-foreground bg-muted/40")}>{lesson.level}</span>
+                      <span className={cn("font-medium text-left flex-1", isCompleted && "line-through text-muted-foreground")}>{lesson.title}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="p-4 pt-0">

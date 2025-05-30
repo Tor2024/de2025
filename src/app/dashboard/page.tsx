@@ -17,7 +17,7 @@ import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, pro
 import * as React from 'react';
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
 import { useToast } from "@/hooks/use-toast";
-import { appModulesConfig } from "@/lib/modulesConfig"; // Import the centralized config
+import { appModulesConfig } from "@/lib/modulesConfig"; 
 
 const baseEnTranslations: Record<string, string> = {
     loadingUserData: "Loading user data...",
@@ -44,7 +44,6 @@ const baseEnTranslations: Record<string, string> = {
     goToSettings: "Go to Settings",
     viewFullProgress: "View Full Progress",
     viewAllAchievements: "View All Achievements",
-    // Module titles and descriptions for dashboard cards
     grammar: "Grammar",
     grammarDescription: "Master sentence structures.",
     writingAssistant: "Writing Assistant",
@@ -62,7 +61,7 @@ const baseEnTranslations: Record<string, string> = {
     yourGoalPrefix: "Your Goal:",
     noGoalSet: "No goal set.",
     progressLabel: "Progress",
-    progressMessage: "You're {value}% closer to achieving your goal! Keep it up!",
+    progressMessageTextTemplate: "You're {value}% closer to achieving your goal! Keep it up!",
     roadmapTitle: "Your Learning Roadmap",
     roadmapDescription: "Follow this structured plan to achieve your language goals. All instructions and descriptions are in your chosen interface language.",
     roadmapLoadingTitle: "Learning Roadmap",
@@ -83,6 +82,8 @@ const baseEnTranslations: Record<string, string> = {
     tooltipTargetLanguage: "Target Language",
     tooltipProficiency: "Proficiency Level",
     tooltipGoal: "Current Goal",
+    markCompleteTooltip: "Mark as complete",
+    markIncompleteTooltip: "Mark as incomplete",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -127,7 +128,7 @@ const baseRuTranslations: Record<string, string> = {
     yourGoalPrefix: "Ваша цель:",
     noGoalSet: "Цель не установлена.",
     progressLabel: "Прогресс",
-    progressMessage: "Вы на {value}% ближе к достижению цели! Продолжайте в том же духе!",
+    progressMessageTextTemplate: "Вы на {value}% ближе к достижению цели! Продолжайте в том же духе!",
     roadmapTitle: "Ваш учебный план",
     roadmapDescription: "Следуйте этому структурированному плану для достижения ваших языковых целей. Все инструкции и описания на выбранном вами языке интерфейса.",
     roadmapLoadingTitle: "Учебный план",
@@ -148,6 +149,8 @@ const baseRuTranslations: Record<string, string> = {
     tooltipTargetLanguage: "Изучаемый язык",
     tooltipProficiency: "Уровень владения",
     tooltipGoal: "Текущая цель",
+    markCompleteTooltip: "Отметить как пройденный",
+    markIncompleteTooltip: "Отметить как не пройденный",
 };
 
 const generateTranslations = () => {
@@ -276,6 +279,8 @@ export default function DashboardPage() {
               ttsExperimentalText={t('ttsExperimentalText')}
               ttsNotSupportedTitle={t('ttsNotSupportedTitle')}
               ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
+              markCompleteTooltip={t('markCompleteTooltip')}
+              markIncompleteTooltip={t('markIncompleteTooltip')}
             />
           </div>
           <div className="md:w-1/3 space-y-6">
@@ -398,7 +403,7 @@ export default function DashboardPage() {
                     </TooltipTrigger>
                     <TooltipContent><p>{t('tooltipGoal')}</p></TooltipContent>
                   </Tooltip>
-                  <span>{t('currentGoalLabel')}: <span className="font-medium text-foreground whitespace-pre-wrap">{userData.settings.goal || t('noGoalSet')}</span></span>
+                  <span className="whitespace-pre-wrap">{t('currentGoalLabel')}: <span className="font-medium text-foreground">{userData.settings.goal || t('noGoalSet')}</span></span>
                 </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
                   {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />
@@ -411,4 +416,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-

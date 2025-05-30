@@ -17,18 +17,18 @@ export type ProficiencyLevel = typeof proficiencyLevels[number];
 export interface UserSettings {
   interfaceLanguage: InterfaceLanguage;
   targetLanguage: TargetLanguage;
-  proficiencyLevel: ProficiencyLevel; // This will store the default/starting level
+  proficiencyLevel: ProficiencyLevel;
   goal: string;
   userName?: string;
 }
 
 export interface Lesson {
-  id: string; // Unique identifier for the lesson
-  level: string; // e.g., "A1", "B2"
+  id: string;
+  level: string;
   title: string;
   description: string;
   topics: string[];
-  estimatedDuration?: string; // e.g., "2 weeks", "10 hours"
+  estimatedDuration?: string;
 }
 
 export interface LearningRoadmap {
@@ -53,6 +53,7 @@ export interface UserProgress {
   moduleCompletion: Record<string, number | boolean>;
   errorArchive: ErrorRecord[];
   onboardingStep?: number;
+  completedLessonIds: string[]; // Added for tracking completed lessons
 }
 
 export const initialUserProgress: UserProgress = {
@@ -62,6 +63,7 @@ export const initialUserProgress: UserProgress = {
   moduleCompletion: {},
   errorArchive: [],
   learningRoadmap: undefined,
+  completedLessonIds: [], // Initialized
 };
 
 export interface UserData {
