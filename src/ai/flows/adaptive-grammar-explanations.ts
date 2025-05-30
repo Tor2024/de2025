@@ -28,7 +28,7 @@ const AdaptiveGrammarExplanationsInputSchema = z.object({
 });
 export type AdaptiveGrammarExplanationsInput = z.infer<typeof AdaptiveGrammarExplanationsInputSchema>;
 
-export const PracticeTaskSchema = z.object({
+const PracticeTaskSchema = z.object({
   id: z.string().describe('A unique ID for the task, e.g., "task_1", "task_2".'),
   type: z.enum(['fill-in-the-blank']).describe('The type of the task. For now, only "fill-in-the-blank" is supported.'),
   taskDescription: z.string().describe('The task itself, including very clear instructions on what the user should do and in what format the answer is expected. E.g., for a fill-in-the-blank task: "Complete the sentence: The cat ____ on the mat." The blank should be indicated by "____". This description MUST be in the {{{interfaceLanguage}}}.'),
@@ -104,3 +104,6 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
   }
 );
 
+// Ensure ProficiencyLevelSchema is NOT exported from this file if it's not an async function or type.
+// The PracticeTaskSchema is defined above and used in AdaptiveGrammarExplanationsOutputSchema.
+// The type PracticeTask (inferred from PracticeTaskSchema) IS exported, which is allowed.
