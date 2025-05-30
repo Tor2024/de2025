@@ -222,7 +222,7 @@ export default function DashboardPage() {
       <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
         </div>
       </AppShell>
     );
@@ -233,7 +233,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
         </div>
       </AppShell>
     );
@@ -282,7 +282,7 @@ export default function DashboardPage() {
             />
             <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>{t('aiTutorTipsTitle')}</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Bot className="text-primary h-6 w-6"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {isTipLoading && !aiTutorTip ? ( 
@@ -372,3 +372,6 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+
+    
