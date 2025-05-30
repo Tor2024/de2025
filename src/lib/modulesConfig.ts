@@ -86,7 +86,7 @@ export const appModulesConfig: AppModuleConfig[] = [
     defaultDescription: "Practice your pronunciation.",
     tooltipKey: "speakingTooltip",
     defaultTooltip: "Speaking",
-    disabled: true,
+    disabled: false,
   },
   {
     id: "wordPractice",
