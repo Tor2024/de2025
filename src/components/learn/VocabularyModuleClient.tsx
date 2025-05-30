@@ -82,9 +82,9 @@ const baseEnTranslations: Record<string, string> = {
   mcPracticeTitle: "Practice Mode: Choose Correct Translation",
   mcPracticeWordLabel: "Word (in {targetLanguage}):",
   mcPracticeChooseLabel: "Choose the correct translation (in {interfaceLanguage}):",
-  mcPracticeCheckButton: "Check Answer",
-  mcPracticeNextButton: "Next Question",
-  mcPracticeAgainButton: "Practice This Set Again",
+  practiceCheckMcButton: "Check Answer", // Renamed from mcPracticeCheckButton
+  practiceNextMcButton: "Next Question",   // Renamed from mcPracticeNextButton
+  practiceAgainMcButton: "Practice This Set Again", // Renamed from mcPracticeAgainButton
   mcFeedbackCorrect: "Correct!",
   mcFeedbackIncorrect: "Not quite!",
   mcPracticeComplete: "Multiple Choice Practice Complete!",
@@ -137,9 +137,9 @@ const baseRuTranslations: Record<string, string> = {
   mcPracticeTitle: "Режим практики: Выберите правильный перевод",
   mcPracticeWordLabel: "Слово (на {targetLanguage}):",
   mcPracticeChooseLabel: "Выберите правильный перевод (на {interfaceLanguage}):",
-  mcPracticeCheckButton: "Проверить ответ",
-  mcPracticeNextButton: "Следующий вопрос",
-  mcPracticeAgainButton: "Практиковать этот набор снова",
+  practiceCheckMcButton: "Проверить ответ", // Renamed
+  practiceNextMcButton: "Следующий вопрос",   // Renamed
+  practiceAgainMcButton: "Практиковать этот набор снова", // Renamed
   mcFeedbackCorrect: "Правильно!",
   mcFeedbackIncorrect: "Не совсем!",
   mcPracticeComplete: "Практика 'Множественный выбор' завершена!",
@@ -209,12 +209,12 @@ export function VocabularyModuleClient() {
     }
     const correctWord = practiceWords[index];
     const distractors = practiceWords
-      .filter(word => word.word !== correctWord.word) // Ensure distractors are different words
-      .sort(() => 0.5 - Math.random()) // Shuffle to get random distractors
+      .filter(word => word.word !== correctWord.word) 
+      .sort(() => 0.5 - Math.random()) 
       .slice(0, 3);
     
     const options = shuffleArray([correctWord, ...distractors]);
-    setMcPracticeOptions(options.slice(0, Math.min(4, practiceWords.length))); // Ensure we have at most 4 options, or less if not enough words
+    setMcPracticeOptions(options.slice(0, Math.min(4, practiceWords.length)));
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
     setIsMcPracticeSubmitted(false);
@@ -229,11 +229,11 @@ export function VocabularyModuleClient() {
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
@@ -273,10 +273,11 @@ export function VocabularyModuleClient() {
       const result = await generateVocabulary(flowInput);
       setVocabularyResult(result);
       if (result && result.words && result.words.length > 0) {
-        setPracticeWords([...result.words]); 
+        const shuffledWords = shuffleArray([...result.words]);
+        setPracticeWords(shuffledWords); 
         setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
         setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
-        setupMcPracticeExercise(0); // Setup first MC question
+        setupMcPracticeExercise(0); 
       }
       toast({
         title: t('toastSuccessTitle'),
@@ -299,10 +300,8 @@ export function VocabularyModuleClient() {
   const handleClearResults = () => {
     setVocabularyResult(null);
     setCurrentTopic("");
-    // Reset flashcard states
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
-    // Reset type-in practice states
     setPracticeWords([]);
     setCurrentTypeInPracticeIndex(0);
     setUserTypeInAnswer("");
@@ -311,7 +310,6 @@ export function VocabularyModuleClient() {
     setTypeInPracticeScore({ correct: 0, total: 0 });
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
-     // Reset MC practice states
     setCurrentMcPracticeIndex(0);
     setMcPracticeOptions([]);
     setSelectedMcOption(null);
@@ -321,7 +319,6 @@ export function VocabularyModuleClient() {
     setIsCurrentMcPracticeMistakeArchived(false);
   };
 
-  // Flashcard handlers
   const handleNextCard = () => {
     if (vocabularyResult && vocabularyResult.words) {
       setCurrentCardIndex((prevIndex) => (prevIndex + 1));
@@ -338,7 +335,6 @@ export function VocabularyModuleClient() {
 
   const currentWordData = vocabularyResult?.words?.[currentCardIndex];
 
-  // Type-in practice handlers
   const currentTypeInPracticeWord = practiceWords[currentTypeInPracticeIndex];
 
   const handleUserTypeInAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -405,7 +401,6 @@ export function VocabularyModuleClient() {
     });
   };
 
-  // Multiple Choice practice handlers
   const currentMcPracticeWord = practiceWords[currentMcPracticeIndex];
 
   const handleMcOptionSelect = (option: VocabularyWord) => {
@@ -428,7 +423,6 @@ export function VocabularyModuleClient() {
   const handleNextMcPracticeExercise = () => {
     if (currentMcPracticeIndex < practiceWords.length - 1) {
       setCurrentMcPracticeIndex(prev => prev + 1);
-      // setupMcPracticeExercise will be called by useEffect
     } else {
       const finalScoreMsg = t('mcPracticeScoreMessage')
         .replace('{correct}', mcPracticeScore.correct.toString())
@@ -440,7 +434,6 @@ export function VocabularyModuleClient() {
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
-    // setupMcPracticeExercise will be called by useEffect
   };
 
   const handleArchiveMcPracticeMistake = () => {
@@ -520,7 +513,7 @@ export function VocabularyModuleClient() {
                       <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
                         {currentWordData.word}
                       </h3>
-                      <Button onClick={() => setIsCardRevealed(true)} size="lg" variant="outline">
+                      <Button onClick={() => setIsCardRevealed(true)} size="lg">
                         <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
                       </Button>
                     </>
@@ -632,7 +625,7 @@ export function VocabularyModuleClient() {
                     </p>
                   )}
                   
-                  <div className="pt-2 flex items-center gap-2">
+                  <div className="pt-2 flex items-center gap-2 flex-wrap">
                     {!isTypeInPracticeSubmitted ? (
                       <Button onClick={handleCheckTypeInPracticeAnswer} disabled={!userTypeInAnswer.trim()}>
                         {t('typeInPracticeCheckButton')}
@@ -677,7 +670,7 @@ export function VocabularyModuleClient() {
           {practiceWords.length > 0 && (
             <CardFooter className="flex-col items-start border-t mt-6 pt-6">
               <CardTitle className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Repeat className="h-6 w-6 text-primary" /> {/* Consider a different icon if Repeat is used above */}
+                <Repeat className="h-6 w-6 text-primary" /> 
                 {t('mcPracticeTitle')}
               </CardTitle>
               {currentMcPracticeWord && !mcPracticeFeedback.startsWith(t('mcPracticeComplete')) ? (
@@ -688,26 +681,29 @@ export function VocabularyModuleClient() {
                   <p className="text-sm text-muted-foreground">{t('mcPracticeChooseLabel').replace('{interfaceLanguage}', userData.settings!.interfaceLanguage)}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {mcPracticeOptions.map((option, idx) => {
-                      const isSelected = selectedMcOption?.word === option.word;
+                      const isSelected = selectedMcOption?.translation === option.translation; // Compare by translation for consistency
                       const isCorrect = currentMcPracticeWord.translation === option.translation;
                       
-                      let buttonVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
-                      let buttonClassName = "justify-start text-left h-auto py-2";
+                      let buttonClassName = "justify-start text-left h-auto py-2 transition-colors duration-200";
 
                       if (isMcPracticeSubmitted) {
                         if (isCorrect) {
                            buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30");
                         } else if (isSelected && !isCorrect) {
                            buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30");
+                        } else {
+                           buttonClassName = cn(buttonClassName, "border-border");
                         }
                       } else if (isSelected) {
-                        buttonVariant = "default";
+                         buttonClassName = cn(buttonClassName, "bg-primary/20 border-primary text-primary hover:bg-primary/30");
+                      } else {
+                         buttonClassName = cn(buttonClassName, "border-border");
                       }
 
                       return (
                         <Button
-                          key={`${option.word}-${idx}`}
-                          variant={buttonVariant}
+                          key={`${option.word}-${idx}`} // Use word for key if available
+                          variant="outline"
                           className={buttonClassName}
                           onClick={() => handleMcOptionSelect(option)}
                           disabled={isMcPracticeSubmitted}
@@ -718,17 +714,21 @@ export function VocabularyModuleClient() {
                     })}
                   </div>
                   
-                  <div className="pt-2 flex items-center gap-2">
+                  <div className="pt-2 flex items-center gap-2 flex-wrap">
                     {!isMcPracticeSubmitted ? (
                       <Button onClick={handleCheckMcPracticeAnswer} disabled={!selectedMcOption}>
-                        {t('mcPracticeCheckButton')}
+                        {t('practiceCheckMcButton')}
+                      </Button>
+                    ) : currentMcPracticeIndex < practiceWords.length - 1 ? (
+                      <Button onClick={handleNextMcPracticeExercise}>
+                        {t('practiceNextMcButton')}
                       </Button>
                     ) : (
-                      <Button onClick={handleNextMcPracticeExercise}>
-                        {t('mcPracticeNextButton')}
+                      <Button onClick={handleRestartMcPractice} variant="outline">
+                        {t('practiceAgainMcButton')}
                       </Button>
                     )}
-                    {isMcPracticeSubmitted && mcPracticeFeedback !== t('mcFeedbackCorrect') && !isCurrentMcPracticeMistakeArchived && (
+                     {isMcPracticeSubmitted && mcPracticeFeedback !== t('mcFeedbackCorrect') && !isCurrentMcPracticeMistakeArchived && (
                        <Button variant="outline" size="sm" onClick={handleArchiveMcPracticeMistake} className="text-xs">
                           <Archive className="mr-1.5 h-3.5 w-3.5" />
                           {t('archiveMistakeButton')}
@@ -755,7 +755,7 @@ export function VocabularyModuleClient() {
                     <PartyPopper className="h-12 w-12 text-green-500" />
                     <p className="text-lg font-semibold text-primary">{mcPracticeFeedback || t('mcPracticeComplete')}</p>
                     <Button onClick={handleRestartMcPractice} variant="outline">
-                        {t('mcPracticeAgainButton')}
+                        {t('practiceAgainMcButton')}
                     </Button>
                  </div>
               )}
