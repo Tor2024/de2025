@@ -8,15 +8,17 @@ export type TargetLanguage =
   | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian' 
   | 'Polish' | 'Romanian' | 'Japanese' | 'Arabic';
 
+export const proficiencyLevels = ['A1-A2', 'B1-B2', 'C1-C2'] as const;
+export type ProficiencyLevel = typeof proficiencyLevels[number];
+
+
 export interface UserSettings {
   interfaceLanguage: InterfaceLanguage;
   targetLanguage: TargetLanguage;
-  proficiencyLevel: ProficiencyLevel;
+  proficiencyLevel: ProficiencyLevel; // This will store the default/starting level
   goal: string;
   userName?: string;
 }
-
-export type ProficiencyLevel = 'A1-A2' | 'B1-B2' | 'C1-C2';
 
 export interface LearningRoadmap {
   rawContent: string;
@@ -72,4 +74,3 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
 export const targetLanguageNames = supportedLanguages.map(lang => lang.name) as [TargetLanguage, ...TargetLanguage[]];
-
