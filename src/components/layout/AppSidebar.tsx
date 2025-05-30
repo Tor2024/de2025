@@ -130,6 +130,8 @@ const generateSidebarTranslations = () => {
     if (code === 'ru') {
       translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
     } else {
+      // For other languages, default to English translations
+      // You can add more specific base translations (e.g., baseDeTranslations) here in the future
       translations[code] = { ...baseEnTranslations }; 
     }
   });
@@ -143,20 +145,30 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
+  // Determine current language, default to 'en' during loading to prevent hydration issues
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   
+  // Translation function specific to this component
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = sidebarTranslations[currentLang as keyof typeof sidebarTranslations];
-    return langTranslations?.[key] || sidebarTranslations['en']?.[key] || defaultText || key; 
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = sidebarTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; // Fallback to English
+    }
+    return defaultText || key; // Fallback to default text or key itself
   };
   
+  // If user data is loading or settings are not available, don't render the full sidebar
+  // This prevents rendering with potentially incorrect language or data during initial load or if user is not set up
   if (isUserDataLoading || !userData.settings) {
-    // Render a minimal sidebar or null during loading or if no settings
-    // This helps avoid rendering with incorrect language during hydration or if user is not set up
     return null; 
   }
 
 
+  // Map nav item definitions to include localized labels and tooltips
   const mapNavItem = (itemDef: NavItemDef) => ({
     ...itemDef, 
     label: t(itemDef.labelKey, itemDef.defaultLabel),
