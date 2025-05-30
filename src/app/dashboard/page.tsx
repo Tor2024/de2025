@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supportedLanguages, type InterfaceLanguage } from '@/lib/types';
+import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } from '@/lib/types';
 import * as React from 'react';
 
 const learningModules = [
@@ -25,8 +25,7 @@ const learningModules = [
   { titleKey: "wordPractice", defaultTitle: "Word Practice", descriptionKey: "wordPracticeDescription", defaultDescription: "Reinforce with fun drills.", href: "/learn/practice", icon: Repeat, disabled: true },
 ];
 
-const translations: Record<string, Record<string, string>> = {
-  en: {
+const baseEnTranslations: Record<string, string> = {
     loadingUserData: "Loading user data...",
     redirecting: "Redirecting...",
     exploreLearningModules: "Explore Learning Modules",
@@ -72,8 +71,12 @@ const translations: Record<string, Record<string, string>> = {
     roadmapTopicsToCover: "Topics to Cover:",
     roadmapEstimatedDuration: "Estimated duration:",
     roadmapConclusion: "Conclusion",
-  },
-  ru: {
+    ttsPlayText: "Play description",
+    ttsStopText: "Stop speech",
+    ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+};
+
+const baseRuTranslations: Record<string, string> = {
     loadingUserData: "Загрузка данных пользователя...",
     redirecting: "Перенаправление...",
     exploreLearningModules: "Исследуйте учебные модули",
@@ -119,40 +122,55 @@ const translations: Record<string, Record<string, string>> = {
     roadmapTopicsToCover: "Темы для изучения:",
     roadmapEstimatedDuration: "Предполагаемая длительность:",
     roadmapConclusion: "Заключение",
-  },
-  // Add other languages as needed
+    ttsPlayText: "Озвучить описание",
+    ttsStopText: "Остановить озвучку",
+    ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
 };
 
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {
+    en: baseEnTranslations,
+    ru: baseRuTranslations,
+  };
+  interfaceLanguageCodes.forEach(code => {
+    if (!translations[code]) { // Add only if not explicitly defined
+      translations[code] = { ...baseEnTranslations }; // Fallback to English
+    }
+  });
+  return translations;
+};
+
+const pageTranslations = generateTranslations();
+
+
 export default function DashboardPage() {
-  const { userData, isLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && userData.settings === null) {
+    if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData, isLoading, router]);
+  }, [userData, isUserDataLoading, router]);
 
-  // If UserDataContext is loading, currentLang defaults to 'en' to prevent hydration mismatch.
-  // Once isLoading is false, it uses the actual interfaceLanguage or 'en' as fallback.
-  const currentLang = isLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string) => {
-    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
+    const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = pageTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key];
+    }
+    return defaultText || key;
   };
   
-  const getLoadingMessage = () => {
-    return t('loadingUserData', 'Loading user data...');
-  };
-
-  const getRedirectingMessage = () => {
-     return t('redirecting', 'Redirecting...');
-  };
-
-  if (isLoading) {
+  if (isUserDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{getLoadingMessage()}</p>
+        <p className="ml-4">{t('loadingUserData')}</p>
       </div>
     );
   }
@@ -161,7 +179,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{getRedirectingMessage()}</p>
+        <p className="ml-4">{t('redirecting')}</p>
       </div>
     );
   }
@@ -177,7 +195,7 @@ export default function DashboardPage() {
   };
 
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
-  const userGoalText = userData.settings.goal || t('noGoalSet', 'No goal set.');
+  const userGoalText = userData.settings.goal || t('noGoalSet');
 
   return (
     <AppShell>
@@ -185,24 +203,27 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3">
             <RoadmapDisplay
-              titleText={t('roadmapTitle', 'Your Learning Roadmap')}
-              descriptionText={t('roadmapDescription', 'Follow this structured plan...')}
-              loadingTitleText={t('roadmapLoadingTitle', 'Learning Roadmap')}
-              loadingDescriptionText={t('roadmapLoadingDescription', 'Your personalized learning plan is being prepared...')}
-              loadingContentText={t('roadmapLoadingContent', "If you've just completed onboarding...")}
-              introductionHeaderText={t('roadmapIntroduction', 'Introduction')}
-              topicsToCoverText={t('roadmapTopicsToCover', 'Topics to Cover:')}
-              estimatedDurationText={t('roadmapEstimatedDuration', 'Estimated duration:')}
-              conclusionHeaderText={t('roadmapConclusion', 'Conclusion')}
+              titleText={t('roadmapTitle')}
+              descriptionText={t('roadmapDescription')}
+              loadingTitleText={t('roadmapLoadingTitle')}
+              loadingDescriptionText={t('roadmapLoadingDescription')}
+              loadingContentText={t('roadmapLoadingContent')}
+              introductionHeaderText={t('roadmapIntroduction')}
+              topicsToCoverText={t('roadmapTopicsToCover')}
+              estimatedDurationText={t('roadmapEstimatedDuration')}
+              conclusionHeaderText={t('roadmapConclusion')}
+              ttsPlayText={t('ttsPlayText')}
+              ttsStopText={t('ttsStopText')}
+              ttsExperimentalText={t('ttsExperimentalText')}
             />
           </div>
           <div className="md:w-1/3 space-y-6">
             <GoalTracker
-              titlePrefix={t('yourGoalPrefix', 'Your Goal:')}
+              titlePrefix={t('yourGoalPrefix')}
               targetLanguageDisplayName={targetLanguageDisplayName}
               goalText={userGoalText}
-              progressLabelText={t('progressLabel', 'Progress')}
-              progressMessageTextTemplate={t('progressMessage', "You're {value}% closer to achieving your goal! Keep it up!")}
+              progressLabelText={t('progressLabel')}
+              progressMessageTextTemplate={t('progressMessage')}
             />
             <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader>
