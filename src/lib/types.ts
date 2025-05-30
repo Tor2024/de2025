@@ -21,6 +21,7 @@ export interface UserSettings {
 }
 
 export interface Lesson {
+  id: string; // Unique identifier for the lesson
   level: string; // e.g., "A1", "B2"
   title: string;
   description: string;

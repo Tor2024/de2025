@@ -35,16 +35,17 @@ export type GeneratePersonalizedLearningRoadmapInput = z.infer<
 >;
 
 const LessonSchema = z.object({
+  id: z.string().describe("A unique identifier for this lesson (e.g., 'module_a1_lesson_1', 'german_b2_topic_3'). This ID should be concise and stable."),
   level: z.string().describe("CEFR level for this lesson/module (e.g., A1, A2, B1). Should be in the target language context if applicable (e.g. 'Niveau A1' for French target if interface is English, or 'Уровень A1' if interface is Russian). The text itself must be in the `interfaceLanguage`."),
   title: z.string().describe("Title of the lesson/module. MUST be in the specified `interfaceLanguage`."),
-  description: z.string().describe("A brief overview of what this lesson/module covers. MUST be in the specified `interfaceLanguage`."),
-  topics: z.array(z.string()).describe("Specific topics covered. Each topic string ITSELF MUST be in the specified `interfaceLanguage`. These topics should describe learning points related to the `targetLanguage` (e.g., for Russian interface and German target, a topic string should be 'Немецкий алфавит', NOT 'Das deutsche Alphabet')."),
+  description: z.string().describe("A detailed, user-friendly description of what this lesson/module covers, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Highlight important takeaways if possible (e.g., using asterisks for emphasis like *this*). MUST be in the specified `interfaceLanguage`."),
+  topics: z.array(z.string()).describe("Specific topics covered, providing a clear breakdown of lesson content. Each topic string ITSELF MUST be in the specified `interfaceLanguage`. These strings should be descriptive and may include very brief examples or clarifications to aid understanding (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения'). Aim for a balance of grammar, vocabulary, and practical application within each module, covering reading, writing, listening, and speaking aspects appropriate to the level."),
   estimatedDuration: z.string().optional().describe("Estimated time to complete this lesson/module (e.g., '2 weeks', '10 hours', '2 недели', '10 часов'). MUST be in the specified `interfaceLanguage`.")
 });
 
 const GeneratePersonalizedLearningRoadmapOutputSchema = z.object({
-  introduction: z.string().describe("A general introduction to the learning plan. MUST be in the specified `interfaceLanguage`."),
-  lessons: z.array(LessonSchema).describe("An array of lessons, structured sequentially from A0/A1 to C2. Ensure comprehensive coverage for the `targetLanguage` across all CEFR levels."),
+  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`."),
+  lessons: z.array(LessonSchema).describe("An array of lessons, structured sequentially from A0/A1 to C2. Ensure comprehensive coverage for the `targetLanguage` across all CEFR levels. Each lesson should aim to integrate various skills (grammar, vocabulary, listening, reading, writing, speaking) in a thematic or functional context where possible."),
   conclusion: z.string().optional().describe("A concluding remark or encouragement. MUST be in the specified `interfaceLanguage`.")
 });
 
@@ -68,40 +69,53 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   name: 'generatePersonalizedLearningRoadmapPrompt',
   input: {schema: GeneratePersonalizedLearningRoadmapInputSchema},
   output: {schema: GeneratePersonalizedLearningRoadmapOutputSchema},
-  prompt: `You are an AI language tutor specializing in creating personalized and structured learning roadmaps for language learners.
+  prompt: `You are an AI language tutor specializing in creating personalized, structured, and comprehensive learning roadmaps for language learners.
 
   Based on the user's interface language, target language, STARTING proficiency level, and personal goal, generate a COMPLETE and ADAPTIVE learning roadmap.
 
-  The output MUST be a JSON object matching the provided schema.
+  The output MUST be a JSON object matching the provided schema. Each lesson object in the 'lessons' array must include a unique 'id' field (e.g., 'module_a1_lesson_1', 'german_b2_topic_3').
 
   VERY IMPORTANT INSTRUCTIONS REGARDING LANGUAGE:
   1.  **Interface Language ({{{interfaceLanguage}}})**: ALL user-facing text within the roadmap structure ITSELF must be in this language. This includes:
-      *   The 'introduction' field.
-      *   The 'conclusion' field (if present).
+      *   The 'introduction' field (provide a welcoming and informative intro).
+      *   The 'conclusion' field (if present, make it encouraging).
       *   For EACH lesson in the 'lessons' array:
           *   The 'level' text (e.g., for Russian interface: 'Уровень A1', for English interface: 'Level A1').
-          *   The 'title' of the lesson.
-          *   The 'description' of the lesson.
+          *   The 'title' of the lesson (make it engaging and clear).
+          *   The 'description' of the lesson (make this detailed and user-friendly, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Highlight important takeaways if possible, e.g., using asterisks for emphasis like *this*).
           *   The 'estimatedDuration' text (e.g., '2 недели', '2 weeks').
-          *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. For example, if interfaceLanguage is 'ru' (Russian) and targetLanguage is 'German', a topic string for German alphabet should be 'Немецкий алфавит', NOT 'Das deutsche Alphabet'.
+          *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. These topic strings should be descriptive and may include very brief examples or clarifications to aid understanding. (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения').
 
   2.  **Target Language ({{{targetLanguage}}})**: The actual linguistic concepts, grammar rules, vocabulary themes, etc., that the roadmap teaches should pertain to this language.
 
-  CRITICAL FOR COMPREHENSIVENESS: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided 'proficiencyLevel' indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2. Structure the roadmap into clear lessons or modules. Aim for a reasonable number of lessons per CEFR level (e.g., 3-5 major modules per level).
+  CONTENT AND STRUCTURE OF LESSONS:
+  *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided 'proficiencyLevel' indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
+  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar).
+  *   **Thematic/Functional Context**: Whenever possible, frame lessons or modules within a thematic (e.g., "Travel", "Work", "Hobbies") or functional (e.g., "Making appointments", "Expressing opinions") context. This makes learning more engaging.
+  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления".
+  *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
 
   EXAMPLE (if interfaceLanguage='ru', targetLanguage='German'):
   - 'introduction' and 'conclusion' fields will be in Russian.
   - A lesson object might look like:
     {
+      "id": "german_a1_module_1_alphabet",
       "level": "Уровень A1", // In Russian
       "title": "Основы немецкого: Алфавит и приветствия", // In Russian
-      "description": "Этот модуль знакомит с немецким алфавитом, произношением и базовыми фразами для приветствия и знакомства.", // In Russian
-      "topics": ["Немецкий алфавит", "Основы произношения", "Приветствия и прощания", "Представление себя", "Числа от 1 до 10"], // CRITICAL: These topic strings are in Russian, describing German concepts.
+      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. *Важно* запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'.", // In Russian, detailed, with example of emphasis
+      "topics": [
+          "Лексика: Немецкий алфавит (Das deutsche Alphabet)",
+          "Фонетика: Основные правила произношения, звуки ä, ö, ü, ß, ei, eu",
+          "Практика: Чтение простых слов и имен",
+          "Коммуникация: Приветствия (Hallo, Guten Tag) и прощания (Tschüss, Auf Wiedersehen)",
+          "Коммуникация: Как представиться (Ich heiße...)",
+          "Числа: От 1 до 10 (eins, zwei...)"
+      ], // CRITICAL: These topic strings are in Russian, describing German concepts, and are more detailed.
       "estimatedDuration": "1 неделя" // In Russian
     }
 
   SPECIFIC GUIDANCE FOR GERMAN LANGUAGE (if targetLanguage is 'German'):
-  If the targetLanguage is 'German', pay close attention to the following detailed curriculum guideline for German language levels A1-C2. This is a strong reference for the depth, breadth, and type of topics expected. Adapt and structure these concepts (or similar ones covering the same grammatical points) into your lesson plan. Remember, while this guide details German grammar, the topics strings in your JSON output MUST be in the {{{interfaceLanguage}}}.
+  If the targetLanguage is 'German', pay close attention to the following detailed curriculum guideline for German language levels A1-C2. This is a strong reference for the depth, breadth, and type of topics expected. Adapt and structure these concepts (or similar ones covering the same grammatical points) into your lesson plan, ensuring each lesson integrates various skills and is presented in a user-friendly way with explanations and examples within the lesson descriptions and topics where appropriate. Remember, while this guide details German grammar and lexis, the topics strings in your JSON output MUST be in the {{{interfaceLanguage}}}.
 
   --- BEGIN GERMAN LANGUAGE CURRICULUM GUIDELINE (A1-C2) ---
 
@@ -170,6 +184,7 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   Чувства, мнения, аргументы
 
   🔠 Грамматика:
+  Perfekt vs. Präteritum (расширено: повествование, формальный и неформальный стиль)
   Plusquamperfekt (Ich hatte gemacht)
   Konjunktiv II (würde, könnte, hätte…)
   Придаточные предложения: obwohl, damit, als, während
@@ -254,7 +269,7 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   User's STARTING proficiency level (for context, but plan must be A0-C2): {{{proficiencyLevel}}}
   User's personal goal: {{{personalGoal}}}
 
-  Generate the structured learning roadmap now according to ALL the instructions above.
+  Generate the structured learning roadmap now according to ALL the instructions above. Ensure lesson descriptions are detailed and topics are broken down clearly.
   `,
 });
 
@@ -273,4 +288,3 @@ const generatePersonalizedLearningRoadmapFlow = ai.defineFlow(
     return output;
   }
 );
-

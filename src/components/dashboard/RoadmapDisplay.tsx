@@ -1,12 +1,14 @@
 
 "use client";
 
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUserData } from "@/contexts/UserDataContext";
-import { BookMarked, ListChecks, Clock, Info } from "lucide-react";
-import type { Lesson } from "@/lib/types"; // Import the Lesson type
+import { BookMarked, ListChecks, Clock, Info, Volume2, Ban } from "lucide-react";
+import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 interface RoadmapDisplayProps {
   titleText: string;
@@ -18,6 +20,9 @@ interface RoadmapDisplayProps {
   topicsToCoverText: string;
   estimatedDurationText: string;
   conclusionHeaderText: string;
+  ttsPlayText: string;
+  ttsStopText: string;
+  ttsExperimentalText: string;
 }
 
 export function RoadmapDisplay({
@@ -30,9 +35,84 @@ export function RoadmapDisplay({
   topicsToCoverText,
   estimatedDurationText,
   conclusionHeaderText,
+  ttsPlayText,
+  ttsStopText,
+  ttsExperimentalText,
 }: RoadmapDisplayProps) {
   const { userData } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
+  const interfaceLanguage = userData.settings?.interfaceLanguage || 'en';
+
+  const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
+  const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
+  const currentUtteranceIndexRef = React.useRef<number>(0);
+
+  React.useEffect(() => {
+    // Cleanup speechSynthesis on component unmount
+    return () => {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const speakNext = React.useCallback(() => {
+    if (currentUtteranceIndexRef.current < utteranceQueueRef.current.length && window.speechSynthesis) {
+      const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
+      utterance.onend = () => {
+        currentUtteranceIndexRef.current++;
+        speakNext();
+      };
+      utterance.onerror = (event) => {
+        console.error('SpeechSynthesisUtterance.onerror', event);
+        setCurrentlySpeakingLessonId(null); // Stop on error
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setCurrentlySpeakingLessonId(null); // Finished queue or TTS not available
+    }
+  }, []);
+
+  const playText = React.useCallback((lessonId: string, textToSpeak: string, langCode: string) => {
+    if (!window.speechSynthesis) {
+      alert("Text-to-Speech is not supported by your browser.");
+      return;
+    }
+
+    if (window.speechSynthesis.speaking && currentlySpeakingLessonId === lessonId) {
+      window.speechSynthesis.cancel();
+      setCurrentlySpeakingLessonId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel(); // Stop any other speech
+
+    // Basic sentence splitting. More robust splitting might be needed for complex texts.
+    const sentences = textToSpeak.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    
+    if (sentences.length === 0) {
+        sentences.push(textToSpeak); // Speak the whole thing if no delimiters found
+    }
+
+    utteranceQueueRef.current = sentences.map(sentence => {
+      const utterance = new SpeechSynthesisUtterance(sentence.trim());
+      // Map app language codes to BCP 47 if necessary, or use directly if they match
+      utterance.lang = langCode; 
+      return utterance;
+    });
+
+    currentUtteranceIndexRef.current = 0;
+    setCurrentlySpeakingLessonId(lessonId);
+    speakNext();
+  }, [currentlySpeakingLessonId, speakNext]);
+
+  const stopSpeech = React.useCallback(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setCurrentlySpeakingLessonId(null);
+  }, []);
+
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
     return (
@@ -53,9 +133,10 @@ export function RoadmapDisplay({
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{titleText}</CardTitle>
         <CardDescription>{descriptionText}</CardDescription>
+         {ttsExperimentalText && <p className="text-xs text-muted-foreground mt-1 italic">{ttsExperimentalText}</p>}
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden"> {/* Added overflow-hidden for ScrollArea */}
-        <ScrollArea className="h-[400px] rounded-md border p-1 bg-muted/30"> {/* Reduced padding for Accordion spacing */}
+      <CardContent className="flex-grow overflow-hidden">
+        <ScrollArea className="h-[400px] rounded-md border p-1 bg-muted/30">
           {roadmap.introduction && (
             <div className="p-3 mb-4 bg-background rounded-md shadow">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />{introductionHeaderText}</h3>
@@ -64,23 +145,42 @@ export function RoadmapDisplay({
           )}
 
           <Accordion type="multiple" className="w-full">
-            {roadmap.lessons.map((lesson: Lesson, index: number) => (
-              <AccordionItem value={`item-${index}`} key={index} className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow">
+            {roadmap.lessons.map((lesson: Lesson) => (
+              <AccordionItem value={lesson.id} key={lesson.id} className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow">
                 <AccordionTrigger className="p-4 text-base hover:no-underline">
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
-                    <span className="font-medium text-left">{lesson.title}</span>
+                    <span className="font-medium text-left flex-1">{lesson.title}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-4 pt-0">
-                  <p className="text-sm text-muted-foreground mb-3 whitespace-pre-wrap">{lesson.description}</p>
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{lesson.description}</p>
+                    {typeof window !== 'undefined' && window.speechSynthesis && (
+                       <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (currentlySpeakingLessonId === lesson.id) {
+                            stopSpeech();
+                          } else {
+                            playText(lesson.id, lesson.description, interfaceLanguage);
+                          }
+                        }}
+                        className="ml-2 shrink-0"
+                        aria-label={currentlySpeakingLessonId === lesson.id ? ttsStopText : ttsPlayText}
+                      >
+                        {currentlySpeakingLessonId === lesson.id ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                      </Button>
+                    )}
+                  </div>
                   
                   {lesson.topics && lesson.topics.length > 0 && (
                     <div className="mb-3">
                       <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
                       <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
                         {lesson.topics.map((topic, topicIndex) => (
-                          <li key={topicIndex} className="ml-2">{topic}</li>
+                          <li key={topicIndex} className="ml-2 whitespace-pre-wrap">{topic}</li>
                         ))}
                       </ul>
                     </div>
@@ -105,5 +205,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-
-    
