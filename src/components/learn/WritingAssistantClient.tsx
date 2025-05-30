@@ -17,7 +17,7 @@ import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assist
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle } from "lucide-react";
+import { Edit, CheckCircle, Sparkles } from "lucide-react"; // Added Sparkles for consistency
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -101,7 +101,7 @@ const componentTranslations = generateTranslations();
 export function WritingAssistantClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
 
   const { register, handleSubmit, control, formState: { errors }, reset } = useForm<WritingFormData>({
@@ -130,15 +130,15 @@ export function WritingAssistantClient() {
   }
 
   const onSubmit: SubmitHandler<WritingFormData> = async (data) => {
-    setIsLoading(true);
+    setIsAiLoading(true);
     setAssistanceResult(null);
     try {
       const writingInput: AIPoweredWritingAssistanceInput = {
         prompt: data.writingPrompt,
         text: data.userText,
-        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        interfaceLanguage: userData.settings!.interfaceLanguage,
         writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
+        proficiencyLevel: userData.settings!.proficiencyLevel,
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
@@ -157,7 +157,7 @@ export function WritingAssistantClient() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsAiLoading(false);
     }
   };
   
@@ -215,37 +215,36 @@ export function WritingAssistantClient() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-              {isLoading ? <LoadingSpinner /> : t('getFeedbackButton')}
+            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
+              {isAiLoading ? <LoadingSpinner /> : t('getFeedbackButton')}
             </Button>
           </CardFooter>
         </form>
       </Card>
 
       {assistanceResult && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><CheckCircle className="text-green-500"/>{t('resultsCardTitle')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <h3 className="font-semibold text-lg">{t('feedbackSectionTitle')}</h3>
-              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap">{assistanceResult.feedback}</p>
+        <Card className="shadow-lg">
+           <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                {t('resultsCardTitle')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
               </ScrollArea>
-            </CardContent>
-          </Card>
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle>{t('correctedTextSectionTitle')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap">{assistanceResult.correctedText}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.correctedText}</p>
               </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
