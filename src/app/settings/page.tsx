@@ -7,8 +7,20 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { supportedLanguages, interfaceLanguageCodes } from "@/lib/types";
+import { supportedLanguages, interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import * as React from 'react'; // Ensure React is imported for useState
 
 const baseEnTranslations = {
   title: "Settings",
@@ -20,6 +32,10 @@ const baseEnTranslations = {
   goalLabel: "Goal:",
   resetButton: "Reset & Re-Onboard",
   loading: "Loading settings...",
+  alertResetTitle: "Are you sure?",
+  alertResetDescription: "This will erase all your progress and settings. You'll need to go through onboarding again.",
+  alertResetCancel: "Cancel",
+  alertResetConfirm: "Confirm Reset",
 };
 
 const baseRuTranslations = {
@@ -32,16 +48,19 @@ const baseRuTranslations = {
   goalLabel: "Цель:",
   resetButton: "Сбросить и пройти заново",
   loading: "Загрузка настроек...",
+  alertResetTitle: "Вы уверены?",
+  alertResetDescription: "Это действие удалит весь ваш прогресс и настройки. Вам нужно будет снова пройти процесс первоначальной настройки.",
+  alertResetCancel: "Отмена",
+  alertResetConfirm: "Подтвердить сброс",
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) { // Add only if not explicitly defined
-      translations[code] = { ...baseEnTranslations }; // Fallback to English
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;
@@ -53,6 +72,7 @@ const pageTranslations = generateTranslations();
 export default function SettingsPage() {
   const { userData, clearUserData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
+  const [isResetDialogOpen, setIsResetDialogOpen] = React.useState(false);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
@@ -70,6 +90,7 @@ export default function SettingsPage() {
   const handleResetOnboarding = () => {
     clearUserData();
     router.push('/');
+    setIsResetDialogOpen(false); // Close dialog after action
   };
 
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
@@ -116,9 +137,25 @@ export default function SettingsPage() {
                 <p><strong>{t('goalLabel')}</strong> {userData.settings.goal}</p>
               </div>
             )}
-             <Button variant="destructive" onClick={handleResetOnboarding}>
-              {t('resetButton')}
-            </Button>
+            <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
+                  {t('resetButton')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('alertResetTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t('alertResetDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setIsResetDialogOpen(false)}>{t('alertResetCancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleResetOnboarding}>{t('alertResetConfirm')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>
