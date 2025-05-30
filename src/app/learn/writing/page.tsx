@@ -8,40 +8,74 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import * as React from 'react';
+import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
+
+const baseEnTranslations = {
+  loadingModule: "Loading writing assistance module...",
+  redirecting: "Redirecting...",
+};
+
+const baseRuTranslations = {
+  loadingModule: "Загрузка модуля помощи в письме...",
+  redirecting: "Перенаправление...",
+};
+
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {
+    en: baseEnTranslations,
+    ru: baseRuTranslations,
+  };
+  interfaceLanguageCodes.forEach(code => {
+    if (code !== 'en' && code !== 'ru') {
+      translations[code] = { ...baseEnTranslations }; 
+    }
+  });
+  return translations;
+};
+
+const pageTranslations = generateTranslations();
 
 export default function WritingPage() {
-  const { userData, isLoading } = useUserData(); // Use isLoading from context
+  const { userData, isLoading: isUserDataContextLoading } = useUserData(); 
   const router = useRouter();
 
   useEffect(() => {
-    // Only redirect if data has loaded (isLoading is false) AND settings are null.
-    if (!isLoading && userData.settings === null) {
+    if (!isUserDataContextLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData, isLoading, router]); // Changed userData.settings to userData
+  }, [userData, isUserDataContextLoading, router]); 
 
-  // Show loading spinner if user data context is still loading.
-  if (isLoading) {
+  const currentLang = isUserDataContextLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const tPage = (key: string, defaultText?: string): string => {
+    const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = pageTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
+  };
+
+  if (isUserDataContextLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Загрузка модуля помощи в письме...</p>
+        <p className="ml-4">{tPage('loadingModule')}</p>
       </div>
     );
   }
 
-  // If data has loaded, but settings are null, show loading/redirecting message.
-  // The useEffect above will handle the actual redirect.
   if (userData.settings === null) {
      return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Перенаправление...</p>
+        <p className="ml-4">{tPage('redirecting')}</p>
       </div>
     );
   }
 
-  // At this point, isLoading is false and userData.settings is an object.
   return (
     <AppShell>
       <WritingAssistantClient />

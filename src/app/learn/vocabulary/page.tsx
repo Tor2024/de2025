@@ -1,10 +1,67 @@
+
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText } from "lucide-react";
+import { useUserData } from "@/contexts/UserDataContext";
+import { interfaceLanguageCodes } from "@/lib/types";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
+const baseEnTranslations = {
+  title: "Vocabulary Module",
+  description: "This module is under construction. Soon you'll be able to expand your word bank with thematic sets, image support, pronunciation guides, word games, and more!",
+  loading: "Loading vocabulary module...",
+};
+
+const baseRuTranslations = {
+  title: "Модуль Словарного запаса",
+  description: "Этот модуль находится в разработке. Скоро вы сможете расширить свой словарный запас с помощью тематических наборов, поддержки изображений, руководств по произношению, словесных игр и многого другого!",
+  loading: "Загрузка модуля словарного запаса...",
+};
+
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {
+    en: baseEnTranslations,
+    ru: baseRuTranslations,
+  };
+  interfaceLanguageCodes.forEach(code => {
+    if (code !== 'en' && code !== 'ru') {
+      translations[code] = { ...baseEnTranslations };
+    }
+  });
+  return translations;
+};
+
+const pageTranslations = generateTranslations();
 
 export default function VocabularyPage() {
+  const { userData, isLoading: isUserDataLoading } = useUserData();
+
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const t = (key: string, defaultText?: string): string => {
+    const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = pageTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key];
+    }
+    return defaultText || key;
+  };
+
+  if (isUserDataLoading) {
+    return (
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="flex flex-col items-center justify-center h-full">
@@ -13,11 +70,11 @@ export default function VocabularyPage() {
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
               <FileText className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="mt-4 text-2xl">Vocabulary Module</CardTitle>
+            <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              This module is under construction. Soon you'll be able to expand your word bank with thematic sets, image support, pronunciation guides, word games, and more!
+              {t('description')}
             </p>
           </CardContent>
         </Card>
