@@ -44,7 +44,7 @@ const onboardingSchema = z.object({
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
 const steps = [
-  { id: 1, title: "Welcome to LinguaVerse!", fields: ["userName", "interfaceLanguage"] },
+  { id: 1, title: "Welcome to LinguaLab!", fields: ["userName", "interfaceLanguage"] },
   { id: 2, title: "Your Learning Focus", fields: ["targetLanguage", "proficiencyLevel"] },
   { id: 3, title: "Define Your Goal", fields: ["goal"] },
 ];

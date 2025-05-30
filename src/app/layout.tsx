@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 // No need for further instantiation like GeistSans({ ... })
 
 export const metadata: Metadata = {
-  title: 'LinguaVerse - Personalized Language Learning',
+  title: 'LinguaLab - Personalized Language Learning',
   description: 'Your AI-powered journey to language fluency.',
 };
 

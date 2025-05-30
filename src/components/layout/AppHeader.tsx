@@ -42,7 +42,7 @@ export function AppHeader() {
           <path d="M20.74 12.25A5.992 5.992 0 0 0 12.25 3.76"></path>
           <path d="M17 17H12"></path>
         </svg>
-        <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">LinguaVerse</span>
+        <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">LinguaLab</span>
       </Link>
       <div className="ml-auto flex items-center gap-4">
         {userData.settings && (
