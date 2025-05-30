@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supportedLanguages } from '@/lib/types'; // Import for language display
+import { supportedLanguages } from '@/lib/types'; 
 import * as React from 'react';
 
 const learningModules = [
@@ -28,33 +28,33 @@ const learningModules = [
 export default function DashboardPage() {
   const { userData } = useUserData();
   const router = useRouter();
-  const [isCheckingData, setIsCheckingData] = useState(true);
+  const [isCheckingData, setIsCheckingData] = useState(() => userData.settings === undefined);
 
   useEffect(() => {
-    // Wait until userData.settings is defined (i.e., loaded from localStorage attempt has been made)
     if (userData.settings !== undefined) {
       setIsCheckingData(false);
-      if (userData.settings === null) { // Explicitly null means onboarding not completed
+      if (userData.settings === null) { 
         router.replace('/');
       }
+    } else {
+      setIsCheckingData(true);
     }
-  }, [userData, router]);
+  }, [userData.settings, router]);
 
   if (isCheckingData) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Loading user data...</p>
+        <p className="ml-4">Загрузка данных пользователя...</p>
       </div>
     );
   }
   
-  // Fallback if somehow settings are still null after check (should be caught by useEffect redirect)
-  if (!userData.settings) {
+  if (!userData.settings) { 
      return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Redirecting to setup...</p>
+        <p className="ml-4">Перенаправление на страницу настройки...</p>
       </div>
     );
   }

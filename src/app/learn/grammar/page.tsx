@@ -12,7 +12,7 @@ import * as React from 'react';
 export default function GrammarPage() {
   const { userData } = useUserData();
   const router = useRouter();
-  const [isCheckingData, setIsCheckingData] = useState(true);
+  const [isCheckingData, setIsCheckingData] = useState(() => userData.settings === undefined);
 
   useEffect(() => {
     if (userData.settings !== undefined) {
@@ -20,22 +20,25 @@ export default function GrammarPage() {
       if (userData.settings === null) {
         router.replace('/');
       }
+    } else {
+      setIsCheckingData(true);
     }
-  }, [userData, router]);
+  }, [userData.settings, router]);
 
   if (isCheckingData) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Loading grammar module...</p>
+        <p className="ml-4">Загрузка модуля грамматики...</p>
       </div>
     );
   }
   
-  if (!userData.settings) { // Fallback redirect
+  if (!userData.settings) { 
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Redirecting to setup...</p>
+        <LoadingSpinner size={48} />
+        <p className="ml-4">Перенаправление на страницу настройки...</p>
       </div>
     );
   }

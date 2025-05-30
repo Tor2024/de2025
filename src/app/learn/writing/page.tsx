@@ -13,7 +13,7 @@ import * as React from 'react';
 export default function WritingPage() {
   const { userData } = useUserData();
   const router = useRouter();
-  const [isCheckingData, setIsCheckingData] = useState(true);
+  const [isCheckingData, setIsCheckingData] = useState(() => userData.settings === undefined);
 
   useEffect(() => {
     if (userData.settings !== undefined) {
@@ -21,22 +21,25 @@ export default function WritingPage() {
       if (userData.settings === null) {
         router.replace('/');
       }
+    } else {
+      setIsCheckingData(true);
     }
-  }, [userData, router]);
+  }, [userData.settings, router]);
 
   if (isCheckingData) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Loading writing module...</p>
+        <p className="ml-4">Загрузка модуля помощи в письме...</p>
       </div>
     );
   }
 
-  if (!userData.settings) { // Fallback redirect
+  if (!userData.settings) { 
      return (
       <div className="flex h-screen items-center justify-center">
-        <p>Redirecting to setup...</p>
+        <LoadingSpinner size={48} />
+        <p className="ml-4">Перенаправление на страницу настройки...</p>
       </div>
     );
   }
