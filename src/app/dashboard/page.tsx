@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -12,7 +12,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supportedLanguages } from '@/lib/types'; 
+import { supportedLanguages } from '@/lib/types';
 import * as React from 'react';
 
 const learningModules = [
@@ -28,20 +28,18 @@ const learningModules = [
 export default function DashboardPage() {
   const { userData } = useUserData();
   const router = useRouter();
-  const [isCheckingData, setIsCheckingData] = useState(() => userData.settings === undefined);
 
   useEffect(() => {
-    if (userData.settings !== undefined) {
-      setIsCheckingData(false);
-      if (userData.settings === null) { 
-        router.replace('/');
-      }
-    } else {
-      setIsCheckingData(true);
+    // If userData.settings has loaded and is null, redirect to onboarding.
+    if (userData.settings === null) {
+      router.replace('/');
     }
+    // If userData.settings is an object, the page will render.
+    // If userData.settings is undefined, the loading spinner will be shown.
   }, [userData.settings, router]);
 
-  if (isCheckingData) {
+  // Show loading spinner if user data (and settings) are not yet loaded.
+  if (userData.settings === undefined) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
@@ -49,16 +47,19 @@ export default function DashboardPage() {
       </div>
     );
   }
-  
-  if (!userData.settings) { 
-     return (
+
+  // Fallback for redirect if useEffect hasn't caught it yet, or if somehow settings became null after initial undefined.
+  // This ensures that if settings are null, we don't try to render the dashboard.
+  if (userData.settings === null) {
+    return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">Перенаправление на страницу настройки...</p>
+        <p className="ml-4">Перенаправление...</p>
       </div>
     );
   }
-  
+
+  // At this point, userData.settings is guaranteed to be an object.
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
     if (!codeOrName) return 'N/A';
     if (type === 'interface') {

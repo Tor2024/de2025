@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
@@ -11,27 +11,18 @@ import * as React from 'react';
 export default function HomePage() {
   const { userData } = useUserData();
   const router = useRouter();
-  
-  // isCheckingUser is true if userData.settings is initially undefined (context might be loading)
-  const [isCheckingUser, setIsCheckingUser] = useState(() => userData.settings === undefined);
 
   useEffect(() => {
-    // This effect runs when userData.settings from context changes or on initial mount.
-    if (userData.settings !== undefined) {
-      // Settings are now defined (either an object or null).
-      setIsCheckingUser(false); 
-      if (userData.settings) { // If settings object exists (user is onboarded)
-        router.replace('/dashboard');
-      }
-      // If userData.settings is null, we do nothing here,
-      // the return logic below will render OnboardingFlow.
-    } else {
-      // userData.settings is still undefined. Keep checking.
-      setIsCheckingUser(true);
+    // Only attempt to redirect if userData.settings is definitively loaded and truthy (an object)
+    if (userData.settings && typeof userData.settings === 'object') {
+      router.replace('/dashboard');
     }
-  }, [userData.settings, router]); // Depend directly on userData.settings
+    // If userData.settings is null, OnboardingFlow will be rendered.
+    // If userData.settings is undefined, the loading spinner will be rendered.
+  }, [userData.settings, router]);
 
-  if (isCheckingUser) {
+  // Case 1: UserData is still loading from context/localStorage
+  if (userData.settings === undefined) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
@@ -40,10 +31,9 @@ export default function HomePage() {
     );
   }
 
-  // At this point, isCheckingUser is false. userData.settings is either an object or null.
-  if (userData.settings) {
-    // This case handles if the redirect from useEffect is pending 
-    // or if onboarding just finished and settings are now populated.
+  // Case 2: UserData is loaded, and settings exist (user is onboarded)
+  // This state is primarily to show a loading spinner while the redirect initiated by useEffect is in progress.
+  if (userData.settings && typeof userData.settings === 'object') {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
@@ -52,6 +42,7 @@ export default function HomePage() {
     );
   }
 
-  // If settings are null (and not undefined), it means onboarding is needed.
+  // Case 3: UserData is loaded, but settings are null (onboarding needed)
+  // At this point, userData.settings must be null.
   return <OnboardingFlow />;
 }
