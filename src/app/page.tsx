@@ -9,24 +9,23 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import * as React from 'react';
 
 export default function HomePage() {
-  const { userData } = useUserData();
+  const { userData, isLoading } = useUserData(); // Use isLoading from context
   const router = useRouter();
 
   useEffect(() => {
-    // Only attempt to redirect if userData.settings is definitively loaded and truthy (an object)
-    if (userData.settings && typeof userData.settings === 'object') {
+    // Only attempt to redirect if data has loaded (isLoading is false)
+    // AND user settings exist (user is onboarded)
+    if (!isLoading && userData.settings && typeof userData.settings === 'object') {
       router.replace('/dashboard');
     }
-    // If userData.settings is null, OnboardingFlow will be rendered.
-    // If userData.settings is undefined, the loading spinner will be rendered.
-  }, [userData.settings, router]);
+  }, [userData.settings, isLoading, router]);
 
-  // Case 1: UserData is still loading from context/localStorage
-  if (userData.settings === undefined) {
+  // Case 1: UserData context is still loading (initial check of localStorage)
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-2">Загрузка...</p>
+        <p className="ml-4">Загрузка...</p>
       </div>
     );
   }
@@ -42,7 +41,7 @@ export default function HomePage() {
     );
   }
 
-  // Case 3: UserData is loaded, but settings are null (onboarding needed)
+  // Case 3: UserData is loaded (isLoading is false), but settings are null (onboarding needed)
   // At this point, userData.settings must be null.
   return <OnboardingFlow />;
 }

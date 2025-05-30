@@ -10,20 +10,18 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import * as React from 'react';
 
 export default function WritingPage() {
-  const { userData } = useUserData();
+  const { userData, isLoading } = useUserData(); // Use isLoading from context
   const router = useRouter();
 
   useEffect(() => {
-    // If userData.settings has loaded and is null, redirect to onboarding.
-    if (userData.settings === null) {
+    // Only redirect if data has loaded (isLoading is false) AND settings are null.
+    if (!isLoading && userData.settings === null) {
       router.replace('/');
     }
-    // If userData.settings is an object, the page will render.
-    // If userData.settings is undefined, the loading spinner will be shown.
-  }, [userData.settings, router]);
+  }, [userData.settings, isLoading, router]);
 
-  // Show loading spinner if user data (and settings) are not yet loaded.
-  if (userData.settings === undefined) {
+  // Show loading spinner if user data context is still loading.
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
@@ -32,7 +30,8 @@ export default function WritingPage() {
     );
   }
 
-  // Fallback for redirect if useEffect hasn't caught it yet.
+  // If data has loaded, but settings are null, show loading/redirecting message.
+  // The useEffect above will handle the actual redirect.
   if (userData.settings === null) {
      return (
       <div className="flex h-screen items-center justify-center">
@@ -42,7 +41,7 @@ export default function WritingPage() {
     );
   }
 
-  // At this point, userData.settings is an object.
+  // At this point, isLoading is false and userData.settings is an object.
   return (
     <AppShell>
       <WritingAssistantClient />

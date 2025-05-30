@@ -26,20 +26,18 @@ const learningModules = [
 ];
 
 export default function DashboardPage() {
-  const { userData } = useUserData();
+  const { userData, isLoading } = useUserData(); // Use isLoading from context
   const router = useRouter();
 
   useEffect(() => {
-    // If userData.settings has loaded and is null, redirect to onboarding.
-    if (userData.settings === null) {
+    // Only redirect if data has loaded (isLoading is false) AND settings are null.
+    if (!isLoading && userData.settings === null) {
       router.replace('/');
     }
-    // If userData.settings is an object, the page will render.
-    // If userData.settings is undefined, the loading spinner will be shown.
-  }, [userData.settings, router]);
+  }, [userData.settings, isLoading, router]);
 
-  // Show loading spinner if user data (and settings) are not yet loaded.
-  if (userData.settings === undefined) {
+  // Show loading spinner if user data context is still loading.
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
@@ -48,8 +46,8 @@ export default function DashboardPage() {
     );
   }
 
-  // Fallback for redirect if useEffect hasn't caught it yet, or if somehow settings became null after initial undefined.
-  // This ensures that if settings are null, we don't try to render the dashboard.
+  // If data has loaded, but settings are null, show loading/redirecting message.
+  // The useEffect above will handle the actual redirect.
   if (userData.settings === null) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -59,7 +57,7 @@ export default function DashboardPage() {
     );
   }
 
-  // At this point, userData.settings is guaranteed to be an object.
+  // At this point, isLoading is false and userData.settings is an object.
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
     if (!codeOrName) return 'N/A';
     if (type === 'interface') {
