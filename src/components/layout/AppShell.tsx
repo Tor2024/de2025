@@ -12,7 +12,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="flex flex-col min-h-screen">
         <AppHeader />
