@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -29,7 +30,7 @@ const initialUserData: UserData = {
 };
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const [userData, setUserData] = useLocalStorage<UserData>('linguaverse-user', initialUserData);
+  const [userData, setUserData] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
   const updateSettings = (newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
