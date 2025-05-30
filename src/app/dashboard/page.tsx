@@ -215,14 +215,16 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
+  // fetchTutorTip is wrapped in useCallback, so it's safe to include.
+  // t and toast are stable (or should be if from custom hooks that manage stability).
   }, [isUserDataLoading, userData.settings, fetchTutorTip]); 
   
   if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
@@ -231,9 +233,9 @@ export default function DashboardPage() {
   if (userData.settings === null) {
     return (
        <AppShell>
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -384,10 +386,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-
-    
-
-    
-
-    

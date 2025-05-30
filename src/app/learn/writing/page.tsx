@@ -35,16 +35,16 @@ const generateTranslations = () => {
 const pageTranslations = generateTranslations();
 
 export default function WritingPage() {
-  const { userData, isLoading: isUserDataContextLoading } = useUserData(); 
+  const { userData, isLoading: isUserDataLoading } = useUserData(); 
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserDataContextLoading && userData.settings === null) {
+    if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData, isUserDataContextLoading, router]); 
+  }, [userData, isUserDataLoading, router]); 
 
-  const currentLang = isUserDataContextLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const tPage = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
@@ -57,21 +57,25 @@ export default function WritingPage() {
     return defaultText || key; 
   };
 
-  if (isUserDataContextLoading) {
+  if (isUserDataLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner size={48} />
-        <p className="ml-4">{tPage('loadingModule')}</p>
-      </div>
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{tPage('loadingModule')}</p>
+        </div>
+      </AppShell>
     );
   }
 
   if (userData.settings === null) {
      return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner size={48} />
-        <p className="ml-4">{tPage('redirecting')}</p>
-      </div>
+      <AppShell>
+        <div className="flex h-full items-center justify-center">
+          <LoadingSpinner size={48} />
+          <p className="ml-4">{tPage('redirecting')}</p>
+        </div>
+      </AppShell>
     );
   }
 

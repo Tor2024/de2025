@@ -64,7 +64,7 @@ export default function ListeningPage() {
   if (userData.settings === null) {
      return (
       <AppShell>
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
           <p className="ml-4">{tPage('redirecting')}</p>
         </div>
