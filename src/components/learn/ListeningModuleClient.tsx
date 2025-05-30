@@ -45,6 +45,7 @@ const baseEnTranslations: Record<string, string> = {
   ttsPlayScript: "Play script",
   ttsStopScript: "Stop script",
   ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+  noScriptGenerated: "The AI did not generate a script for this topic. Please try a different topic or try again.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -69,6 +70,7 @@ const baseRuTranslations: Record<string, string> = {
   ttsPlayScript: "Озвучить скрипт",
   ttsStopScript: "Остановить озвучку",
   ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+  noScriptGenerated: "ИИ не сгенерировал скрипт для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
 };
 
 const generateTranslations = () => {
@@ -293,9 +295,13 @@ export function ListeningModuleClient() {
                         </Button>
                     )}
                 </div>
-                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                    <p className="whitespace-pre-wrap text-base leading-relaxed">{listeningResult.script}</p>
-                </ScrollArea>
+                {hasScriptText ? (
+                    <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                        <p className="whitespace-pre-wrap text-base leading-relaxed">{listeningResult.script}</p>
+                    </ScrollArea>
+                ) : (
+                    <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md border">{t('noScriptGenerated')}</p>
+                )}
             </div>
             
             {listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0 && (
@@ -331,4 +337,3 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-

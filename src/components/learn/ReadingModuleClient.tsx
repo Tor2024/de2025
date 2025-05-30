@@ -41,6 +41,7 @@ const baseEnTranslations: Record<string, string> = {
   loading: "Loading...",
   noQuestions: "No comprehension questions were generated for this text.",
   answerIndication: "Answer indication",
+  noTextGenerated: "The AI did not generate any text for this topic. Please try a different topic or try again.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -60,6 +61,7 @@ const baseRuTranslations: Record<string, string> = {
   loading: "Загрузка...",
   noQuestions: "Для этого текста не было сгенерировано вопросов на понимание.",
   answerIndication: "Указание на ответ",
+  noTextGenerated: "ИИ не сгенерировал текст для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
 };
 
 const generateTranslations = () => {
@@ -177,9 +179,13 @@ export function ReadingModuleClient() {
           </CardHeader>
           <CardContent className="space-y-4">
             <h3 className="font-semibold text-lg">{t('readingTextHeader')} ({userData.settings.targetLanguage})</h3>
-            <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-              <p className="whitespace-pre-wrap text-base leading-relaxed">{readingResult.readingText}</p>
-            </ScrollArea>
+            {readingResult.readingText && readingResult.readingText.trim().length > 0 ? (
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                <p className="whitespace-pre-wrap text-base leading-relaxed">{readingResult.readingText}</p>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md border">{t('noTextGenerated')}</p>
+            )}
             
             {readingResult.comprehensionQuestions && readingResult.comprehensionQuestions.length > 0 && (
               <>
