@@ -35,6 +35,56 @@ interface RoadmapDisplayProps {
   ttsUtteranceErrorDescription: string;
 }
 
+const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
+    console.warn('TTS: Voices not available or synthesis not supported.');
+    return undefined;
+  }
+
+  console.log(`TTS: RoadmapDisplay - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+  
+  let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
+  if (!targetLangVoices.length) {
+    const baseLang = langCode.split('-')[0];
+    targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
+    if (targetLangVoices.length) {
+      console.log(`TTS: RoadmapDisplay - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+    }
+  }
+
+  if (!targetLangVoices.length) {
+    console.warn(`TTS: RoadmapDisplay - No voices found for lang "${langCode}" or base lang.`);
+    return undefined;
+  }
+
+  const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
+  if (googleVoice) {
+    console.log('TTS: RoadmapDisplay - Selected Google voice:', googleVoice.name);
+    return googleVoice;
+  }
+
+  const defaultVoice = targetLangVoices.find(voice => voice.default);
+  if (defaultVoice) {
+    console.log('TTS: RoadmapDisplay - Selected default voice:', defaultVoice.name);
+    return defaultVoice;
+  }
+
+  const localServiceVoice = targetLangVoices.find(voice => voice.localService);
+  if (localServiceVoice) {
+    console.log('TTS: RoadmapDisplay - Selected local service voice:', localServiceVoice.name);
+    return localServiceVoice;
+  }
+  
+  if (targetLangVoices.length > 0) {
+    console.log('TTS: RoadmapDisplay - Selected first available voice:', targetLangVoices[0].name);
+    return targetLangVoices[0];
+  }
+
+  console.warn(`TTS: RoadmapDisplay - Could not select any voice for lang "${langCode}".`);
+  return undefined;
+};
+
+
 export function RoadmapDisplay({
   titleText,
   descriptionText,
@@ -64,17 +114,33 @@ export function RoadmapDisplay({
   const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
-  const playTextInternalIdRef = React.useRef<string | null>(null); 
+  const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
+
 
   React.useEffect(() => {
+    const updateVoices = () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        voicesRef.current = window.speechSynthesis.getVoices();
+        // console.log("RoadmapDisplay: Voices updated", voicesRef.current);
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      updateVoices();
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
+    
     return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
       }
     };
   }, []);
 
-  const t = (key: string) => { // Helper for local toast translations
+  const t = (key: string) => { 
     if (key === 'ttsUtteranceErrorTitle') return ttsUtteranceErrorTitle;
     if (key === 'ttsUtteranceErrorDescription') return ttsUtteranceErrorDescription;
     return key;
@@ -102,15 +168,16 @@ export function RoadmapDisplay({
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+           if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [userData.settings, toast, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); // Added toast, ttsUtterance keys
+  }, [userData.settings, toast, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); 
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
-    playTextInternalIdRef.current = lessonId;
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
         title: ttsNotSupportedTitle,
@@ -141,15 +208,22 @@ export function RoadmapDisplay({
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings){
         startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+        const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+        if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
+
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
         utterance.lang = langCode; 
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
         utteranceQueueRef.current.push(utterance);
     });
     
@@ -303,3 +377,5 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
+    

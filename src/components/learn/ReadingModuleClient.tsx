@@ -119,6 +119,55 @@ const generateTranslations = () => {
 
 const componentTranslations = generateTranslations();
 
+const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
+  if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
+    console.warn('TTS: Voices not available or synthesis not supported.');
+    return undefined;
+  }
+
+  console.log(`TTS: ReadingModule - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+
+  let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
+  if (!targetLangVoices.length) {
+    const baseLang = langCode.split('-')[0];
+    targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
+     if (targetLangVoices.length) {
+      console.log(`TTS: ReadingModule - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+    }
+  }
+
+  if (!targetLangVoices.length) {
+    console.warn(`TTS: ReadingModule - No voices found for lang "${langCode}" or base lang.`);
+    return undefined;
+  }
+
+  const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
+  if (googleVoice) {
+    console.log('TTS: ReadingModule - Selected Google voice:', googleVoice.name);
+    return googleVoice;
+  }
+
+  const defaultVoice = targetLangVoices.find(voice => voice.default);
+  if (defaultVoice) {
+    console.log('TTS: ReadingModule - Selected default voice:', defaultVoice.name);
+    return defaultVoice;
+  }
+
+  const localServiceVoice = targetLangVoices.find(voice => voice.localService);
+  if (localServiceVoice) {
+    console.log('TTS: ReadingModule - Selected local service voice:', localServiceVoice.name);
+    return localServiceVoice;
+  }
+  
+  if (targetLangVoices.length > 0) {
+    console.log('TTS: ReadingModule - Selected first available voice:', targetLangVoices[0].name);
+    return targetLangVoices[0];
+  }
+
+  console.warn(`TTS: ReadingModule - Could not select any voice for lang "${langCode}".`);
+  return undefined;
+};
+
 export function ReadingModuleClient() {
   const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
@@ -129,6 +178,7 @@ export function ReadingModuleClient() {
   const [currentlySpeakingTextId, setCurrentlySpeakingTextId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
+  const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
@@ -146,10 +196,22 @@ export function ReadingModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
+    const updateVoices = () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        voicesRef.current = window.speechSynthesis.getVoices();
+      }
+    };
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      updateVoices();
+      window.speechSynthesis.onvoiceschanged = updateVoices;
+    }
     return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
       }
     };
   }, []);
@@ -176,12 +238,14 @@ export function ReadingModuleClient() {
         const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
         if (userData.settings) {
           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+          const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+          if (voice) endCueUtterance.voice = voice;
         }
         window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTextId(null);
     }
-  }, [userData.settings, t, toast]); // Added t and toast
+  }, [userData.settings, t, toast]); 
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -214,16 +278,23 @@ export function ReadingModuleClient() {
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current);
+      if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
 
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
+    
+    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current);
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
         utterance.lang = langCode;
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
         utteranceQueueRef.current.push(utterance);
     });
     
@@ -277,7 +348,7 @@ export function ReadingModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        description: `${t('toastErrorDescription')} (${errorMessage})`,
         variant: "destructive",
       });
     } finally {
@@ -545,7 +616,7 @@ export function ReadingModuleClient() {
               </div>
             )}
             {readingResult && (!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
-                <p className="text-sm text-muted-foreground italic mt-4">{t('noQuestions')}</p>
+                <p className="text-sm text-muted-foreground italic mt-4 p-3 bg-muted/30 rounded-md">{t('noQuestions')}</p>
             )}
           </CardContent>
         </Card>
@@ -553,3 +624,5 @@ export function ReadingModuleClient() {
     </div>
   );
 }
+
+    
