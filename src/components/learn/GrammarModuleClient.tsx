@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles, XCircle } from "lucide-react";
 import { interfaceLanguageCodes } from "@/lib/types";
-
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const grammarSchema = z.object({
   grammarTopic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -43,6 +43,9 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
   clearResultsButton: "Clear Results",
+  hintDer: "Masculine Nominative",
+  hintDie: "Feminine/Plural Nominative/Accusative",
+  hintDas: "Neuter Nominative/Accusative",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -62,6 +65,9 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
   clearResultsButton: "Очистить результаты",
+  hintDer: "Мужской род, им. падеж",
+  hintDie: "Женский род/Мн. число, им./вин. падеж",
+  hintDas: "Средний род, им./вин. падеж",
 };
 
 const generateTranslations = () => {
@@ -77,6 +83,51 @@ const generateTranslations = () => {
 };
 
 const componentTranslations = generateTranslations();
+
+const germanArticleHighlights: Record<string, { color: string; hintKey: string }> = {
+  'der': { color: 'blue', hintKey: 'hintDer' },
+  'die': { color: 'red', hintKey: 'hintDie' },
+  'das': { color: 'green', hintKey: 'hintDas' },
+  // Add more articles like 'den', 'dem', 'des' with different colors/hints if needed
+};
+
+const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ text, highlights, translateFn }) => {
+  if (!text) return <>{text}</>;
+
+  const highlightKeys = Object.keys(highlights);
+  if (highlightKeys.length === 0) return <>{text}</>;
+
+  // Regex to match whole words, case-insensitive, considering word boundaries
+  const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+  
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        const lowerPart = part.toLowerCase();
+        const highlightConfig = highlights[lowerPart];
+
+        if (highlightConfig) {
+          return (
+            <Tooltip key={`${part}-${index}-${Math.random()}`}>
+              <TooltipTrigger asChild>
+                <span style={{ color: highlightConfig.color, fontWeight: 'bold', cursor: 'help' }}>
+                  {part}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{translateFn(highlightConfig.hintKey, highlightConfig.hintKey)}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
+};
+
 
 export function GrammarModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -114,7 +165,7 @@ export function GrammarModuleClient() {
         grammarTopic: data.grammarTopic,
         proficiencyLevel: userData.settings!.proficiencyLevel,
         learningGoal: userData.settings!.goal,
-        userPastErrors: userData.progress!.errorArchive.map(e => `${e.topic}: ${e.error}`).join('\n') || "No past errors recorded.",
+        userPastErrors: userData.progress!.errorArchive.map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`).join('\n') || "No past errors recorded.",
       };
       
       const result = await adaptiveGrammarExplanations(grammarInput);
@@ -187,7 +238,9 @@ export function GrammarModuleClient() {
             <div>
               <h3 className="font-semibold text-lg mb-2">{t('explanationHeader')}</h3>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{explanationResult.explanation}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                   <HighlightedTextRenderer text={explanationResult.explanation} highlights={germanArticleHighlights} translateFn={t} />
+                </p>
               </ScrollArea>
             </div>
             
@@ -211,5 +264,6 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+    
 
     
