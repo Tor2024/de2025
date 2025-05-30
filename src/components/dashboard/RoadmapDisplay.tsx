@@ -86,7 +86,10 @@ export function RoadmapDisplay({
       return;
     }
 
-    window.speechSynthesis.cancel(); // Stop any other speech
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel(); // Stop any other speech
+    }
+
 
     const trimmedTextToSpeak = textToSpeak.trim();
     if (!trimmedTextToSpeak) {
@@ -111,7 +114,7 @@ export function RoadmapDisplay({
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext]);
+  }, [currentlySpeakingLessonId, speakNext]); // Removed interfaceLanguage from dependencies
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -152,8 +155,12 @@ export function RoadmapDisplay({
           )}
 
           <Accordion type="multiple" className="w-full">
-            {roadmap.lessons.map((lesson: Lesson) => (
-              <AccordionItem value={lesson.id} key={lesson.id} className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow">
+            {roadmap.lessons.map((lesson: Lesson, index: number) => (
+              <AccordionItem 
+                value={`lesson-item-${index}`} // Use index for unique accordion item value
+                key={`lesson-key-${index}`}    // Use index for unique React key
+                className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow"
+              >
                 <AccordionTrigger className="p-4 text-base hover:no-underline">
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
@@ -168,16 +175,20 @@ export function RoadmapDisplay({
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (currentlySpeakingLessonId === lesson.id) {
+                          // Use lesson.id for TTS logic if it's meant to be a stable ID for the content,
+                          // or construct a unique ID for speech if lesson.id might not be unique.
+                          // For this example, assuming lesson.id is for content identification.
+                          const speechId = lesson.id || `speech-id-${index}`;
+                          if (currentlySpeakingLessonId === speechId) {
                             stopSpeech();
                           } else {
-                            playText(lesson.id, lesson.description, interfaceLanguage);
+                            playText(speechId, lesson.description, interfaceLanguage);
                           }
                         }}
                         className="ml-2 shrink-0"
-                        aria-label={currentlySpeakingLessonId === lesson.id ? ttsStopText : ttsPlayText}
+                        aria-label={currentlySpeakingLessonId === (lesson.id || `speech-id-${index}`) ? ttsStopText : ttsPlayText}
                       >
-                        {currentlySpeakingLessonId === lesson.id ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                        {currentlySpeakingLessonId === (lesson.id || `speech-id-${index}`) ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                       </Button>
                     )}
                   </div>
