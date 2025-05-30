@@ -21,14 +21,11 @@ const baseRuTranslations = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) { 
-      translations[code] = { ...baseEnTranslations }; 
-    }
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    translations[code] = base;
   });
   return translations;
 };
@@ -82,4 +79,3 @@ export default function VocabularyPage() {
     </AppShell>
   );
 }
-
