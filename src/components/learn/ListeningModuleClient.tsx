@@ -15,9 +15,10 @@ import { generateListeningMaterial } from "@/ai/flows/generate-listening-materia
 import type { GenerateListeningMaterialInput, GenerateListeningMaterialOutput } from "@/ai/flows/generate-listening-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info } from "lucide-react";
+import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info, CheckCircle2, XCircle, Target } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const listeningSchema = z.object({
@@ -47,7 +48,11 @@ const baseEnTranslations: Record<string, string> = {
   ttsPlayScript: "Play script",
   ttsStopScript: "Stop script",
   ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+  ttsNotSupportedTitle: "TTS Not Supported",
+  ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   noScriptGenerated: "The AI did not generate a script for this topic. Please try a different topic or try again.",
+  checkAnswersButton: "Check Answers",
+  tryAgainButton: "Try Again",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -72,7 +77,11 @@ const baseRuTranslations: Record<string, string> = {
   ttsPlayScript: "Озвучить скрипт",
   ttsStopScript: "Остановить озвучку",
   ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+  ttsNotSupportedTitle: "TTS не поддерживается",
+  ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   noScriptGenerated: "ИИ не сгенерировал скрипт для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
+  checkAnswersButton: "Проверить ответы",
+  tryAgainButton: "Попробовать снова",
 };
 
 const generateTranslations = () => {
@@ -99,6 +108,9 @@ export function ListeningModuleClient() {
   const [currentlySpeakingScriptId, setCurrentlySpeakingScriptId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
+
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ListeningFormData>({
     resolver: zodResolver(listeningSchema),
@@ -137,7 +149,11 @@ export function ListeningModuleClient() {
 
   const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      alert("Text-to-Speech is not supported by your browser.");
+      toast({
+        title: t('ttsNotSupportedTitle'),
+        description: t('ttsNotSupportedDescription'),
+        variant: 'destructive',
+      });
       setCurrentlySpeakingScriptId(null);
       return;
     }
@@ -170,7 +186,7 @@ export function ListeningModuleClient() {
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingScriptId(scriptId);
     speakNext();
-  }, [currentlySpeakingScriptId, speakNext]);
+  }, [currentlySpeakingScriptId, speakNext, t, toast]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -190,13 +206,15 @@ export function ListeningModuleClient() {
   const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
     setIsAiLoading(true);
     setListeningResult(null);
+    setSelectedAnswers({});
+    setIsAnswersSubmitted(false);
     stopSpeech(); 
     setCurrentTopic(data.topic);
     try {
       const flowInput: GenerateListeningMaterialInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage,
-        targetLanguage: userData.settings!.targetLanguage,
-        proficiencyLevel: userData.settings!.proficiencyLevel,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic,
       };
 
@@ -220,7 +238,21 @@ export function ListeningModuleClient() {
     }
   };
   
+  const handleAnswerChange = (questionIndex: number, value: string) => {
+    setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
+  };
+
+  const handleCheckAnswers = () => {
+    setIsAnswersSubmitted(true);
+  };
+
+  const handleTryAgain = () => {
+    setSelectedAnswers({});
+    setIsAnswersSubmitted(false);
+  };
+
   const hasScriptText = listeningResult && listeningResult.script && listeningResult.script.trim().length > 0;
+  const hasQuestions = listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0;
 
   return (
     <div className="space-y-6">
@@ -268,7 +300,7 @@ export function ListeningModuleClient() {
                 <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">{listeningResult.scenario}</p>
               </div>
             )}
-             {!listeningResult.scenario && (
+             {!listeningResult.scenario && !isAiLoading && (
                 <p className="text-sm text-muted-foreground italic">{t('noScenario')}</p>
             )}
 
@@ -293,9 +325,8 @@ export function ListeningModuleClient() {
                             }}
                             className="shrink-0"
                             aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
-                            disabled={!hasScriptText}
+                            disabled={!hasScriptText || isAiLoading}
                             >
-                            {isAiLoading && <LoadingSpinner size={16} className="mr-1" />}
                             {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
                             {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                           </Button>
@@ -317,31 +348,76 @@ export function ListeningModuleClient() {
                 )}
             </div>
             
-            {listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0 && (
+            {hasQuestions && (
               <div>
                 <h3 className="font-semibold text-lg mt-4 mb-1">{t('comprehensionQuestionsHeader')}</h3>
                 <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                   <ul className="space-y-3">
-                    {listeningResult.comprehensionQuestions.map((q, index) => (
-                      <li key={index} className="text-sm p-2 rounded-md bg-card border">
-                        <p className="font-medium mb-1 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-primary/80" />{q.question}</p>
-                        {q.options && q.options.length > 0 && (
-                          <ul className="list-disc pl-5 space-y-1 text-xs ml-4">
-                            {q.options.map((opt, optIndex) => (
-                              <li key={optIndex}>{opt}</li>
-                            ))}
-                          </ul>
-                        )}
-                        {q.answer && (
-                           <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
-                        )}
-                      </li>
-                    ))}
+                    {listeningResult.comprehensionQuestions!.map((q, index) => {
+                      const userAnswer = selectedAnswers[index];
+                      const isCorrect = q.answer && userAnswer === q.answer;
+                      const hasSubmitted = isAnswersSubmitted;
+
+                      return (
+                        <li key={index} className="text-sm p-3 rounded-md bg-card border">
+                          <p className="font-medium mb-2 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-primary/80" />{q.question}</p>
+                          {q.options && q.options.length > 0 ? (
+                            <RadioGroup
+                              value={userAnswer}
+                              onValueChange={(value) => handleAnswerChange(index, value)}
+                              disabled={hasSubmitted}
+                              className="ml-4 space-y-1"
+                            >
+                              {q.options.map((opt, optIndex) => {
+                                const isSelected = userAnswer === opt;
+                                const isActualCorrectAnswer = q.answer === opt;
+                                let labelClassName = "text-sm";
+                                if (hasSubmitted && isSelected) {
+                                  labelClassName = isCorrect ? "text-green-600 font-semibold" : "text-red-600 font-semibold";
+                                } else if (hasSubmitted && isActualCorrectAnswer) {
+                                  labelClassName = "text-green-700";
+                                }
+
+                                return (
+                                  <div key={optIndex} className="flex items-center space-x-2">
+                                    <RadioGroupItem value={opt} id={`q${index}-opt${optIndex}`} />
+                                    <Label htmlFor={`q${index}-opt${optIndex}`} className={labelClassName}>
+                                      {opt}
+                                    </Label>
+                                    {hasSubmitted && isSelected && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                    {hasSubmitted && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-600" />}
+                                    {hasSubmitted && !isSelected && isActualCorrectAnswer && <Target className="h-4 w-4 text-green-700 opacity-70" />}
+                                  </div>
+                                );
+                              })}
+                            </RadioGroup>
+                          ) : (
+                            q.answer && hasSubmitted && ( // Show AI answer for open questions after submission
+                               <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
+                            )
+                          )}
+                           {q.answer && !q.options && !hasSubmitted && ( // Placeholder for open question input (future)
+                              <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </ScrollArea>
+                <div className="mt-4">
+                  {!isAnswersSubmitted ? (
+                    <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0}>
+                      {t('checkAnswersButton')}
+                    </Button>
+                  ) : (
+                    <Button onClick={handleTryAgain} variant="outline">
+                      {t('tryAgainButton')}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
-            {(!listeningResult.comprehensionQuestions || listeningResult.comprehensionQuestions.length === 0) && (
+            {(!listeningResult.comprehensionQuestions || listeningResult.comprehensionQuestions.length === 0) && !isAiLoading && (
                 <p className="text-sm text-muted-foreground italic mt-4">{t('noQuestions')}</p>
             )}
           </CardContent>
