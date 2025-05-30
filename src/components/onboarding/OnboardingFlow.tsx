@@ -44,123 +44,68 @@ const onboardingSchema = z.object({
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
 
-const translations: Record<string, Record<string, string>> = {
-  en: {
-    step1Title: "Welcome to LinguaLab!",
-    step2Title: "Your Learning Focus",
-    step3Title: "Define Your Goal",
-    nicknameLabel: "Your Nickname",
-    nicknamePlaceholder: "E.g., Alex",
-    interfaceLanguageLabel: "Interface Language",
-    interfaceLanguagePlaceholder: "Select language",
-    targetLanguageLabel: "Target Language",
-    targetLanguagePlaceholder: "Select language to learn",
-    proficiencyLevelLabel: "Your Current Proficiency Level",
-    proficiencyLevelPlaceholder: "Select your level",
-    goalLabel: "Your Personal Goal",
-    goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
-    previousButton: "Previous",
-    nextButton: "Next",
-    submitButton: "Generate My Plan & Start Learning!",
-    stepDescription: "Step {current} of {total}",
-    setupCompleteTitle: "Setup Complete!",
-    setupCompleteDescription: "Your personalized learning roadmap has been generated.",
-    errorTitle: "Error",
-    errorDescription: "Failed to complete setup. Please try again.",
-  },
-  ru: {
-    step1Title: "Добро пожаловать в LinguaLab!",
-    step2Title: "Ваш фокус обучения",
-    step3Title: "Определите вашу цель",
-    nicknameLabel: "Ваш псевдоним",
-    nicknamePlaceholder: "Напр., Алекс",
-    interfaceLanguageLabel: "Язык интерфейса",
-    interfaceLanguagePlaceholder: "Выберите язык",
-    targetLanguageLabel: "Изучаемый язык",
-    targetLanguagePlaceholder: "Выберите язык для изучения",
-    proficiencyLevelLabel: "Ваш текущий уровень владения",
-    proficiencyLevelPlaceholder: "Выберите ваш уровень",
-    goalLabel: "Ваша личная цель",
-    goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
-    previousButton: "Назад",
-    nextButton: "Далее",
-    submitButton: "Создать мой план и начать обучение!",
-    stepDescription: "Шаг {current} из {total}",
-    setupCompleteTitle: "Настройка завершена!",
-    setupCompleteDescription: "Ваш персональный план обучения был создан.",
-    errorTitle: "Ошибка",
-    errorDescription: "Не удалось завершить настройку. Пожалуйста, попробуйте снова.",
-  },
-  de: {
-    step1Title: "Willkommen bei LinguaLab!",
-    step2Title: "Dein Lernfokus",
-    step3Title: "Definiere dein Ziel",
-    nicknameLabel: "Dein Spitzname",
-    nicknamePlaceholder: "Z.B. Alex",
-    interfaceLanguageLabel: "Oberflächensprache",
-    interfaceLanguagePlaceholder: "Sprache auswählen",
-    targetLanguageLabel: "Zielsprache",
-    targetLanguagePlaceholder: "Zu lernende Sprache auswählen",
-    proficiencyLevelLabel: "Dein aktuelles Sprachniveau",
-    proficiencyLevelPlaceholder: "Wähle dein Niveau",
-    goalLabel: "Dein persönliches Ziel",
-    goalPlaceholder: "Z.B. B2 TELC Prüfung bestehen, Fließend mit Kollegen sprechen...",
-    previousButton: "Zurück",
-    nextButton: "Weiter",
-    submitButton: "Meinen Plan erstellen & Lernen starten!",
-    stepDescription: "Schritt {current} von {total}",
-    setupCompleteTitle: "Einrichtung abgeschlossen!",
-    setupCompleteDescription: "Dein persönlicher Lernplan wurde erstellt.",
-    errorTitle: "Fehler",
-    errorDescription: "Einrichtung konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
-   },
-  es: {
-    step1Title: "¡Bienvenido a LinguaLab!",
-    step2Title: "Tu enfoque de aprendizaje",
-    step3Title: "Define tu objetivo",
-    nicknameLabel: "Tu apodo",
-    nicknamePlaceholder: "Ej. Alex",
-    interfaceLanguageLabel: "Idioma de la interfaz",
-    interfaceLanguagePlaceholder: "Selecciona el idioma",
-    targetLanguageLabel: "Idioma de destino",
-    targetLanguagePlaceholder: "Selecciona el idioma a aprender",
-    proficiencyLevelLabel: "Tu nivel de competencia actual",
-    proficiencyLevelPlaceholder: "Selecciona tu nivel",
-    goalLabel: "Tu objetivo personal",
-    goalPlaceholder: "Ej. Aprobar el examen B2 TELC, Hablar con fluidez con colegas...",
-    previousButton: "Anterior",
-    nextButton: "Siguiente",
-    submitButton: "¡Generar mi plan y empezar a aprender!",
-    stepDescription: "Paso {current} de {total}",
-    setupCompleteTitle: "¡Configuración completada!",
-    setupCompleteDescription: "Se ha generado tu plan de aprendizaje personalizado.",
-    errorTitle: "Error",
-    errorDescription: "No se pudo completar la configuración. Por favor, inténtalo de nuevo.",
-   },
-  fr: {
-    step1Title: "Bienvenue chez LinguaLab !",
-    step2Title: "Votre objectif d'apprentissage",
-    step3Title: "Définissez votre objectif",
-    nicknameLabel: "Votre pseudo",
-    nicknamePlaceholder: "Ex. Alex",
-    interfaceLanguageLabel: "Langue de l'interface",
-    interfaceLanguagePlaceholder: "Sélectionner la langue",
-    targetLanguageLabel: "Langue cible",
-    targetLanguagePlaceholder: "Sélectionner la langue à apprendre",
-    proficiencyLevelLabel: "Votre niveau de compétence actuel",
-    proficiencyLevelPlaceholder: "Sélectionnez votre niveau",
-    goalLabel: "Votre objectif personnel",
-    goalPlaceholder: "Ex. Réussir l'examen B2 TELC, Parler couramment avec des collègues...",
-    previousButton: "Précédent",
-    nextButton: "Suivant",
-    submitButton: "Générer mon plan et commencer à apprendre !",
-    stepDescription: "Étape {current} sur {total}",
-    setupCompleteTitle: "Configuration terminée !",
-    setupCompleteDescription: "Votre plan d'apprentissage personnalisé a été généré.",
-    errorTitle: "Erreur",
-    errorDescription: "Impossible de terminer la configuration. Veuillez réessayer.",
-   },
+const baseEnTranslations: Record<string, string> = {
+  step1Title: "Welcome to LinguaLab!",
+  step2Title: "Your Learning Focus",
+  step3Title: "Define Your Goal",
+  nicknameLabel: "Your Nickname",
+  nicknamePlaceholder: "E.g., Alex",
+  interfaceLanguageLabel: "Interface Language",
+  interfaceLanguagePlaceholder: "Select language",
+  targetLanguageLabel: "Target Language",
+  targetLanguagePlaceholder: "Select language to learn",
+  proficiencyLevelLabel: "Your Current Proficiency Level",
+  proficiencyLevelPlaceholder: "Select your level",
+  goalLabel: "Your Personal Goal",
+  goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
+  previousButton: "Previous",
+  nextButton: "Next",
+  submitButton: "Generate My Plan & Start Learning!",
+  generatingPlanButton: "Generating Plan...",
+  stepDescription: "Step {current} of {total}",
+  setupCompleteTitle: "Setup Complete!",
+  setupCompleteDescription: "Your personalized learning roadmap has been generated.",
+  errorTitle: "Error",
+  errorDescription: "Failed to complete setup. Please try again.",
 };
+
+const baseRuTranslations: Record<string, string> = {
+  step1Title: "Добро пожаловать в LinguaLab!",
+  step2Title: "Ваш фокус обучения",
+  step3Title: "Определите вашу цель",
+  nicknameLabel: "Ваш псевдоним",
+  nicknamePlaceholder: "Напр., Алекс",
+  interfaceLanguageLabel: "Язык интерфейса",
+  interfaceLanguagePlaceholder: "Выберите язык",
+  targetLanguageLabel: "Изучаемый язык",
+  targetLanguagePlaceholder: "Выберите язык для изучения",
+  proficiencyLevelLabel: "Ваш текущий уровень владения",
+  proficiencyLevelPlaceholder: "Выберите ваш уровень",
+  goalLabel: "Ваша личная цель",
+  goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
+  previousButton: "Назад",
+  nextButton: "Далее",
+  submitButton: "Создать мой план и начать обучение!",
+  generatingPlanButton: "Генерация плана...",
+  stepDescription: "Шаг {current} из {total}",
+  setupCompleteTitle: "Настройка завершена!",
+  setupCompleteDescription: "Ваш персональный план обучения был создан.",
+  errorTitle: "Ошибка",
+  errorDescription: "Не удалось завершить настройку. Пожалуйста, попробуйте снова.",
+};
+
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {};
+  interfaceLanguageCodes.forEach(code => {
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    // For other languages not explicitly defined, default to English
+    translations[code] = base;
+  });
+  return translations;
+};
+
+const pageTranslations = generateTranslations();
 
 
 export function OnboardingFlow() {
@@ -168,31 +113,20 @@ export function OnboardingFlow() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
-  const [uiLang, setUiLang] = useState<keyof typeof translations>('en');
-
-  const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
+  
+  const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch, getValues } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     mode: "onChange", 
     defaultValues: {
-      interfaceLanguage: 'en', // Set default form value for interface language
+      interfaceLanguage: 'en',
+      proficiencyLevel: 'A1-A2',
     },
   });
-
-  const selectedInterfaceLanguage = watch("interfaceLanguage") as keyof typeof translations | undefined;
-
-  useEffect(() => {
-    if (selectedInterfaceLanguage) {
-      if (translations[selectedInterfaceLanguage] && selectedInterfaceLanguage !== uiLang) {
-        setUiLang(selectedInterfaceLanguage);
-      } else if (!translations[selectedInterfaceLanguage] && uiLang !== 'en') {
-        // Fallback to 'en' if the selected language doesn't have full translations defined in `translations` object
-        setUiLang('en');
-      }
-    }
-  }, [selectedInterfaceLanguage]); // Effect only depends on the selected form field value
-
-  const currentTranslations = translations[uiLang] || translations.en;
-
+  
+  // Determine UI language based on form selection; default to 'en' if selection is not yet valid for translations object
+  const selectedInterfaceLanguage = watch("interfaceLanguage") as keyof typeof pageTranslations;
+  const uiLang = pageTranslations[selectedInterfaceLanguage] ? selectedInterfaceLanguage : 'en';
+  const currentTranslations = pageTranslations[uiLang] || pageTranslations.en;
 
   const steps = [
     { id: 1, titleKey: "step1Title", fields: ["userName", "interfaceLanguage"] },
@@ -226,14 +160,14 @@ export function OnboardingFlow() {
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
         targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
+        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel, // User's starting/current level
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
       
       const newProgress: UserProgress = {
-        ...initialUserProgress, // Use imported initialUserProgress
+        ...initialUserProgress, 
         learningRoadmap: roadmapOutput as LearningRoadmap,
       };
 
@@ -243,15 +177,15 @@ export function OnboardingFlow() {
       });
 
       toast({
-        title: currentTranslations.setupCompleteTitle || "Setup Complete!",
-        description: currentTranslations.setupCompleteDescription || "Your personalized learning roadmap has been generated.",
+        title: currentTranslations.setupCompleteTitle,
+        description: currentTranslations.setupCompleteDescription,
       });
     } catch (error) {
       console.error("Onboarding error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: currentTranslations.errorTitle || "Error",
-        description: `${currentTranslations.errorDescription || "Failed to complete setup. Please try again."} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: currentTranslations.errorTitle,
+        description: `${currentTranslations.errorDescription} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -276,13 +210,10 @@ export function OnboardingFlow() {
             <Controller
               name="interfaceLanguage"
               control={control}
-              // defaultValue removed from here, handled by useForm's defaultValues
               render={({ field }) => (
                 <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                  }}
-                  value={field.value} // Directly use field.value
+                  onValueChange={field.onChange}
+                  value={field.value} 
                 >
                   <SelectTrigger id="interfaceLanguage">
                     <SelectValue placeholder={currentTranslations.interfaceLanguagePlaceholder} />
@@ -392,7 +323,14 @@ export function OnboardingFlow() {
             )}
             {currentStep === steps.length - 1 && (
               <Button type="submit" disabled={isLoading || !isValid} className="ml-auto w-full md:w-auto">
-                {isLoading ? <LoadingSpinner /> : (currentTranslations.submitButton)}
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner className="mr-2" />
+                    {currentTranslations.generatingPlanButton}
+                  </>
+                ) : (
+                  currentTranslations.submitButton
+                )}
               </Button>
             )}
           </CardFooter>
