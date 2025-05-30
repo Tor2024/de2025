@@ -2,14 +2,14 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { createContext, useContext } from 'react'; // Removed useState and useEffect
+import { createContext, useContext, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { UserData, UserSettings, UserProgress, LearningRoadmap } from '@/lib/types';
-import { initialUserProgress } from '@/lib/types'; // Ensured initialUserProgress is imported
+import { initialUserProgress } from '@/lib/types';
 
 interface UserDataContextType {
   userData: UserData;
-  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void; // Updated type for setUserData
+  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
@@ -19,42 +19,40 @@ interface UserDataContextType {
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
 
+// Сделаем initialUserData константой на уровне модуля для стабильности ссылки
 const initialUserData: UserData = {
-  settings: null, 
-  progress: { ...initialUserProgress }, // Use spread to ensure a new object for progress
+  settings: null,
+  progress: { ...initialUserProgress },
 };
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
-  const updateSettings = (newSettings: Partial<UserSettings>) => {
+  const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
       ...prev,
-      settings: { ...(prev.settings || {}), ...newSettings } as UserSettings, // Handle if prev.settings is null
+      settings: { ...(prev.settings || {}), ...newSettings } as UserSettings,
     }));
-  };
+  }, [setUserData]);
 
-  const updateProgress = (newProgress: Partial<UserProgress>) => {
+  const updateProgress = useCallback((newProgress: Partial<UserProgress>) => {
     setUserData(prev => ({
       ...prev,
-      // Ensure prev.progress is always an object, even if somehow corrupted or in an unexpected state.
-      // Merge with initialUserProgress as a base for safety.
       progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress } as UserProgress,
     }));
-  };
+  }, [setUserData]);
   
-  const setLearningRoadmap = (roadmap: LearningRoadmap) => {
+  const setLearningRoadmap = useCallback((roadmap: LearningRoadmap) => {
     updateProgress({ learningRoadmap: roadmap });
-  };
+  }, [updateProgress]); // Зависит от updateProgress, который уже мемоизирован
 
-  const clearUserData = () => {
-    setUserData(initialUserData); // Resets to defined initial state
-  };
+  const clearUserData = useCallback(() => {
+    setUserData(initialUserData);
+  }, [setUserData]);
 
-  // The isLoading for the context now directly comes from useLocalStorage
   const contextValue = {
     userData,
-    setUserData, // Directly pass the setter from useLocalStorage
+    setUserData,
     updateSettings,
     updateProgress,
     clearUserData,

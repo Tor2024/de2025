@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, Dispatch, SetStateAction, useCallback } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction, useCallback } from 'react';
 
 type SetValue<T> = Dispatch<SetStateAction<T>>;
 
@@ -31,8 +31,8 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
       console.warn(
         `Tried setting localStorage key "${key}" even though environment is not a client`
       );
-      const newValue = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(newValue);
+      // Применяем новое значение, чтобы UI обновился, даже если localStorage недоступен
+      setStoredValue(prev => value instanceof Function ? value(prev) : value);
       return;
     }
 
@@ -44,7 +44,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
     } catch (error) {
       console.warn(`Error setting localStorage key "${key}":`, error);
     }
-  }, [key, storedValue]);
+  }, [key, storedValue]); // storedValue здесь нужен, если value - не функция, а прямое значение
 
   const handleStorageChange = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -61,7 +61,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
       console.warn(`Error reading localStorage key "${key}" on storage event:`, error);
       setStoredValue(initialValue);
     }
-  }, [key, initialValue]); // setStoredValue не нужна здесь как зависимость, т.к. она гарантированно стабильна от useState
+  }, [key, initialValue]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -74,9 +74,10 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("local-storage", handleStorageChange);
     };
-  }, [handleStorageChange]); // Зависим от мемоизированной handleStorageChange
+  }, [handleStorageChange]);
 
   return [storedValue, setValue, isLoading];
 }
 
 export default useLocalStorage;
+
