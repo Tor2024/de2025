@@ -3,7 +3,7 @@
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, UserCircle, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; // Added new icons
 import { useUserData } from "@/contexts/UserDataContext";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import * as React from 'react'; // Ensure React is imported for useState
+import * as React from 'react';
 
 const baseEnTranslations = {
   title: "Settings",
@@ -59,9 +59,11 @@ const baseRuTranslations = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    let base = baseEnTranslations;
-    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    translations[code] = base;
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
   });
   return translations;
 };
@@ -82,15 +84,15 @@ export default function SettingsPage() {
     }
     const enTranslations = pageTranslations['en'];
     if (enTranslations && enTranslations[key]) {
-      return enTranslations[key]; 
+      return enTranslations[key];
     }
-    return defaultText || key; 
+    return defaultText || key;
   };
 
   const handleResetOnboarding = () => {
     clearUserData();
     router.push('/');
-    setIsResetDialogOpen(false); // Close dialog after action
+    setIsResetDialogOpen(false);
   };
 
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
@@ -103,7 +105,7 @@ export default function SettingsPage() {
     return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
   };
 
-  if (isUserDataLoading) { 
+  if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
@@ -129,12 +131,27 @@ export default function SettingsPage() {
               {t('description')}
             </p>
             {userData.settings && (
-              <div className="text-left text-sm bg-muted/50 p-4 rounded-md shadow-sm">
-                <p><strong>{t('userLabel')}</strong> {userData.settings.userName || t('fallbackLearnerName', 'Learner')}</p>
-                <p><strong>{t('interfaceLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
-                <p><strong>{t('targetLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
-                <p><strong>{t('proficiencyLabel')}</strong> {userData.settings.proficiencyLevel}</p>
-                <p><strong>{t('goalLabel')}</strong> {userData.settings.goal}</p>
+              <div className="text-left text-sm bg-muted/50 p-4 rounded-md shadow-sm space-y-2">
+                <div className="flex items-center gap-2">
+                  <UserCircle className="h-4 w-4 text-primary/80" />
+                  <p><strong>{t('userLabel')}</strong> {userData.settings.userName || t('fallbackLearnerName', 'Learner')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Languages className="h-4 w-4 text-primary/80" />
+                  <p><strong>{t('interfaceLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-primary/80" />
+                  <p><strong>{t('targetLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <BarChartHorizontalBig className="h-4 w-4 text-primary/80" />
+                  <p><strong>{t('proficiencyLabel')}</strong> {userData.settings.proficiencyLevel}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-primary/80" />
+                  <p><strong>{t('goalLabel')}</strong> {userData.settings.goal}</p>
+                </div>
               </div>
             )}
             <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
