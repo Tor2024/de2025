@@ -2,7 +2,7 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Mic } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
@@ -64,18 +64,16 @@ export default function SpeakingPage() {
   return (
     <AppShell>
       <div className="flex flex-col items-center justify-center h-full">
-        <Card className="w-full max-w-md text-center p-8 shadow-xl">
+        <Card className="w-full max-w-md text-center shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
-            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
-              <Mic className="h-12 w-12 text-primary" />
-            </div>
-            <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
+            <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
+              <Mic className="h-8 w-8 text-primary" />
+              {t('title')}
+            </CardTitle>
+            <CardDescription className="mt-2 text-muted-foreground">
               {t('description')}
-            </p>
-          </CardContent>
+            </CardDescription>
+          </CardHeader>
         </Card>
       </div>
     </AppShell>
