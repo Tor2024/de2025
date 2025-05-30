@@ -28,6 +28,8 @@ const initialUserData: UserData = {
 };
 
 const BADGE_FIRST_LESSON_COMPLETED = "First Lesson Completed";
+const BADGE_XP_100 = "100 XP Earned";
+const BADGE_STREAK_3_DAYS = "3-Day Streak";
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
@@ -52,22 +54,45 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   const toggleLessonCompletion = useCallback((lessonId: string) => {
     setUserData(prev => {
-      const currentCompletedIds = prev.progress?.completedLessonIds || [];
+      const currentProgress = prev.progress || initialUserProgress;
+      const currentCompletedIds = currentProgress.completedLessonIds || [];
       const isCompleted = currentCompletedIds.includes(lessonId);
-      const newCompletedLessonIds = isCompleted
-        ? currentCompletedIds.filter(id => id !== lessonId)
-        : [...currentCompletedIds, lessonId];
+      
+      let newCompletedLessonIds: string[];
+      let newXp = currentProgress.xp;
+      let newStreak = currentProgress.streak;
+      let newBadges = [...(currentProgress.badges || [])];
 
-      let newBadges = [...(prev.progress?.badges || [])];
-      if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
-        newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
+      if (isCompleted) {
+        // Mark as incomplete
+        newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
+        newXp = Math.max(0, newXp - 25);
+        // For simplicity, streak is not decremented, nor are badges removed.
+      } else {
+        // Mark as complete
+        newCompletedLessonIds = [...currentCompletedIds, lessonId];
+        newXp += 25;
+        newStreak += 1; // Simplified streak logic
+
+        // Award badges
+        if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
+          newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
+        }
+        if (newXp >= 100 && !newBadges.includes(BADGE_XP_100)) {
+          newBadges.push(BADGE_XP_100);
+        }
+        if (newStreak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) {
+          newBadges.push(BADGE_STREAK_3_DAYS);
+        }
       }
 
       return {
         ...prev,
         progress: {
-          ...(prev.progress || initialUserProgress),
+          ...currentProgress,
           completedLessonIds: newCompletedLessonIds,
+          xp: newXp,
+          streak: newStreak,
           badges: newBadges,
         },
       };
@@ -122,4 +147,3 @@ export function useUserData(): UserDataContextType {
   }
   return context;
 }
-
