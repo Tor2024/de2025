@@ -25,7 +25,7 @@ import { useUserData } from "@/contexts/UserDataContext";
 import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types"; 
 import { interfaceLanguageCodes } from "@/lib/types"; 
 import { Skeleton } from "@/components/ui/skeleton";
-import { appModulesConfig, type AppModuleConfig } from "@/lib/modulesConfig"; // Import the centralized config
+import { appModulesConfig } from "@/lib/modulesConfig"; 
 
 interface NavItemDef {
   href: string;
@@ -37,20 +37,25 @@ interface NavItemDef {
   disabled?: boolean; 
 }
 
-// Transform appModulesConfig into the NavItemDef structure for sidebar
-const learningModuleNavItems: NavItemDef[] = appModulesConfig.map(mod => ({
-  href: mod.href,
-  icon: mod.icon,
-  labelKey: mod.titleKey,
-  defaultLabel: mod.defaultTitle,
-  tooltipKey: mod.tooltipKey,
-  defaultTooltip: mod.defaultTooltip,
-  disabled: mod.disabled,
-}));
-
+// Directly build mainNavItemDefinitions
 const mainNavItemDefinitions: NavItemDef[] = [
-  { href: "/dashboard", icon: Home, labelKey: "dashboard", defaultLabel: "Dashboard", tooltipKey: "dashboardTooltip", defaultTooltip: "Dashboard" },
-  ...learningModuleNavItems,
+  { 
+    href: "/dashboard", 
+    icon: Home, 
+    labelKey: "dashboard", 
+    defaultLabel: "Dashboard", 
+    tooltipKey: "dashboardTooltip", 
+    defaultTooltip: "Dashboard" 
+  },
+  ...appModulesConfig.map(mod => ({
+    href: mod.href,
+    icon: mod.icon,
+    labelKey: mod.titleKey,
+    defaultLabel: mod.defaultTitle,
+    tooltipKey: mod.tooltipKey,
+    defaultTooltip: mod.defaultTooltip,
+    disabled: mod.disabled,
+  })),
 ];
 
 const bottomNavItemDefinitions: NavItemDef[] = [
@@ -157,14 +162,14 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {Array.from({ length: mainNavItemDefinitions.length }).map((_, index) => ( // Use length of actual items for skeleton
+            {Array.from({ length: mainNavItemDefinitions.length }).map((_, index) => ( 
               <SidebarMenuSkeleton key={`skel-top-${index}`} showIcon={true} />
             ))}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2">
           <SidebarMenu>
-            {Array.from({ length: bottomNavItemDefinitions.length }).map((_, index) => ( // Use length of actual items for skeleton
+            {Array.from({ length: bottomNavItemDefinitions.length }).map((_, index) => ( 
               <SidebarMenuSkeleton key={`skel-bottom-${index}`} showIcon={true} />
             ))}
           </SidebarMenu>
@@ -195,7 +200,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {navItems.map((item) => (
-            <SidebarMenuItem key={item.href} className={item.disabled ? "" : ""}>
+            <SidebarMenuItem key={item.href} className={item.disabled ? "cursor-not-allowed" : ""}>
               <Link href={item.disabled ? "#" : item.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   asChild
