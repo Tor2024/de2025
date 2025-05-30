@@ -147,7 +147,7 @@ export function RoadmapDisplay({
          {typeof window !== 'undefined' && window.speechSynthesis && ttsExperimentalText && <p className="text-xs text-muted-foreground mt-1 italic">{ttsExperimentalText}</p>}
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
-        <ScrollArea className="h-[calc(100vh-20rem)] md:h-[400px] rounded-md border p-1 bg-muted/30">
+        <ScrollArea className="h-full rounded-md border p-1 bg-muted/30">
           {roadmap.introduction && (
             <div className="p-3 mb-4 bg-background rounded-md shadow">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />{introductionHeaderText}</h3>
@@ -190,6 +190,7 @@ export function RoadmapDisplay({
                                }}
                                className="ml-2 shrink-0"
                                aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
+                               disabled={!hasDescription}
                              >
                                {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                              </Button>
