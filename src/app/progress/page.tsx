@@ -90,7 +90,7 @@ export default function ProgressPage() {
           <CardContent className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl flex items-center"><Activity className="mr-2 h-5 w-5 text-accent"/>{t('quickStats')}</CardTitle>
+                <h3 className="text-xl font-semibold flex items-center"><Activity className="mr-2 h-5 w-5 text-accent"/>{t('quickStats')}</h3>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg">
                 <p><strong>{t('currentXPLabel')}</strong> {userData.progress?.xp || 0}</p>
@@ -100,7 +100,7 @@ export default function ProgressPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl flex items-center"><TrendingUp className="mr-2 h-5 w-5 text-accent"/>{t('roadmapProgressTitle')}</CardTitle>
+                <h3 className="text-xl font-semibold flex items-center"><TrendingUp className="mr-2 h-5 w-5 text-accent"/>{t('roadmapProgressTitle')}</h3>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">{t('roadmapProgressDesc')}</p>
@@ -109,7 +109,7 @@ export default function ProgressPage() {
             
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-accent"/>{t('errorArchiveTitle')}</CardTitle>
+                <h3 className="text-xl font-semibold flex items-center"><BarChart3 className="mr-2 h-5 w-5 text-accent"/>{t('errorArchiveTitle')}</h3>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">{t('errorArchiveDesc')}</p>
