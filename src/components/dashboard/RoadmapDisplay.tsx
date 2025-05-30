@@ -86,7 +86,7 @@ export function RoadmapDisplay({
       return;
     }
 
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
+    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel(); // Stop any other speech
     }
 
@@ -155,58 +155,64 @@ export function RoadmapDisplay({
           )}
 
           <Accordion type="multiple" className="w-full">
-            {roadmap.lessons.map((lesson: Lesson, index: number) => (
-              <AccordionItem 
-                value={`lesson-item-${index}`} 
-                key={`lesson-key-${index}`}    
-                className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow"
-              >
-                <AccordionTrigger className="p-4 text-base hover:no-underline">
-                  <div className="flex items-center gap-3 w-full">
-                    <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
-                    <span className="font-medium text-left flex-1">{lesson.title}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="p-4 pt-0">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{lesson.description}</p>
-                    {typeof window !== 'undefined' && window.speechSynthesis && (
-                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const speechId = lesson.id || `speech-id-${index}`;
-                          if (currentlySpeakingLessonId === speechId) {
-                            stopSpeech();
-                          } else {
-                            playText(speechId, lesson.description, interfaceLanguage);
-                          }
-                        }}
-                        className="ml-2 shrink-0"
-                        aria-label={currentlySpeakingLessonId === (lesson.id || `speech-id-${index}`) ? ttsStopText : ttsPlayText}
-                      >
-                        {currentlySpeakingLessonId === (lesson.id || `speech-id-${index}`) ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {lesson.topics && lesson.topics.length > 0 && (
-                    <div className="mb-3">
-                      <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
-                      <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
-                        {lesson.topics.map((topic, topicIndex) => (
-                          <li key={topicIndex} className="ml-2 whitespace-pre-wrap">{topic}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+            {roadmap.lessons.map((lesson: Lesson, index: number) => {
+              const lessonSpeechId = lesson.id || `lesson-speech-${index}`;
+              const hasDescription = lesson.description && lesson.description.trim().length > 0;
 
-                  {lesson.estimatedDuration && (
-                    <p className="text-xs text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>{estimatedDurationText} {lesson.estimatedDuration}</p>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
+              return (
+                <AccordionItem 
+                  value={`lesson-item-${index}`} 
+                  key={`lesson-key-${index}`}    
+                  className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <AccordionTrigger className="p-4 text-base hover:no-underline">
+                    <div className="flex items-center gap-3 w-full">
+                      <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
+                      <span className="font-medium text-left flex-1">{lesson.title}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-4 pt-0">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">{lesson.description}</p>
+                      {typeof window !== 'undefined' && window.speechSynthesis && (
+                         <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (!hasDescription) return;
+                            if (currentlySpeakingLessonId === lessonSpeechId) {
+                              stopSpeech();
+                            } else {
+                              playText(lessonSpeechId, lesson.description, interfaceLanguage);
+                            }
+                          }}
+                          className="ml-2 shrink-0"
+                          aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
+                          disabled={!hasDescription}
+                        >
+                          {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {lesson.topics && lesson.topics.length > 0 && (
+                      <div className="mb-3">
+                        <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
+                        <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
+                          {lesson.topics.map((topic, topicIndex) => (
+                            <li key={topicIndex} className="ml-2 whitespace-pre-wrap">{topic}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {lesson.estimatedDuration && (
+                      <p className="text-xs text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>{estimatedDurationText} {lesson.estimatedDuration}</p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
           </Accordion>
 
           {roadmap.conclusion && (
@@ -220,5 +226,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-
-    
