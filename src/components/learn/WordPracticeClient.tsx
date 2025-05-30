@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, type SubmitHandler, Controller } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateFillInTheBlankExercises } from "@/ai/flows/generate-fill-in-the-blank-flow";
-import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput, GenerateFillInTheBlankOutput as FillBlankExerciseOutput } from "@/ai/flows/generate-fill-in-the-blank-flow"; // Renamed for clarity if needed
+import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput as FillBlankExerciseOutput } from "@/ai/flows/generate-fill-in-the-blank-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon } from "lucide-react";
@@ -120,7 +120,7 @@ export function WordPracticeClient() {
   const [showOverallResults, setShowOverallResults] = useState(false);
 
 
-  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm } = useForm<ExerciseFormData>({
+  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm, setValue: setFormValue, watch } = useForm<ExerciseFormData>({
     resolver: zodResolver(exerciseFormSchema),
   });
 
@@ -147,7 +147,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5, // Or make this configurable
+        count: 5,
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -179,7 +179,7 @@ export function WordPracticeClient() {
   const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...prev[currentExerciseIndex], userAnswer: e.target.value, isCorrect: undefined }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), userAnswer: e.target.value, isCorrect: undefined }
     }));
   };
 
@@ -188,14 +188,14 @@ export function WordPracticeClient() {
     const isCorrect = currentExerciseState.userAnswer.trim().toLowerCase() === currentExercise.correctAnswer.trim().toLowerCase();
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...prev[currentExerciseIndex], isSubmitted: true, isCorrect }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), isSubmitted: true, isCorrect }
     }));
   };
 
   const handleToggleHint = () => {
      setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...prev[currentExerciseIndex], showHint: !prev[currentExerciseIndex].showHint }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), showHint: !prev[currentExerciseIndex]?.showHint }
     }));
   };
 
@@ -203,7 +203,6 @@ export function WordPracticeClient() {
     if (exerciseResult && currentExerciseIndex < exerciseResult.exercises.length - 1) {
       setCurrentExerciseIndex(prev => prev + 1);
     } else {
-      // All exercises completed
       setShowOverallResults(true);
     }
   };
@@ -214,6 +213,7 @@ export function WordPracticeClient() {
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
+    resetTopicForm();
   };
 
   if (isUserDataLoading) {
@@ -266,9 +266,11 @@ export function WordPracticeClient() {
                 {t('clearResultsButton')}
               </Button>
             </div>
-             <CardDescription>
-                {t('exerciseLabel')} {currentExerciseIndex + 1} / {totalExercises}
-            </CardDescription>
+             {!showOverallResults && (
+                <CardDescription>
+                    {t('exerciseLabel')} {currentExerciseIndex + 1} / {totalExercises}
+                </CardDescription>
+             )}
           </CardHeader>
           <CardContent className="space-y-4">
             {showOverallResults ? (
@@ -283,7 +285,7 @@ export function WordPracticeClient() {
                     </Button>
                 </div>
             ) : currentExercise ? (
-              <div className="p-4 rounded-md border bg-card/50">
+              <div className="p-4 rounded-md border bg-muted/30 shadow-sm">
                 <p className="text-sm font-semibold text-muted-foreground mb-1">{t('sentenceWithBlankLabel')}</p>
                 <p className="text-lg mb-3 whitespace-pre-wrap">{currentExercise.sentenceWithBlank}</p>
                 
@@ -297,7 +299,7 @@ export function WordPracticeClient() {
                     disabled={currentExerciseState.isSubmitted}
                     className={
                         currentExerciseState.isSubmitted 
-                        ? (currentExerciseState.isCorrect ? 'border-green-500 focus-visible:ring-green-500' : 'border-red-500 focus-visible:ring-red-500')
+                        ? (currentExerciseState.isCorrect ? 'border-green-500 focus-visible:ring-green-500 bg-green-50' : 'border-red-500 focus-visible:ring-red-500 bg-red-50')
                         : ''
                     }
                   />
@@ -312,19 +314,19 @@ export function WordPracticeClient() {
                 
                 {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && (
                   <p className="text-sm mt-1 text-muted-foreground">
-                    {t('correctAnswerLabel')} <span className="font-semibold">{currentExercise.correctAnswer}</span>
+                    {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
                   </p>
                 )}
 
                 {!currentExerciseState.isSubmitted && (
-                    <Button onClick={handleToggleHint} variant="link" size="sm" className="p-0 h-auto mt-1">
-                        <Lightbulb className="h-4 w-4 mr-1"/>
+                    <Button onClick={handleToggleHint} variant="link" size="sm" className="p-0 h-auto mt-2 text-xs">
+                        <Lightbulb className="h-3 w-3 mr-1"/>
                         {currentExerciseState.showHint ? t('hideHintButton') : t('showHintButton')}
                     </Button>
                 )}
                 {currentExerciseState.showHint && !currentExerciseState.isSubmitted && (
-                     <p className="text-sm mt-1 text-muted-foreground">
-                        {t('correctAnswerLabel')} <span className="font-semibold">{currentExercise.blankWord}</span>
+                     <p className="text-sm mt-1 text-muted-foreground bg-background p-2 rounded-md shadow-sm">
+                        {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.blankWord}</span>
                     </p>
                 )}
 
@@ -332,9 +334,10 @@ export function WordPracticeClient() {
             ) : null}
           </CardContent>
           {!showOverallResults && currentExercise && (
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end gap-2 border-t pt-4 mt-4">
                 {!currentExerciseState.isSubmitted ? (
                      <Button onClick={handleCheckAnswer} disabled={!currentExerciseState.userAnswer.trim()}>
+                        {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
                         {t('checkAnswerButton')}
                     </Button>
                 ) : (
@@ -356,3 +359,5 @@ export function WordPracticeClient() {
     </div>
   );
 }
+
+    
