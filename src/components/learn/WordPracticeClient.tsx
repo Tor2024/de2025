@@ -147,6 +147,7 @@ export function WordPracticeClient() {
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
+    resetTopicForm();
 
     try {
       if (!userData.settings) {
@@ -159,7 +160,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5, // Let's request 5 exercises
+        count: 5,
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -174,7 +175,6 @@ export function WordPracticeClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic || t('noTopicProvided')),
       });
-      resetTopicForm();
     } catch (error) {
       console.error("Exercise generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -200,7 +200,7 @@ export function WordPracticeClient() {
     const isCorrect = currentExerciseState.userAnswer.trim().toLowerCase() === currentExercise.correctAnswer.trim().toLowerCase();
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex]), isSubmitted: true, isCorrect }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex]), isSubmitted: true, isCorrect, showHint: false } // Hide hint after submission
     }));
   };
 
@@ -243,7 +243,6 @@ export function WordPracticeClient() {
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
-    resetTopicForm();
   };
 
   if (isUserDataLoading) {
@@ -355,7 +354,7 @@ export function WordPracticeClient() {
                     <p className="text-sm text-muted-foreground">
                       {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
                     </p>
-                    {!currentExerciseState.isMistakeArchived && (
+                    {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && !currentExerciseState.isMistakeArchived && (
                         <Button variant="outline" size="sm" onClick={handleArchiveMistake} className="text-xs">
                             <Archive className="mr-1.5 h-3.5 w-3.5" />
                             {t('archiveMistakeButton')}
