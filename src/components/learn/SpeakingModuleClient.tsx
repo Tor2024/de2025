@@ -117,7 +117,7 @@ export function SpeakingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset(); // Clear the form fields
+      reset(); 
     } catch (error) {
       console.error("Speaking topic generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -187,27 +187,30 @@ export function SpeakingModuleClient() {
               </ScrollArea>
             </div>
 
-            {speakingResult.tips && speakingResult.tips.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5 text-primary/80" />
-                  {t('tipsHeader')}
-                </h3>
-                <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+            
+            <div>
+              <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-primary/80" />
+                {t('tipsHeader')}
+              </h3>
+              <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+                {speakingResult.tips && speakingResult.tips.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {speakingResult.tips.map((tip, index) => (
                       <li key={index} className="text-sm">{tip}</li>
                     ))}
                   </ul>
-                </ScrollArea>
-              </div>
-            )}
-            {(!speakingResult.tips || speakingResult.tips.length === 0) && !isAiLoading && (
-              <p className="text-sm text-muted-foreground italic mt-2">{t('noTipsGenerated')}</p>
-            )}
+                ) : (
+                  <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
+                    {t('noTipsGenerated')}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
+
