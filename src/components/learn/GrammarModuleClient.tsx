@@ -16,15 +16,50 @@ import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutpu
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles } from "lucide-react";
+import type { InterfaceLanguage } from "@/lib/types";
 
 const grammarSchema = z.object({
-  grammarTopic: z.string().min(3, "Topic should be at least 3 characters"),
+  grammarTopic: z.string().min(3, "Topic should be at least 3 characters"), // Validation messages can be localized if using a more robust i18n solution
 });
 
 type GrammarFormData = z.infer<typeof grammarSchema>;
 
+const translations: Record<string, Record<string, string>> = {
+  en: {
+    title: "Adaptive Grammar Explanations",
+    description: "Enter a grammar topic you want to understand better. Our AI tutor will provide a clear explanation and practice tasks tailored to your level and goals.",
+    grammarTopicLabel: "Grammar Topic",
+    grammarTopicPlaceholder: "E.g., Dative Case, Modal Verbs, Subjunctive II",
+    getExplanationButton: "Get Explanation",
+    resultsTitlePrefix: "Explanation:",
+    explanationHeader: "Explanation:",
+    practiceTasksHeader: "Practice Tasks:",
+    toastSuccessTitle: "Explanation Generated!",
+    toastSuccessDescriptionTemplate: "Grammar explanation for \"{topic}\" is ready.",
+    toastErrorTitle: "Error",
+    toastErrorDescription: "Failed to generate grammar explanation. Please try again.",
+    onboardingMissing: "Please complete onboarding first.",
+  },
+  ru: {
+    title: "Адаптивные объяснения грамматики",
+    description: "Введите грамматическую тему, которую вы хотите лучше понять. Наш AI-репетитор предоставит четкое объяснение и практические задания, адаптированные к вашему уровню и целям.",
+    grammarTopicLabel: "Грамматическая тема",
+    grammarTopicPlaceholder: "Напр., Дательный падеж, Модальные глаголы, Сослагательное наклонение II",
+    getExplanationButton: "Получить объяснение",
+    resultsTitlePrefix: "Объяснение:",
+    explanationHeader: "Объяснение:",
+    practiceTasksHeader: "Практические задания:",
+    toastSuccessTitle: "Объяснение создано!",
+    toastSuccessDescriptionTemplate: "Объяснение грамматики для темы \"{topic}\" готово.",
+    toastErrorTitle: "Ошибка",
+    toastErrorDescription: "Не удалось создать объяснение грамматики. Пожалуйста, попробуйте снова.",
+    onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+  },
+  // Add other languages as needed
+};
+
 export function GrammarModuleClient() {
-  const { userData } = useUserData();
+  const { userData, isLoading: isUserDataLoading } = useUserData();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
@@ -33,8 +68,18 @@ export function GrammarModuleClient() {
     resolver: zodResolver(grammarSchema),
   });
 
+  // Determine current language for translations
+  // Defaults to 'en' if userData or settings are not yet loaded to prevent hydration errors during initial load.
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const t = (key: string, defaultText?: string): string => {
+    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
+  };
+
+
   if (!userData.settings || !userData.progress) {
-    return <p>Please complete onboarding first.</p>;
+    // This check is fine for after data has loaded. 
+    // If isUserDataLoading is true, the parent page component handles the loading state.
+    return <p>{t('onboardingMissing', "Please complete onboarding first.")}</p>;
   }
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
@@ -42,9 +87,9 @@ export function GrammarModuleClient() {
     setExplanationResult(null);
     try {
       const grammarInput: AdaptiveGrammarExplanationsInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage as AiInterfaceLanguage, // Pass code directly
+        interfaceLanguage: userData.settings!.interfaceLanguage as AiInterfaceLanguage,
         grammarTopic: data.grammarTopic,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel, // Assuming direct match
+        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel,
         learningGoal: userData.settings!.goal,
         userPastErrors: userData.progress!.errorArchive.map(e => `${e.topic}: ${e.error}`).join('\n') || "No past errors recorded.",
       };
@@ -52,14 +97,14 @@ export function GrammarModuleClient() {
       const result = await adaptiveGrammarExplanations(grammarInput);
       setExplanationResult(result);
       toast({
-        title: "Explanation Generated!",
-        description: `Grammar explanation for "${data.grammarTopic}" is ready.`,
+        title: t('toastSuccessTitle'),
+        description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.grammarTopic),
       });
     } catch (error) {
       console.error("Grammar explanation error:", error);
       toast({
-        title: "Error",
-        description: "Failed to generate grammar explanation. Please try again.",
+        title: t('toastErrorTitle'),
+        description: t('toastErrorDescription'),
         variant: "destructive",
       });
     } finally {
@@ -73,21 +118,21 @@ export function GrammarModuleClient() {
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-primary animate-pulse" />
-            Adaptive Grammar Explanations
+            {t('title')}
           </CardTitle>
-          <CardDescription>Enter a grammar topic you want to understand better. Our AI tutor will provide a clear explanation and practice tasks tailored to your level and goals.</CardDescription>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="grammarTopic">Grammar Topic</Label>
-              <Input id="grammarTopic" placeholder="E.g., Dative Case, Modal Verbs, Subjunctive II" {...register("grammarTopic")} />
+              <Label htmlFor="grammarTopic">{t('grammarTopicLabel')}</Label>
+              <Input id="grammarTopic" placeholder={t('grammarTopicPlaceholder')} {...register("grammarTopic")} />
               {errors.grammarTopic && <p className="text-sm text-destructive">{errors.grammarTopic.message}</p>}
             </div>
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-              {isLoading ? <LoadingSpinner /> : "Get Explanation"}
+              {isLoading ? <LoadingSpinner /> : t('getExplanationButton')}
             </Button>
           </CardFooter>
         </form>
@@ -96,15 +141,15 @@ export function GrammarModuleClient() {
       {explanationResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Explanation: {explanationResult.explanation.substring(0,50)}...</CardTitle>
+            <CardTitle>{t('resultsTitlePrefix')} {explanationResult.explanation.substring(0,50)}...</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <h3 className="font-semibold text-lg">Explanation:</h3>
+            <h3 className="font-semibold text-lg">{t('explanationHeader')}</h3>
             <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
               <p className="whitespace-pre-wrap">{explanationResult.explanation}</p>
             </ScrollArea>
             
-            <h3 className="font-semibold text-lg mt-4">Practice Tasks:</h3>
+            <h3 className="font-semibold text-lg mt-4">{t('practiceTasksHeader')}</h3>
             <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
               <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap">
                 {explanationResult.practiceTasks.map((task, index) => (
