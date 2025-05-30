@@ -15,7 +15,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, List, Languages, MessageSquareText } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 
@@ -93,14 +93,7 @@ export function VocabularyModuleClient() {
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
-    }
-    const enTranslations = componentTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
-    }
-    return defaultText || key;
+    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
   if (isUserDataLoading) {
@@ -181,12 +174,11 @@ export function VocabularyModuleClient() {
           <CardContent>
             {vocabularyResult.words && vocabularyResult.words.length > 0 ? (
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <ul className="space-y-4">
+                <div className="space-y-4">
                   {vocabularyResult.words.map((item: VocabularyWord, index: number) => (
-                    <li key={index} className="p-4 rounded-md bg-card shadow border border-border/50">
+                    <div key={index} className="p-4 rounded-md bg-card shadow border border-border/50">
                       <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
-                        <List className="h-5 w-5" />
-                        {item.word} ({userData.settings?.targetLanguage})
+                        {item.word} <span className="text-sm font-normal text-muted-foreground">({userData.settings?.targetLanguage})</span>
                       </h3>
                       <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                         <Languages className="h-4 w-4" />
@@ -200,9 +192,9 @@ export function VocabularyModuleClient() {
                           <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
                         )}
                       </div>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </ScrollArea>
             ) : (
               <p className="text-muted-foreground">{t('noWordsGenerated')}</p>
