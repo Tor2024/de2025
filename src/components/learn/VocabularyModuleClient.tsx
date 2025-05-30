@@ -14,7 +14,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -157,11 +157,11 @@ export function VocabularyModuleClient() {
   };
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
@@ -259,7 +259,7 @@ export function VocabularyModuleClient() {
     }
     setIsPracticeSubmitted(true);
     setShowPracticeHint(false); 
-    setIsCurrentPracticeMistakeArchived(false); // Reset archive status for new check
+    setIsCurrentPracticeMistakeArchived(false); 
   };
 
   const handleNextPractice = () => {
@@ -296,7 +296,7 @@ export function VocabularyModuleClient() {
     if (!currentPracticeWord || !userData.settings) return;
     addErrorToArchive({
       module: "Vocabulary Practice",
-      context: currentPracticeWord.word, // Store the target language word as context
+      context: currentPracticeWord.word, 
       userAttempt: userPracticeAnswer,
       correctAnswer: currentPracticeWord.translation,
     });
@@ -306,6 +306,14 @@ export function VocabularyModuleClient() {
       description: t('mistakeArchivedToastDescription'),
     });
   };
+  
+  const toggleReveal = (index: number) => {
+    // This function is not used in the current "single card" view
+    // but kept if we switch back or use multiple revealed cards.
+    // For single card view, we use `setIsCardRevealed`.
+    setIsCardRevealed(prev => !prev);
+  };
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -415,14 +423,14 @@ export function VocabularyModuleClient() {
                     <Button 
                       onClick={handlePrevCard} 
                       variant="outline" 
-                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1 || currentCardIndex === 0}
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" /> {t('previousButton')}
                     </Button>
                     <Button 
                       onClick={handleNextCard} 
                       variant="outline" 
-                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1 || currentCardIndex === vocabularyResult.words.length - 1}
                     >
                       {t('nextButton')} <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -509,8 +517,9 @@ export function VocabularyModuleClient() {
                   )}
                 </div>
               ) : (
-                 <div className="text-center p-4">
-                    <p className="text-lg font-semibold text-primary mb-2">{practiceFeedback || t('practiceComplete')}</p>
+                 <div className="text-center p-4 flex flex-col items-center gap-3">
+                    <PartyPopper className="h-12 w-12 text-green-500" />
+                    <p className="text-lg font-semibold text-primary">{practiceFeedback || t('practiceComplete')}</p>
                     <Button onClick={handleRestartPractice} variant="outline">
                         {t('practiceAgainButton')}
                     </Button>
@@ -524,3 +533,4 @@ export function VocabularyModuleClient() {
   );
 }
     
+
