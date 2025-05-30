@@ -36,6 +36,7 @@ const baseEnTranslations = {
   alertResetDescription: "This will erase all your progress and settings. You'll need to go through onboarding again.",
   alertResetCancel: "Cancel",
   alertResetConfirm: "Confirm Reset",
+  fallbackLearnerName: "Learner",
 };
 
 const baseRuTranslations = {
@@ -52,6 +53,7 @@ const baseRuTranslations = {
   alertResetDescription: "Это действие удалит весь ваш прогресс и настройки. Вам нужно будет снова пройти процесс первоначальной настройки.",
   alertResetCancel: "Отмена",
   alertResetConfirm: "Подтвердить сброс",
+  fallbackLearnerName: "Ученик",
 };
 
 const generateTranslations = () => {
@@ -59,8 +61,6 @@ const generateTranslations = () => {
   interfaceLanguageCodes.forEach(code => {
     let base = baseEnTranslations;
     if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
-    // Add other language specific base translations here if needed
-    // e.g. if (code === 'de') base = { ...baseEnTranslations, ...baseDeTranslations };
     translations[code] = base;
   });
   return translations;
@@ -80,7 +80,6 @@ export default function SettingsPage() {
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
     }
-    // Fallback to English if specific key not found in current lang's specific translations
     const enTranslations = pageTranslations['en'];
     if (enTranslations && enTranslations[key]) {
       return enTranslations[key]; 
@@ -131,7 +130,7 @@ export default function SettingsPage() {
             </p>
             {userData.settings && (
               <div className="text-left text-sm bg-muted/50 p-4 rounded-md shadow-sm">
-                <p><strong>{t('userLabel')}</strong> {userData.settings.userName}</p>
+                <p><strong>{t('userLabel')}</strong> {userData.settings.userName || t('fallbackLearnerName', 'Learner')}</p>
                 <p><strong>{t('interfaceLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
                 <p><strong>{t('targetLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
                 <p><strong>{t('proficiencyLabel')}</strong> {userData.settings.proficiencyLevel}</p>
