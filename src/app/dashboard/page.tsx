@@ -12,6 +12,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from "@/lib/types";
 import * as React from 'react';
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
@@ -78,6 +79,10 @@ const baseEnTranslations: Record<string, string> = {
     ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
     startLearningButton: "Start Learning",
     comingSoonButton: "Coming Soon",
+    tooltipInterfaceLanguage: "Interface Language",
+    tooltipTargetLanguage: "Target Language",
+    tooltipProficiency: "Proficiency Level",
+    tooltipGoal: "Current Goal",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -139,6 +144,10 @@ const baseRuTranslations: Record<string, string> = {
     ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
     startLearningButton: "Начать обучение",
     comingSoonButton: "Скоро",
+    tooltipInterfaceLanguage: "Язык интерфейса",
+    tooltipTargetLanguage: "Изучаемый язык",
+    tooltipProficiency: "Уровень владения",
+    tooltipGoal: "Текущая цель",
 };
 
 const generateTranslations = () => {
@@ -356,19 +365,39 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Languages className="h-4 w-4 text-primary/70" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Languages className="h-4 w-4 text-primary/70" />
+                    </TooltipTrigger>
+                    <TooltipContent><p>{t('tooltipInterfaceLanguage')}</p></TooltipContent>
+                  </Tooltip>
                   <span>{t('interface')}: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <GraduationCap className="h-4 w-4 text-primary/70" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <GraduationCap className="h-4 w-4 text-primary/70" />
+                    </TooltipTrigger>
+                    <TooltipContent><p>{t('tooltipTargetLanguage')}</p></TooltipContent>
+                  </Tooltip>
                   <span>{t('learning')}: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <BarChartHorizontalBig className="h-4 w-4 text-primary/70" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <BarChartHorizontalBig className="h-4 w-4 text-primary/70" />
+                    </TooltipTrigger>
+                    <TooltipContent><p>{t('tooltipProficiency')}</p></TooltipContent>
+                  </Tooltip>
                   <span>{t('proficiencyLabel')}: {userData.settings.proficiencyLevel}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Flag className="h-4 w-4 text-primary/70" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Flag className="h-4 w-4 text-primary/70" />
+                    </TooltipTrigger>
+                    <TooltipContent><p>{t('tooltipGoal')}</p></TooltipContent>
+                  </Tooltip>
                   <span>{t('currentGoalLabel')}: <span className="font-medium text-foreground whitespace-pre-wrap">{userData.settings.goal || t('noGoalSet')}</span></span>
                 </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
@@ -382,3 +411,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
