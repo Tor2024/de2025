@@ -9,7 +9,7 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } from '@/lib/types';
@@ -37,13 +37,13 @@ const baseEnTranslations: Record<string, string> = {
     xp: "XP",
     streak: "Streak",
     days: "days",
-    detailedCefrProgress: "Detailed CEFR progress tree coming soon!",
     badges: "Badges",
     noneYet: "None yet",
-    unlockBadges: "Unlock badges as you learn!",
     interface: "Interface",
     learning: "Learning",
     goToSettings: "Go to Settings",
+    viewFullProgress: "View Full Progress",
+    viewAllAchievements: "View All Achievements",
     grammar: "Grammar",
     grammarDescription: "Master sentence structures.",
     writingAssistant: "Writing Assistant",
@@ -90,13 +90,13 @@ const baseRuTranslations: Record<string, string> = {
     xp: "ОП",
     streak: "Серия",
     days: "дней",
-    detailedCefrProgress: "Подробное дерево прогресса CEFR скоро появится!",
     badges: "Значки",
     noneYet: "Пока нет",
-    unlockBadges: "Открывайте значки по мере обучения!",
     interface: "Интерфейс",
     learning: "Изучение",
     goToSettings: "Перейти к настройкам",
+    viewFullProgress: "Посмотреть весь прогресс",
+    viewAllAchievements: "Посмотреть все достижения",
     grammar: "Грамматика",
     grammarDescription: "Освойте структуры предложений.",
     writingAssistant: "Помощник по письму",
@@ -134,11 +134,8 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code === 'ru') {
-      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
-    } else {
-      translations[code] = { ...baseEnTranslations }; 
-    }
+    const base = code === 'ru' ? baseRuTranslations : baseEnTranslations;
+    translations[code] = { ...baseEnTranslations, ...base };
   });
   return translations;
 };
@@ -156,7 +153,6 @@ export default function DashboardPage() {
     }
   }, [userData, isUserDataLoading, router]);
 
-  // Hydration-safe language determination for translations
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
@@ -175,7 +171,6 @@ export default function DashboardPage() {
   }
 
   if (userData.settings === null) {
-    // This case should ideally be caught by the useEffect redirect, but good for robustness
     return (
        <AppShell>
         <div className="flex h-screen items-center justify-center">
@@ -261,29 +256,35 @@ export default function DashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary"/>{t('progressOverview')}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                 <p className="text-sm text-muted-foreground">{t('xp')}: {userData.progress?.xp || 0}</p>
                 <p className="text-sm text-muted-foreground">{t('streak')}: {userData.progress?.streak || 0} {t('days')}</p>
-                <p className="text-sm mt-2 italic">{t('detailedCefrProgress')}</p>
+                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/progress')}>
+                  {t('viewFullProgress')} <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
              <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Award className="text-primary"/>{t('achievements')}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                  <p className="text-sm text-muted-foreground">{t('badges')}: {(userData.progress?.badges || []).join(', ') || t('noneYet')}</p>
-                 <p className="text-sm mt-2 italic">{t('unlockBadges')}</p>
+                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/achievements')}>
+                   {t('viewAllAchievements')} <ArrowRight className="ml-2 h-4 w-4" />
+                 </Button>
               </CardContent>
             </Card>
              <Card className="shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/>{t('quickSettings')}</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                 <p className="text-sm text-muted-foreground">{t('interface')}: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
                 <p className="text-sm text-muted-foreground">{t('learning')}: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push('/settings')}>{t('goToSettings')}</Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
+                  {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
         </div>
@@ -292,3 +293,5 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+    
