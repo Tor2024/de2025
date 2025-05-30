@@ -57,11 +57,11 @@ const baseRuTranslations = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code === 'ru') {
-      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
-    } else {
-      translations[code] = { ...baseEnTranslations };
-    }
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    // Add other language specific base translations here if needed
+    // e.g. if (code === 'de') base = { ...baseEnTranslations, ...baseDeTranslations };
+    translations[code] = base;
   });
   return translations;
 };
@@ -80,11 +80,12 @@ export default function SettingsPage() {
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
     }
+    // Fallback to English if specific key not found in current lang's specific translations
     const enTranslations = pageTranslations['en'];
     if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
+      return enTranslations[key]; 
     }
-    return defaultText || key;
+    return defaultText || key; 
   };
 
   const handleResetOnboarding = () => {
@@ -129,7 +130,7 @@ export default function SettingsPage() {
               {t('description')}
             </p>
             {userData.settings && (
-              <div className="text-left text-sm bg-muted/50 p-4 rounded-md">
+              <div className="text-left text-sm bg-muted/50 p-4 rounded-md shadow-sm">
                 <p><strong>{t('userLabel')}</strong> {userData.settings.userName}</p>
                 <p><strong>{t('interfaceLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
                 <p><strong>{t('targetLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
@@ -139,7 +140,7 @@ export default function SettingsPage() {
             )}
             <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
+                <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)} className="mt-4">
                   {t('resetButton')}
                 </Button>
               </AlertDialogTrigger>
