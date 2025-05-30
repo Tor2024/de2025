@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, type SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
@@ -17,22 +18,27 @@ import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput 
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Edit, CheckCircle } from "lucide-react";
-import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
+import { interfaceLanguageCodes, type InterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType } from "@/lib/types";
+
+const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
 const writingSchema = z.object({
   writingPrompt: z.string().min(5, "Prompt should be at least 5 characters"),
   userText: z.string().min(10, "Your text should be at least 10 characters"),
+  writingTaskType: z.enum(writingTaskTypeValues).optional(),
 });
 
 type WritingFormData = z.infer<typeof writingSchema>;
 
 const baseEnTranslations = {
   title: "AI-Powered Writing Assistant",
-  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections.",
+  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback.",
   writingPromptLabel: "Writing Prompt",
   writingPromptPlaceholder: "E.g., Describe your last holiday, Write a formal email asking for information...",
   userTextLabel: "Your Text",
   userTextPlaceholder: "Write your text in {language} here...",
+  writingTaskTypeLabel: "Writing Task Type (Optional)",
+  writingTaskTypePlaceholder: "Select task type (e.g., Formal Letter, Essay)",
   getFeedbackButton: "Get Feedback",
   toastSuccessTitle: "Feedback Received!",
   toastSuccessDescription: "Your writing has been reviewed.",
@@ -43,15 +49,23 @@ const baseEnTranslations = {
   correctedTextSectionTitle: "Corrected Text:",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
+  informalLetterEmail: "Informal Letter/Email",
+  formalLetterEmail: "Formal Letter/Email",
+  complaintLetter: "Complaint Letter",
+  announcementNotice: "Announcement/Notice",
+  chatSmsNote: "Chat/SMS/Short Note",
+  essayArgumentative: "Essay/Argumentative Text",
 };
 
 const baseRuTranslations = {
   title: "Помощник по письму с ИИ",
-  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления.",
+  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи.",
   writingPromptLabel: "Тема для письма",
   writingPromptPlaceholder: "Напр., Опишите свой последний отпуск, Напишите официальное письмо с запросом информации...",
   userTextLabel: "Ваш текст",
   userTextPlaceholder: "Напишите свой текст на языке {language} здесь...",
+  writingTaskTypeLabel: "Тип письменного задания (необязательно)",
+  writingTaskTypePlaceholder: "Выберите тип задания (напр., Официальное письмо, Эссе)",
   getFeedbackButton: "Получить обратную связь",
   toastSuccessTitle: "Обратная связь получена!",
   toastSuccessDescription: "Ваш текст был проверен.",
@@ -62,6 +76,12 @@ const baseRuTranslations = {
   correctedTextSectionTitle: "Исправленный текст:",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
+  informalLetterEmail: "Неофициальное письмо/E-Mail",
+  formalLetterEmail: "Официальное письмо/E-Mail",
+  complaintLetter: "Жалоба",
+  announcementNotice: "Объявление/Заметка",
+  chatSmsNote: "Сообщение в чате/SMS",
+  essayArgumentative: "Эссе/Аргументативный текст",
 };
 
 const generateTranslations = () => {
@@ -70,7 +90,7 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
+    if (!translations[code]) { 
       translations[code] = { ...baseEnTranslations };
     }
   });
@@ -85,7 +105,7 @@ export function WritingAssistantClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<WritingFormData>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<WritingFormData>({
     resolver: zodResolver(writingSchema),
   });
 
@@ -118,6 +138,7 @@ export function WritingAssistantClient() {
         prompt: data.writingPrompt,
         text: data.userText,
         interfaceLanguage: userData.settings!.interfaceLanguage as InterfaceLanguage,
+        writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
@@ -137,6 +158,12 @@ export function WritingAssistantClient() {
       setIsLoading(false);
     }
   };
+  
+  const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
+    value: taskType.value,
+    label: t(taskType.labelKey, taskType.defaultLabel),
+  }));
+
 
   return (
     <div className="space-y-6">
@@ -155,6 +182,30 @@ export function WritingAssistantClient() {
               <Input id="writingPrompt" placeholder={t('writingPromptPlaceholder')} {...register("writingPrompt")} />
               {errors.writingPrompt && <p className="text-sm text-destructive">{errors.writingPrompt.message}</p>}
             </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="writingTaskType">{t('writingTaskTypeLabel')}</Label>
+              <Controller
+                name="writingTaskType"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="writingTaskType">
+                      <SelectValue placeholder={t('writingTaskTypePlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {translatedTaskTypes.map(taskType => (
+                        <SelectItem key={taskType.value} value={taskType.value}>
+                          {taskType.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.writingTaskType && <p className="text-sm text-destructive">{errors.writingTaskType.message}</p>}
+            </div>
+
             <div className="space-y-1">
               <Label htmlFor="userText">{t('userTextLabel')} ({userData.settings.targetLanguage})</Label>
               <Textarea id="userText" placeholder={t('userTextPlaceholder').replace('{language}', userData.settings.targetLanguage)} {...register("userText")} className="min-h-[150px]" />

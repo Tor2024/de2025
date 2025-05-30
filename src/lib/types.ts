@@ -93,3 +93,14 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
 export const targetLanguageNames = supportedLanguages.map(lang => lang.name) as [TargetLanguage, ...TargetLanguage[]];
+
+export const germanWritingTaskTypes = [
+  { value: "Informal Letter/Email", labelKey: "informalLetterEmail", defaultLabel: "Informal Letter/Email (Неофициальное письмо/E-Mail)" },
+  { value: "Formal Letter/Email", labelKey: "formalLetterEmail", defaultLabel: "Formal Letter/Email (Официальное письмо/E-Mail)" },
+  { value: "Complaint Letter", labelKey: "complaintLetter", defaultLabel: "Complaint Letter (Жалоба)" },
+  { value: "Announcement/Notice", labelKey: "announcementNotice", defaultLabel: "Announcement/Notice (Объявление/Заметка)" },
+  { value: "Chat/SMS/Short Note", labelKey: "chatSmsNote", defaultLabel: "Chat/SMS/Short Note (Сообщение в чате/SMS)" },
+  { value: "Essay/Argumentative Text", labelKey: "essayArgumentative", defaultLabel: "Essay/Argumentative Text (Эссе/Аргументативный текст)" },
+] as const;
+
+export type GermanWritingTaskType = typeof germanWritingTaskTypes[number]['value'];
