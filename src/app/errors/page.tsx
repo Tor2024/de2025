@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Archive, CalendarDays, BookOpen, Target, UserCheck, AlertCircle } from "lucide-react";
+import { Archive, CalendarDays, BookOpen, Target, UserCheck, AlertCircle, CheckCircle2 } from "lucide-react";
 import { format } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale'; // Import locales
 
@@ -108,26 +108,35 @@ export default function ErrorArchivePage() {
                         <BookOpen className="h-5 w-5 text-primary/80" />
                         {error.module}
                       </CardTitle>
-                      <CardDescription className="text-xs flex items-center gap-1">
+                      <CardDescription className="text-xs flex items-center gap-1 text-muted-foreground">
                         <CalendarDays className="h-3.5 w-3.5" />
                         {format(new Date(error.date), 'PPP p', { locale: getDateLocale() })}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="text-sm space-y-2">
+                    <CardContent className="text-sm space-y-3 pt-2">
                       {error.context && (
-                        <div>
-                          <p className="font-semibold text-muted-foreground">{t('errorContext')}:</p>
-                          <p className="italic bg-muted/20 p-2 rounded-sm">{error.context}</p>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-muted-foreground flex items-center gap-1.5">
+                            <Target className="h-4 w-4" />
+                            {t('errorContext')}:
+                          </p>
+                          <p className="italic bg-muted/20 p-2 rounded-sm ml-5">{error.context}</p>
                         </div>
                       )}
-                      <div>
-                        <p className="font-semibold text-muted-foreground">{t('errorUserAttempt')}:</p>
-                        <p className="text-red-600 dark:text-red-400 bg-red-500/5 p-2 rounded-sm">{error.userAttempt}</p>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-muted-foreground flex items-center gap-1.5">
+                           <UserCheck className="h-4 w-4" />
+                           {t('errorUserAttempt')}:
+                        </p>
+                        <p className="text-red-600 dark:text-red-400 bg-red-500/10 p-2 rounded-sm ml-5">{error.userAttempt}</p>
                       </div>
                       {error.correctAnswer && (
-                        <div>
-                          <p className="font-semibold text-muted-foreground">{t('errorCorrectAnswer')}:</p>
-                          <p className="text-green-600 dark:text-green-400 bg-green-500/5 p-2 rounded-sm">{error.correctAnswer}</p>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-muted-foreground flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {t('errorCorrectAnswer')}:
+                          </p>
+                          <p className="text-green-600 dark:text-green-400 bg-green-500/10 p-2 rounded-sm ml-5">{error.correctAnswer}</p>
                         </div>
                       )}
                     </CardContent>
