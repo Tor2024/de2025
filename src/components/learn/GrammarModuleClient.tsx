@@ -149,10 +149,6 @@ export function GrammarModuleClient() {
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
 
-  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-
-
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
   });
@@ -164,14 +160,7 @@ export function GrammarModuleClient() {
   };
 
   React.useEffect(() => {
-    const startAudio = new Audio('/sounds/tts_start.mp3');
-    startAudio.preload = 'auto';
-    startCueAudioRef.current = startAudio;
-
-    const endAudio = new Audio('/sounds/tts_end.mp3');
-    endAudio.preload = 'auto';
-    endCueAudioRef.current = endAudio;
-
+    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -188,16 +177,19 @@ export function GrammarModuleClient() {
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTTSId(null);
+        setCurrentlySpeakingTTSId(null); // Reset on error
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (endCueAudioRef.current) {
-        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for grammar explanation:", e));
+      // All main text segments are spoken
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
+        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+        window.speechSynthesis.speak(endCue);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId]);
+  }, [userData.settings, setCurrentlySpeakingTTSId]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -223,25 +215,28 @@ export function GrammarModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingTTSId(null);
-      return;
+      return; // Don't play if text is empty
     }
+    
+    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
+    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = sentences.map(sentence => {
-      const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      utterance.lang = langCode;
-      return utterance;
-    });
-
+    utteranceQueueRef.current = [
+        startCue,
+        ...sentences.map(sentence => {
+            const utterance = new SpeechSynthesisUtterance(sentence.trim());
+            utterance.lang = langCode;
+            return utterance;
+        })
+    ];
+    
     currentUtteranceIndexRef.current = 0;
-    if (startCueAudioRef.current) {
-      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for grammar explanation:", e));
-    }
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, setCurrentlySpeakingTTSId]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -299,7 +294,7 @@ export function GrammarModuleClient() {
     stopSpeech();
   };
 
-  const explanationTTSId = `grammar-explanation-${currentTopic.replace(/\s+/g, '-')}`;
+  const explanationTTSId = `grammar-explanation-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
   const hasExplanationText = !!(explanationResult && explanationResult.explanation && explanationResult.explanation.trim().length > 0);
 
   return (
@@ -370,7 +365,7 @@ export function GrammarModuleClient() {
                           if (currentlySpeakingTTSId === explanationTTSId) {
                             stopSpeech();
                           } else {
-                            playText(explanationTTSId, explanationResult.explanation, userData.settings!.interfaceLanguage);
+                            playText(explanationTTSId, explanationResult.explanation, userData.settings!.interfaceLanguage as AppInterfaceLanguage);
                           }
                         }}
                         className="shrink-0"
@@ -414,3 +409,5 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+
+    

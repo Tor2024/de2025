@@ -106,9 +106,6 @@ export function SpeakingModuleClient() {
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
 
-  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-
   const { register, handleSubmit, formState: { errors }, reset } = useForm<SpeakingFormData>({
     resolver: zodResolver(speakingSchema),
   });
@@ -120,14 +117,7 @@ export function SpeakingModuleClient() {
   };
 
    React.useEffect(() => {
-    const startAudio = new Audio('/sounds/tts_start.mp3');
-    startAudio.preload = 'auto';
-    startCueAudioRef.current = startAudio;
-
-    const endAudio = new Audio('/sounds/tts_end.mp3');
-    endAudio.preload = 'auto';
-    endCueAudioRef.current = endAudio;
-
+    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -144,16 +134,19 @@ export function SpeakingModuleClient() {
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTTSId(null);
+        setCurrentlySpeakingTTSId(null); // Reset on error
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (endCueAudioRef.current) {
-        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for speaking practice script:", e));
+      // All main text segments are spoken
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
+        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+        window.speechSynthesis.speak(endCue);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId]);
+  }, [userData.settings, setCurrentlySpeakingTTSId]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -179,25 +172,28 @@ export function SpeakingModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingTTSId(null);
-      return;
+      return; // Don't play if text is empty
     }
+
+    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
+    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = sentences.map(sentence => {
-      const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      utterance.lang = langCode;
-      return utterance;
-    });
-
+    utteranceQueueRef.current = [
+        startCue,
+        ...sentences.map(sentence => {
+            const utterance = new SpeechSynthesisUtterance(sentence.trim());
+            utterance.lang = langCode;
+            return utterance;
+        })
+    ];
+    
     currentUtteranceIndexRef.current = 0;
-    if (startCueAudioRef.current) {
-      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for speaking practice script:", e));
-    }
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, setCurrentlySpeakingTTSId]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -233,7 +229,7 @@ export function SpeakingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset();
+      reset(); 
     } catch (error) {
       console.error("Speaking topic generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -253,7 +249,7 @@ export function SpeakingModuleClient() {
   };
 
   const hasPracticeScript = speakingResult && speakingResult.practiceScript && speakingResult.practiceScript.trim().length > 0;
-  const practiceScriptTTSId = `practice-script-${(speakingResult?.speakingTopic || "default").substring(0,20).replace(/\s/g, '-')}`;
+  const practiceScriptTTSId = `practice-script-${(speakingResult?.speakingTopic?.substring(0,20) || "default").replace(/\s/g, '-')}`;
 
 
   return (
@@ -327,7 +323,7 @@ export function SpeakingModuleClient() {
                 </h3>
                 <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                     {(speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0) ? (
-                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                        <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
                         {speakingResult.guidingQuestions.map((question, index) => (
                             <li key={index}>{question}</li>
                         ))}
@@ -392,7 +388,7 @@ export function SpeakingModuleClient() {
               </h3>
               <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                 {(speakingResult.tips && speakingResult.tips.length > 0) ? (
-                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
                     {speakingResult.tips.map((tip, index) => (
                       <li key={index}>{tip}</li>
                     ))}
@@ -410,3 +406,5 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+
+    

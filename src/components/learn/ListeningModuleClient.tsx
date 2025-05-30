@@ -134,9 +134,6 @@ export function ListeningModuleClient() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
 
-  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ListeningFormData>({
     resolver: zodResolver(listeningSchema),
   });
@@ -148,14 +145,7 @@ export function ListeningModuleClient() {
   };
 
   React.useEffect(() => {
-    const startAudio = new Audio('/sounds/tts_start.mp3');
-    startAudio.preload = 'auto';
-    startCueAudioRef.current = startAudio;
-
-    const endAudio = new Audio('/sounds/tts_end.mp3');
-    endAudio.preload = 'auto';
-    endCueAudioRef.current = endAudio;
-
+    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -172,16 +162,19 @@ export function ListeningModuleClient() {
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingScriptId(null);
+        setCurrentlySpeakingScriptId(null); // Reset on error
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (endCueAudioRef.current) {
-        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for listening script:", e));
+      // All main text segments are spoken
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
+        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+        window.speechSynthesis.speak(endCue);
       }
       setCurrentlySpeakingScriptId(null);
     }
-  }, [setCurrentlySpeakingScriptId]);
+  }, [userData.settings, setCurrentlySpeakingScriptId]);
 
   const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -207,25 +200,28 @@ export function ListeningModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingScriptId(null);
-      return;
+      return; // Don't play if text is empty
     }
+
+    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
+    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = sentences.map(sentence => {
-      const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      utterance.lang = langCode;
-      return utterance;
-    });
-
+    utteranceQueueRef.current = [
+        startCue,
+        ...sentences.map(sentence => {
+            const utterance = new SpeechSynthesisUtterance(sentence.trim());
+            utterance.lang = langCode;
+            return utterance;
+        })
+    ];
+    
     currentUtteranceIndexRef.current = 0;
-    if (startCueAudioRef.current) {
-      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for listening script:", e));
-    }
     setCurrentlySpeakingScriptId(scriptId);
     speakNext();
-  }, [currentlySpeakingScriptId, speakNext, t, toast, setCurrentlySpeakingScriptId]);
+  }, [currentlySpeakingScriptId, speakNext, t, toast, userData.settings, setCurrentlySpeakingScriptId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -265,7 +261,7 @@ export function ListeningModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset();
+      reset(); 
     } catch (error) {
       console.error("Listening material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -518,6 +514,7 @@ export function ListeningModuleClient() {
                               size="sm"
                               className="mt-2 text-xs"
                               onClick={() => handleArchiveMistake(index)}
+                              disabled={isAiLoading}
                             >
                               <Archive className="mr-1.5 h-3.5 w-3.5" />
                               {t('archiveMistakeButton')}
@@ -536,7 +533,7 @@ export function ListeningModuleClient() {
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
-                      <Button onClick={handleTryAgain} variant="outline">
+                      <Button onClick={handleTryAgain} variant="outline" disabled={isAiLoading}>
                         {t('tryAgainButton')}
                       </Button>
                     )}
@@ -556,3 +553,5 @@ export function ListeningModuleClient() {
     </div>
   );
 }
+
+    

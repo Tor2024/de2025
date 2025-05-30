@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUserData } from "@/contexts/UserDataContext";
 import { BookMarked, ListChecks, Clock, Info, Volume2, Ban, Square, CheckSquare } from "lucide-react";
-import type { Lesson } from "@/lib/types";
+import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -60,20 +60,10 @@ export function RoadmapDisplay({
   const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
-  const playTextInternalIdRef = React.useRef<string | null>(null);
-
-  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
-  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const playTextInternalIdRef = React.useRef<string | null>(null); // To track which lesson's description is being played
 
   React.useEffect(() => {
-    const startAudio = new Audio('/sounds/tts_start.mp3');
-    startAudio.preload = 'auto';
-    startCueAudioRef.current = startAudio;
-
-    const endAudio = new Audio('/sounds/tts_end.mp3');
-    endAudio.preload = 'auto';
-    endCueAudioRef.current = endAudio;
-
+    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -90,16 +80,19 @@ export function RoadmapDisplay({
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingLessonId(null);
+        setCurrentlySpeakingLessonId(null); // Reset on error
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (endCueAudioRef.current) {
-        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for lesson description:", e));
+      // All main text segments are spoken
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
+        endCue.lang = interfaceLanguage as AppInterfaceLanguage;
+        window.speechSynthesis.speak(endCue);
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [setCurrentlySpeakingLessonId]); // Added setCurrentlySpeakingLessonId dependency
+  }, [interfaceLanguage, setCurrentlySpeakingLessonId]);
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current = lessonId;
@@ -113,12 +106,14 @@ export function RoadmapDisplay({
       return;
     }
 
+    // If currently speaking this lesson's text, cancel it (acts as a stop button)
     if (window.speechSynthesis.speaking && currentlySpeakingLessonId === lessonId) {
       window.speechSynthesis.cancel();
       setCurrentlySpeakingLessonId(null);
       return;
     }
 
+    // If speaking something else, cancel that first
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
@@ -126,27 +121,32 @@ export function RoadmapDisplay({
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingLessonId(null);
-      return;
+      return; // Don't play if text is empty
     }
+    
+    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
+    startCue.lang = interfaceLanguage as AppInterfaceLanguage;
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+    // If splitting results in no sentences but there was text, use the whole text as one sentence
     if (sentences.length === 0 && trimmedTextToSpeak) {
       sentences.push(trimmedTextToSpeak);
     }
 
-    utteranceQueueRef.current = sentences.map(sentence => {
-      const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      utterance.lang = langCode;
-      return utterance;
-    });
-
+    utteranceQueueRef.current = [
+        startCue,
+        ...sentences.map(sentence => {
+            const utterance = new SpeechSynthesisUtterance(sentence.trim());
+            utterance.lang = langCode; // Main content uses the target language of the content
+            return utterance;
+        })
+    ];
+    
     currentUtteranceIndexRef.current = 0;
-    if (startCueAudioRef.current) {
-      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for lesson description:", e));
-    }
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, setCurrentlySpeakingLessonId]); // Added dependencies
+
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, interfaceLanguage, setCurrentlySpeakingLessonId]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -242,10 +242,11 @@ export function RoadmapDisplay({
                                variant="ghost"
                                size="icon"
                                onClick={() => {
+                                 if (!hasDescription || !lesson.description) return; // Guard against empty description
                                  if (currentlySpeakingLessonId === lessonSpeechId) {
                                    stopSpeech();
                                  } else {
-                                   playText(lessonSpeechId, lesson.description, interfaceLanguage);
+                                   playText(lessonSpeechId, lesson.description, interfaceLanguage as AppInterfaceLanguage);
                                  }
                                }}
                                className="ml-2 shrink-0"
@@ -293,3 +294,5 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
+    
