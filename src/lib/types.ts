@@ -1,12 +1,12 @@
 
 export type InterfaceLanguage = 
   | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi' 
-  | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja';
+  | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja' | 'ar';
 
 export type TargetLanguage = 
   | 'English' | 'Russian' | 'German' | 'Spanish' | 'French' | 'Italian' | 'Dutch' | 'Finnish' | 'Chinese' | 'Hindi' 
   | 'Norwegian' | 'Hungarian' | 'Danish' | 'Korean' | 'Bulgarian' | 'Slovenian' | 'Ukrainian' | 'Belarusian' 
-  | 'Polish' | 'Romanian' | 'Japanese';
+  | 'Polish' | 'Romanian' | 'Japanese' | 'Arabic';
 
 export interface UserSettings {
   interfaceLanguage: InterfaceLanguage;
@@ -67,7 +67,9 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'pl', name: 'Polish', nativeName: 'Polski' },
   { code: 'ro', name: 'Romanian', nativeName: 'Română' },
   { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
 ];
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
 export const targetLanguageNames = supportedLanguages.map(lang => lang.name) as [TargetLanguage, ...TargetLanguage[]];
+
