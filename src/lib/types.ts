@@ -20,8 +20,18 @@ export interface UserSettings {
   userName?: string;
 }
 
+export interface Lesson {
+  level: string; // e.g., "A1", "B2"
+  title: string;
+  description: string;
+  topics: string[];
+  estimatedDuration?: string; // e.g., "2 weeks", "10 hours"
+}
+
 export interface LearningRoadmap {
-  rawContent: string;
+  introduction: string;
+  lessons: Lesson[];
+  conclusion?: string;
 }
 
 export interface ErrorRecord {
@@ -44,7 +54,7 @@ export interface UserProgress {
 
 export interface UserData {
   settings: UserSettings | null;
-  progress: UserProgress; // Changed from UserProgress | null
+  progress: UserProgress;
 }
 
 export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLanguage; nativeName: string }> = [
