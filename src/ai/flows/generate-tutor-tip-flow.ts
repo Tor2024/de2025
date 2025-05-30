@@ -41,10 +41,11 @@ Your task is to generate a single, short, actionable, and practical learning tip
 The user is learning {{{targetLanguage}}} and their current proficiency level is {{{proficiencyLevel}}}.
 The tip MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
+Consider the user's proficiency level ({{{proficiencyLevel}}}) to make the tip appropriate for their current stage.
 {{#if learningGoal}}
-The user's learning goal is: "{{{learningGoal}}}". If possible, try to make your tip relevant to this goal, or provide a general tip that could help achieve it.
+The user's learning goal is: "{{{learningGoal}}}". If possible, try to make your tip relevant to this goal, while also being suitable for their {{{proficiencyLevel}}}.
 {{else}}
-Provide a general language learning tip.
+Provide a general language learning tip that is appropriate for a user at the {{{proficiencyLevel}}}.
 {{/if}}
 
 Make the tip concise and easy to understand.
