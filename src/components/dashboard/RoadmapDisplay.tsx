@@ -50,7 +50,7 @@ export function RoadmapDisplay({
   markCompleteTooltip,
   markIncompleteTooltip,
 }: RoadmapDisplayProps) {
-  const { userData, toggleLessonCompletion } = useUserData();
+  const { userData, toggleLessonCompletion, isLoading: isUserDataLoading } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
   const interfaceLanguage = userData.settings?.interfaceLanguage || 'en';
   const completedLessonIds = userData.progress?.completedLessonIds || [];
@@ -124,7 +124,7 @@ export function RoadmapDisplay({
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]); // Removed interfaceLanguage as it's passed via langCode
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]); 
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -191,6 +191,7 @@ export function RoadmapDisplay({
                               e.stopPropagation(); // Prevent accordion from toggling
                               toggleLessonCompletion(lesson.id);
                             }}
+                            aria-label={isCompleted ? markIncompleteTooltip : markCompleteTooltip}
                           >
                             {isCompleted ? <CheckSquare className="h-5 w-5 text-green-600" /> : <Square className="h-5 w-5 text-muted-foreground" />}
                           </Button>
