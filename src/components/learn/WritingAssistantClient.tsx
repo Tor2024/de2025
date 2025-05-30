@@ -17,7 +17,7 @@ import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assist
 import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle, Sparkles } from "lucide-react"; // Added Sparkles for consistency
+import { Edit, CheckCircle, Sparkles } from "lucide-react"; 
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -169,10 +169,10 @@ export function WritingAssistantClient() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-xl bg-gradient-to-br from-card via-card to-accent/5 border border-accent/20">
+      <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
-             <Edit className="h-8 w-8 text-accent animate-pulse" />
+             <Edit className="h-8 w-8 text-primary animate-pulse" />
             {t('title')}
           </CardTitle>
           <CardDescription>{t('description')}</CardDescription>
@@ -249,3 +249,4 @@ export function WritingAssistantClient() {
     </div>
   );
 }
+
