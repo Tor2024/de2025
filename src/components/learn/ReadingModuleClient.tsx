@@ -63,6 +63,8 @@ const baseEnTranslations: Record<string, string> = {
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
+  ttsUtteranceErrorTitle: "Speech Error",
+  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -99,6 +101,8 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
+  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
 };
 
 const generateTranslations = () => {
@@ -143,7 +147,6 @@ export function ReadingModuleClient() {
   };
 
   React.useEffect(() => {
-    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -159,20 +162,26 @@ export function ReadingModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTextId(null); // Reset on error
+        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+        setCurrentlySpeakingTextId(null);
+        toast({
+          title: t('ttsUtteranceErrorTitle'),
+          description: t('ttsUtteranceErrorDescription'),
+          variant: 'destructive',
+        });
       };
       window.speechSynthesis.speak(utterance);
     } else {
-       // All main text segments are spoken
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
-        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
-        window.speechSynthesis.speak(endCue);
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
+        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (userData.settings) {
+          endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+        }
+        window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTextId(null);
     }
-  }, [userData.settings, setCurrentlySpeakingTextId]);
+  }, [userData.settings, t, toast]); // Added t and toast
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -198,43 +207,45 @@ export function ReadingModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingTextId(null);
-      return; // Don't play if text is empty
+      return;
     }
 
-    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
-    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+    utteranceQueueRef.current = [];
+    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+    if (userData.settings) {
+      startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+    }
+    utteranceQueueRef.current.push(startCueUtterance);
+
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = [
-        startCue,
-        ...sentences.map(sentence => {
-            const utterance = new SpeechSynthesisUtterance(sentence.trim());
-            utterance.lang = langCode;
-            return utterance;
-        })
-    ];
+    sentences.forEach(sentence => {
+        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+        utterance.lang = langCode;
+        utteranceQueueRef.current.push(utterance);
+    });
     
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTextId(textId);
     speakNext();
-  }, [currentlySpeakingTextId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTextId]);
+  }, [currentlySpeakingTextId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTextId(null);
-  }, [setCurrentlySpeakingTextId]);
+  }, []);
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
@@ -503,7 +514,7 @@ export function ReadingModuleClient() {
                               size="sm"
                               className="mt-2 text-xs"
                               onClick={() => handleArchiveMistake(index)}
-                              disabled={isAiLoading}
+                              disabled={isAiLoading || mistakeArchiveStatus[index]}
                             >
                               <Archive className="mr-1.5 h-3.5 w-3.5" />
                               {t('archiveMistakeButton')}
@@ -533,7 +544,7 @@ export function ReadingModuleClient() {
                 )}
               </div>
             )}
-            {(!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
+            {readingResult && (!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
                 <p className="text-sm text-muted-foreground italic mt-4">{t('noQuestions')}</p>
             )}
           </CardContent>
@@ -542,5 +553,3 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-
-    

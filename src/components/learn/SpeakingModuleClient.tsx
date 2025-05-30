@@ -52,6 +52,8 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
   clearResultsButton: "Clear Results",
+  ttsUtteranceErrorTitle: "Speech Error",
+  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -80,6 +82,8 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
   clearResultsButton: "Очистить результаты",
+  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
 };
 
 const generateTranslations = () => {
@@ -117,7 +121,6 @@ export function SpeakingModuleClient() {
   };
 
    React.useEffect(() => {
-    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -133,20 +136,26 @@ export function SpeakingModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTTSId(null); // Reset on error
+        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+        setCurrentlySpeakingTTSId(null);
+        toast({
+          title: t('ttsUtteranceErrorTitle'),
+          description: t('ttsUtteranceErrorDescription'),
+          variant: 'destructive',
+        });
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      // All main text segments are spoken
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
-        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
-        window.speechSynthesis.speak(endCue);
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
+        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (userData.settings) {
+           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+        }
+        window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, setCurrentlySpeakingTTSId]);
+  }, [userData.settings, t, toast]); // Added t and toast
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -172,43 +181,44 @@ export function SpeakingModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingTTSId(null);
-      return; // Don't play if text is empty
+      return;
     }
 
-    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
-    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+    utteranceQueueRef.current = [];
+    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+    if (userData.settings) {
+      startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+    }
+    utteranceQueueRef.current.push(startCueUtterance);
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = [
-        startCue,
-        ...sentences.map(sentence => {
-            const utterance = new SpeechSynthesisUtterance(sentence.trim());
-            utterance.lang = langCode;
-            return utterance;
-        })
-    ];
+    sentences.forEach(sentence => {
+        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+        utterance.lang = langCode;
+        utteranceQueueRef.current.push(utterance);
+    });
     
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+  }, []);
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<SpeakingFormData> = async (data) => {
@@ -321,7 +331,7 @@ export function SpeakingModuleClient() {
                     <HelpCircle className="h-5 w-5 text-primary/80" />
                     {t('guidingQuestionsHeader')}
                 </h3>
-                <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
+                 <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                     {(speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0) ? (
                         <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
                         {speakingResult.guidingQuestions.map((question, index) => (
@@ -406,5 +416,3 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
-
-    

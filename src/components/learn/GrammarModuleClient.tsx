@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
 import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput } from "@/ai/flows/adaptive-grammar-explanations";
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles, XCircle, Volume2, Ban } from "lucide-react";
@@ -52,6 +52,8 @@ const baseEnTranslations: Record<string, string> = {
   ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
   ttsNotSupportedTitle: "TTS Not Supported",
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
+  ttsUtteranceErrorTitle: "Speech Error",
+  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -79,6 +81,8 @@ const baseRuTranslations: Record<string, string> = {
   ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
   ttsNotSupportedTitle: "TTS не поддерживается",
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
+  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
 };
 
 const generateTranslations = () => {
@@ -160,7 +164,6 @@ export function GrammarModuleClient() {
   };
 
   React.useEffect(() => {
-    // Cleanup speechSynthesis on component unmount
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -176,20 +179,26 @@ export function GrammarModuleClient() {
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTTSId(null); // Reset on error
+        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+        setCurrentlySpeakingTTSId(null);
+        toast({
+          title: t('ttsUtteranceErrorTitle'),
+          description: t('ttsUtteranceErrorDescription'),
+          variant: 'destructive',
+        });
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      // All main text segments are spoken
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        const endCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the end
-        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
-        window.speechSynthesis.speak(endCue);
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
+        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (userData.settings) {
+           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+        }
+        window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, setCurrentlySpeakingTTSId]);
+  }, [userData.settings, t, toast]); // Added t and toast
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -215,35 +224,37 @@ export function GrammarModuleClient() {
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
       setCurrentlySpeakingTTSId(null);
-      return; // Don't play if text is empty
+      return;
     }
     
-    const startCue = new SpeechSynthesisUtterance("Дзынь"); // "Дзынь" at the beginning
-    startCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+    utteranceQueueRef.current = [];
+
+    const startCue = new SpeechSynthesisUtterance("Дзынь");
+    if(userData.settings) {
+      startCue.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+    }
+    utteranceQueueRef.current.push(startCue);
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = [
-        startCue,
-        ...sentences.map(sentence => {
-            const utterance = new SpeechSynthesisUtterance(sentence.trim());
-            utterance.lang = langCode;
-            return utterance;
-        })
-    ];
+    sentences.forEach(sentence => {
+        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+        utterance.lang = langCode;
+        utteranceQueueRef.current.push(utterance);
+    });
     
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+  }, []);
 
 
   if (isUserDataLoading) {
@@ -251,7 +262,7 @@ export function GrammarModuleClient() {
   }
 
   if (!userData.settings || !userData.progress) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
@@ -409,5 +420,3 @@ export function GrammarModuleClient() {
     </div>
   );
 }
-
-    

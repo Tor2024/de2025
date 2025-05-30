@@ -31,6 +31,8 @@ interface RoadmapDisplayProps {
   ttsNotSupportedDescription: string;
   markCompleteTooltip: string;
   markIncompleteTooltip: string;
+  ttsUtteranceErrorTitle: string;
+  ttsUtteranceErrorDescription: string;
 }
 
 export function RoadmapDisplay({
@@ -50,6 +52,8 @@ export function RoadmapDisplay({
   ttsNotSupportedDescription,
   markCompleteTooltip,
   markIncompleteTooltip,
+  ttsUtteranceErrorTitle,
+  ttsUtteranceErrorDescription,
 }: RoadmapDisplayProps) {
   const { userData, toggleLessonCompletion } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
@@ -57,7 +61,7 @@ export function RoadmapDisplay({
   const completedLessonIds = userData.progress?.completedLessonIds || [];
   const { toast } = useToast();
 
-  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = React.useState<string | null>(null);
+  const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const playTextInternalIdRef = React.useRef<string | null>(null); 
@@ -70,6 +74,12 @@ export function RoadmapDisplay({
     };
   }, []);
 
+  const t = (key: string) => { // Helper for local toast translations
+    if (key === 'ttsUtteranceErrorTitle') return ttsUtteranceErrorTitle;
+    if (key === 'ttsUtteranceErrorDescription') return ttsUtteranceErrorDescription;
+    return key;
+  };
+
   const speakNext = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -78,35 +88,42 @@ export function RoadmapDisplay({
         speakNext();
       };
       utterance.onerror = (event) => {
-        console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingTTSId(null); 
+        console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+        setCurrentlySpeakingLessonId(null); 
+        toast({
+            title: t('ttsUtteranceErrorTitle'),
+            description: t('ttsUtteranceErrorDescription'),
+            variant: 'destructive',
+        });
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0) { // Play end cue only if something was spoken
-        const endCue = new SpeechSynthesisUtterance("Дзынь"); 
-        endCue.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
-        window.speechSynthesis.speak(endCue);
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
+        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+        if (userData.settings) {
+           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+        }
+        window.speechSynthesis.speak(endCueUtterance);
       }
-      setCurrentlySpeakingTTSId(null);
+      setCurrentlySpeakingLessonId(null);
     }
-  }, [userData.settings, setCurrentlySpeakingTTSId]);
+  }, [userData.settings, toast, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); // Added toast, ttsUtterance keys
 
-  const playText = React.useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
-    playTextInternalIdRef.current = textId;
+  const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
+    playTextInternalIdRef.current = lessonId;
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
         title: ttsNotSupportedTitle,
         description: ttsNotSupportedDescription,
         variant: 'destructive',
       });
-      setCurrentlySpeakingTTSId(null);
+      setCurrentlySpeakingLessonId(null);
       return;
     }
 
-    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
+    if (window.speechSynthesis.speaking && currentlySpeakingLessonId === lessonId) {
       window.speechSynthesis.cancel();
-      setCurrentlySpeakingTTSId(null);
+      setCurrentlySpeakingLessonId(null);
       return;
     }
 
@@ -116,37 +133,38 @@ export function RoadmapDisplay({
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-      setCurrentlySpeakingTTSId(null);
+      setCurrentlySpeakingLessonId(null);
       return; 
     }
     
-    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь"); 
-    startCueUtterance.lang = userData.settings!.interfaceLanguage as AppInterfaceLanguage;
+    utteranceQueueRef.current = [];
+    const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+    if(userData.settings){
+        startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+    }
+    utteranceQueueRef.current.push(startCueUtterance);
 
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
 
-    utteranceQueueRef.current = [
-        startCueUtterance,
-        ...sentences.map(sentence => {
-            const utterance = new SpeechSynthesisUtterance(sentence.trim());
-            utterance.lang = langCode; 
-            return utterance;
-        })
-    ];
+    sentences.forEach(sentence => {
+        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+        utterance.lang = langCode; 
+        utteranceQueueRef.current.push(utterance);
+    });
     
     currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingTTSId(textId);
+    setCurrentlySpeakingLessonId(lessonId);
     speakNext();
 
-  }, [currentlySpeakingTTSId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, userData.settings, setCurrentlySpeakingTTSId]);
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, userData.settings]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+    setCurrentlySpeakingLessonId(null);
+  }, []);
 
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
@@ -198,7 +216,7 @@ export function RoadmapDisplay({
                     <div className="flex items-center gap-3 w-full">
                        <Tooltip>
                         <TooltipTrigger asChild>
-                          <span // Changed from Button to span
+                          <span
                             className="h-7 w-7 shrink-0 flex items-center justify-center cursor-pointer" 
                             onClick={(e) => {
                               e.stopPropagation(); 
@@ -234,21 +252,21 @@ export function RoadmapDisplay({
                                size="icon"
                                onClick={() => {
                                  if (!hasDescription || !lesson.description) return; 
-                                 if (currentlySpeakingTTSId === lessonSpeechId) {
+                                 if (currentlySpeakingLessonId === lessonSpeechId) {
                                    stopSpeech();
                                  } else {
                                    playText(lessonSpeechId, lesson.description, interfaceLanguage as AppInterfaceLanguage);
                                  }
                                }}
                                className="ml-2 shrink-0"
-                               aria-label={currentlySpeakingTTSId === lessonSpeechId ? ttsStopText : ttsPlayText}
+                               aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
                                disabled={!hasDescription}
                              >
-                               {currentlySpeakingTTSId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                               {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                              </Button>
                            </TooltipTrigger>
                            <TooltipContent>
-                             <p>{currentlySpeakingTTSId === lessonSpeechId ? ttsStopText : ttsPlayText}</p>
+                             <p>{currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}</p>
                            </TooltipContent>
                          </Tooltip>
                       )}
@@ -285,6 +303,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-    
-
-    

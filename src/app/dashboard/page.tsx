@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from 'react'; // Ensure React is imported
+import * as React from 'react'; 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
@@ -84,6 +84,8 @@ const baseEnTranslations: Record<string, string> = {
     tooltipGoal: "Current Goal",
     markCompleteTooltip: "Mark as complete",
     markIncompleteTooltip: "Mark as incomplete",
+    ttsUtteranceErrorTitle: "Speech Error",
+    ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -151,6 +153,8 @@ const baseRuTranslations: Record<string, string> = {
     tooltipGoal: "Текущая цель",
     markCompleteTooltip: "Отметить как пройденный",
     markIncompleteTooltip: "Отметить как не пройденный",
+    ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+    ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
 };
 
 const generateTranslations = () => {
@@ -171,7 +175,7 @@ const pageTranslations = generateTranslations();
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
-  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null); // Initial state is null
+  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
   const { toast } = useToast();
   const [tipCooldownEndTime, setTipCooldownEndTime] = useState<number | null>(null);
@@ -191,13 +195,10 @@ export default function DashboardPage() {
   };
 
   const fetchTutorTip = React.useCallback(async () => {
-    // Guard to prevent fetching if already loading or in cooldown
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
       return;
     }
     if (!userData.settings) {
-      // This should ideally not happen if isUserDataLoading is false and settings are null (redirect would have happened)
-      // But as a safeguard, set static tip.
       setAiTutorTip(t('aiTutorTipStatic'));
       return;
     }
@@ -237,19 +238,13 @@ export default function DashboardPage() {
     } finally {
       setIsTipLoading(false);
     }
-  }, [
-    userData.settings?.interfaceLanguage, 
-    userData.settings?.targetLanguage, 
-    userData.settings?.proficiencyLevel, 
-    userData.settings?.goal, 
+  }, [ 
+    userData.settings,
     t, 
     toast, 
     isTipLoading, 
     tipCooldownEndTime
   ]); 
-
-  // Removed useEffect that automatically fetched tutor tip on load.
-  // Tip will now only be fetched via the "Refresh Tip" button.
   
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -257,7 +252,6 @@ export default function DashboardPage() {
     }
   }, [userData, isUserDataLoading, router]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (cooldownTimeoutRef.current) {
@@ -269,7 +263,7 @@ export default function DashboardPage() {
   if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
         </div>
@@ -280,7 +274,7 @@ export default function DashboardPage() {
   if (userData.settings === null) {
     return (
        <AppShell>
-        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
         </div>
@@ -324,6 +318,8 @@ export default function DashboardPage() {
               ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
               markCompleteTooltip={t('markCompleteTooltip')}
               markIncompleteTooltip={t('markIncompleteTooltip')}
+              ttsUtteranceErrorTitle={t('ttsUtteranceErrorTitle')}
+              ttsUtteranceErrorDescription={t('ttsUtteranceErrorDescription')}
             />
           </div>
           <div className="md:w-1/3 space-y-6">
@@ -344,7 +340,6 @@ export default function DashboardPage() {
                     <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
                   </div>
                 ) : (
-                  // Display static tip if aiTutorTip is null (initial state or after error if not explicitly reset)
                   <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
                 )}
                 <Button 
@@ -460,4 +455,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-    
