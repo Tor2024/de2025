@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -125,51 +124,63 @@ const componentTranslations = generateTranslations();
 
 const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
   if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: ListeningModule - Voices not available or synthesis not supported.');
+    console.warn('TTS: ListeningModuleClient - Voices not available or synthesis not supported.');
     return undefined;
   }
 
-  console.log(`TTS: ListeningModule - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+  console.log(`TTS: ListeningModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
 
   let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
   if (!targetLangVoices.length) {
     const baseLang = langCode.split('-')[0];
     targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
      if (targetLangVoices.length) {
-      console.log(`TTS: ListeningModule - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+      console.log(`TTS: ListeningModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
     }
   }
 
   if (!targetLangVoices.length) {
-    console.warn(`TTS: ListeningModule - No voices found for lang "${langCode}" or base lang.`);
+    console.warn(`TTS: ListeningModuleClient - No voices found for lang "${langCode}" or base lang.`);
     return undefined;
   }
 
   const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
   if (googleVoice) {
-    console.log('TTS: ListeningModule - Selected Google voice:', googleVoice.name);
+    console.log('TTS: ListeningModuleClient - Selected Google voice:', googleVoice.name);
     return googleVoice;
   }
 
   const defaultVoice = targetLangVoices.find(voice => voice.default);
   if (defaultVoice) {
-    console.log('TTS: ListeningModule - Selected default voice:', defaultVoice.name);
+    console.log('TTS: ListeningModuleClient - Selected default voice:', defaultVoice.name);
     return defaultVoice;
   }
 
   const localServiceVoice = targetLangVoices.find(voice => voice.localService);
   if (localServiceVoice) {
-    console.log('TTS: ListeningModule - Selected local service voice:', localServiceVoice.name);
+    console.log('TTS: ListeningModuleClient - Selected local service voice:', localServiceVoice.name);
     return localServiceVoice;
   }
   
   if (targetLangVoices.length > 0) {
-    console.log('TTS: ListeningModule - Selected first available voice:', targetLangVoices[0].name);
+    console.log('TTS: ListeningModuleClient - Selected first available voice:', targetLangVoices[0].name);
     return targetLangVoices[0];
   }
 
-  console.warn(`TTS: ListeningModule - Could not select any voice for lang "${langCode}".`);
+  console.warn(`TTS: ListeningModuleClient - Could not select any voice for lang "${langCode}".`);
   return undefined;
+};
+
+const sanitizeTextForTTS = (text: string | undefined): string => {
+  if (!text) return "";
+  let sanitizedText = text;
+  sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
+  sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
+  sanitizedText = sanitizedText.replace(/'/g, '');
+  sanitizedText = sanitizedText.replace(/`/g, '');
+  sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
+  sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
+  return sanitizedText.trim();
 };
 
 export function ListeningModuleClient() {
@@ -210,6 +221,7 @@ export function ListeningModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
+         console.log('TTS: ListeningModuleClient - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
       }
     };
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -236,9 +248,9 @@ export function ListeningModuleClient() {
       utterance.onerror = (event) => {
         setCurrentlySpeakingTTSId(null);
         if (event.error === "interrupted") {
-          console.info('TTS: ListeningModule - SpeechSynthesisUtterance playback was interrupted.', event);
+          console.info('TTS: ListeningModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
-          console.error('TTS: ListeningModule - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          console.error('TTS: ListeningModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
           toast({
             title: t('ttsUtteranceErrorTitle'),
             description: t('ttsUtteranceErrorDescription'),
@@ -248,18 +260,21 @@ export function ListeningModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
-        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
-        if (userData.settings) {
-           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
-           if (voice) endCueUtterance.voice = voice;
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 ) {
+        const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
+        if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) {
+          const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+          if (userData.settings) {
+            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+            const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
+            if (voice) endCueUtterance.voice = voice;
+          }
+          window.speechSynthesis.speak(endCueUtterance);
         }
-        window.speechSynthesis.speak(endCueUtterance);
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast]); 
+  }, [userData.settings, t, toast, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]); 
 
   const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -282,8 +297,8 @@ export function ListeningModuleClient() {
         window.speechSynthesis.cancel();
     }
 
-    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
-    if (!trimmedTextToSpeak) {
+    const textToActuallySpeak = sanitizeTextForTTS(textToSpeak);
+    if (!textToActuallySpeak) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
@@ -297,8 +312,8 @@ export function ListeningModuleClient() {
     }
     utteranceQueueRef.current.push(startCueUtterance);
 
-    const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
+    const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+    if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
 
     const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
@@ -314,14 +329,14 @@ export function ListeningModuleClient() {
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(scriptId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -360,7 +375,7 @@ export function ListeningModuleClient() {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage}`,
+        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -411,7 +426,7 @@ export function ListeningModuleClient() {
         module: "Listening Practice",
         context: question.question,
         userAttempt: userAnswer,
-        correctAnswer: question.answer,
+        correctAnswer: question.answer || "N/A",
       });
       setMistakeArchiveStatus(prev => ({ ...prev, [questionIndex]: true }));
       toast({
@@ -422,8 +437,8 @@ export function ListeningModuleClient() {
   };
 
 
-  const hasScriptText = listeningResult && listeningResult.script && listeningResult.script.trim().length > 0;
-  const hasQuestions = listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0;
+  const hasScriptText = !!(listeningResult && listeningResult.script && listeningResult.script.trim().length > 0);
+  const hasQuestions = !!(listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0);
   const totalQuestions = listeningResult?.comprehensionQuestions?.length || 0;
 
   const getScoreMessage = () => {
@@ -646,5 +661,3 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-
-    

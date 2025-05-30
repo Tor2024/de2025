@@ -1,8 +1,8 @@
 
-
 "use client";
 
 import * as React from "react";
+import { useCallback } from "react"; // Ensure useCallback is imported
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -85,6 +85,18 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
   return undefined;
 };
 
+const sanitizeTextForTTS = (text: string | undefined): string => {
+  if (!text) return "";
+  let sanitizedText = text;
+  sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2'); // Remove Markdown bold/italic
+  sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); // Remove various quotes
+  sanitizedText = sanitizedText.replace(/'/g, ''); // Remove single quotes/apostrophes
+  sanitizedText = sanitizedText.replace(/`/g, ''); // Remove backticks
+  sanitizedText = sanitizedText.replace(/^-\s+/gm, ''); // Remove list item hyphens
+  sanitizedText = sanitizedText.replace(/\s\s+/g, ' '); // Normalize spaces
+  return sanitizedText.trim();
+};
+
 
 export function RoadmapDisplay({
   titleText,
@@ -116,9 +128,9 @@ export function RoadmapDisplay({
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
+  
 
   const t = useCallback((key: string, defaultText?: string): string => {
-     // Simple t function for this component, can be expanded or use a shared one
     const translations: Record<string, string> = {
       ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
       ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
@@ -133,12 +145,13 @@ export function RoadmapDisplay({
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
+         console.log('TTS: RoadmapDisplay - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
       }
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices();
-      window.speechSynthesis.onvoiceschanged = updateVoices;
+      updateVoices(); // Initial load
+      window.speechSynthesis.onvoiceschanged = updateVoices; // Event listener
     }
     
     return () => {
@@ -163,7 +176,7 @@ export function RoadmapDisplay({
         if (event.error === "interrupted") {
           console.info('TTS: RoadmapDisplay - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
-          console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Unhandled Error type:', event.error, event);
+          console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
           toast({
             title: t('ttsUtteranceErrorTitle'),
             description: t('ttsUtteranceErrorDescription'),
@@ -173,18 +186,23 @@ export function RoadmapDisplay({
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0]?.text === "Дзынь") {
-        const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
-        if (userData.settings) {
-           endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-           const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
-           if (voice) endCueUtterance.voice = voice;
-        }
-        window.speechSynthesis.speak(endCueUtterance);
+      // All text segments are spoken, now play the end cue "Дзынь"
+      if (typeof window !== 'undefined' && window.speechSynthesis && utteranceQueueRef.current.length > 0 ) {
+         const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
+         // Check if the last main content utterance was not "Дзынь" to avoid double "Дзынь" if queue was only start cue
+         if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) { 
+            const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
+            if (userData.settings) {
+               endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
+               const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
+               if (voice) endCueUtterance.voice = voice;
+            }
+            window.speechSynthesis.speak(endCueUtterance);
+         }
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [userData.settings, t, toast]); 
+  }, [userData.settings, t, toast, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]); 
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -206,9 +224,9 @@ export function RoadmapDisplay({
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
-
-    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
-    if (!trimmedTextToSpeak) {
+    
+    const textToActuallySpeak = sanitizeTextForTTS(textToSpeak);
+    if (!textToActuallySpeak) {
       setCurrentlySpeakingLessonId(null);
       return; 
     }
@@ -222,8 +240,8 @@ export function RoadmapDisplay({
     }
     utteranceQueueRef.current.push(startCueUtterance);
 
-    const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
+    const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+    if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
 
     const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
@@ -240,14 +258,14 @@ export function RoadmapDisplay({
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
 
-  }, [currentlySpeakingLessonId, speakNext, t, toast, userData.settings]);
+  }, [currentlySpeakingLessonId, speakNext, t, toast, userData.settings, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingLessonId(null);
-  }, []);
+  }, [setCurrentlySpeakingLessonId]);
 
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
@@ -332,7 +350,7 @@ export function RoadmapDisplay({
                            <TooltipTrigger asChild>
                              <Button
                                variant="ghost"
-                               size="icon"
+                               size="sm"
                                onClick={() => {
                                  if (!hasDescription || !lesson.description) return; 
                                  if (currentlySpeakingLessonId === lessonSpeechId) {
@@ -345,7 +363,8 @@ export function RoadmapDisplay({
                                aria-label={currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
                                disabled={!hasDescription}
                              >
-                               {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                               {currentlySpeakingLessonId === lessonSpeechId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                               {currentlySpeakingLessonId === lessonSpeechId ? ttsStopText : ttsPlayText}
                              </Button>
                            </TooltipTrigger>
                            <TooltipContent>
@@ -386,5 +405,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-
-    
