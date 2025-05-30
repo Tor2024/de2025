@@ -16,6 +16,7 @@ interface UserDataContextType {
   setLearningRoadmap: (roadmap: LearningRoadmap) => void;
   toggleLessonCompletion: (lessonId: string) => void;
   addErrorToArchive: (errorData: Omit<ErrorRecord, 'id' | 'date'>) => void;
+  clearErrorArchive: () => void; // New function
   isLoading: boolean;
 }
 
@@ -58,7 +59,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   const toggleLessonCompletion = useCallback((lessonId: string) => {
     setUserData(prev => {
-      const currentProgress = prev.progress || initialUserProgress;
+      const currentProgress = prev.progress; // No need for initialUserProgress here if progress is guaranteed
       const currentCompletedIds = currentProgress.completedLessonIds || [];
       const isCompleted = currentCompletedIds.includes(lessonId);
       
@@ -68,17 +69,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       let newBadges = [...(currentProgress.badges || [])];
 
       if (isCompleted) {
-        // Mark as incomplete
         newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
-        newXp = Math.max(0, newXp - 25); // Assuming 25 XP per lesson
-        // For simplicity, streak is not decremented, nor are badges removed when un-completing.
+        newXp = Math.max(0, newXp - 25); 
       } else {
-        // Mark as complete
         newCompletedLessonIds = [...currentCompletedIds, lessonId];
-        newXp += 25; // Award XP
-        newStreak += 1; // Increment streak (simplified logic)
+        newXp += 25; 
+        newStreak += 1; 
 
-        // Award badges
         if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
           newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
         }
@@ -120,7 +117,6 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
       };
       const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
-      // Limit error archive size to, e.g., last 50 errors to prevent localStorage bloat
       const limitedErrorArchive = updatedErrorArchive.slice(-50); 
 
       return {
@@ -131,6 +127,16 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         },
       };
     });
+  }, [setUserData]);
+
+  const clearErrorArchive = useCallback(() => {
+    setUserData(prev => ({
+      ...prev,
+      progress: {
+        ...(prev.progress || initialUserProgress),
+        errorArchive: [],
+      },
+    }));
   }, [setUserData]);
 
   const clearUserData = useCallback(() => {
@@ -146,6 +152,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     setLearningRoadmap,
     toggleLessonCompletion,
     addErrorToArchive,
+    clearErrorArchive, // Expose new function
     isLoading: isStorageLoading,
   };
 

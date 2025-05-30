@@ -1,16 +1,29 @@
 
 "use client";
 
+import * as React from 'react';
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Archive, CalendarDays, BookOpen, Target, UserCheck, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Archive, CalendarDays, BookOpen, Target, UserCheck, AlertCircle, CheckCircle2, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale'; // Import locales
 
-const baseEnTranslations = {
+const baseEnTranslations: Record<string, string> = {
   title: "Your Error Archive",
   description: "Review your past mistakes to learn and improve. Click on an error for more details (future feature).",
   loading: "Loading error archive...",
@@ -20,9 +33,14 @@ const baseEnTranslations = {
   errorContext: "Context",
   errorUserAttempt: "Your Attempt",
   errorCorrectAnswer: "Correct Answer",
+  clearArchiveButton: "Clear Archive",
+  alertClearArchiveTitle: "Are you sure you want to clear the error archive?",
+  alertClearArchiveDescription: "This action will permanently delete all recorded errors. This cannot be undone.",
+  alertClearArchiveCancel: "Cancel",
+  alertClearArchiveConfirm: "Confirm Clear",
 };
 
-const baseRuTranslations = {
+const baseRuTranslations: Record<string, string> = {
   title: "Архив ваших ошибок",
   description: "Просматривайте свои прошлые ошибки, чтобы учиться и совершенствоваться. Нажмите на ошибку для получения подробной информации (будущая функция).",
   loading: "Загрузка архива ошибок...",
@@ -32,6 +50,11 @@ const baseRuTranslations = {
   errorContext: "Контекст",
   errorUserAttempt: "Ваш ответ",
   errorCorrectAnswer: "Правильный ответ",
+  clearArchiveButton: "Очистить архив",
+  alertClearArchiveTitle: "Вы уверены, что хотите очистить архив ошибок?",
+  alertClearArchiveDescription: "Это действие навсегда удалит все записанные ошибки. Это действие нельзя будет отменить.",
+  alertClearArchiveCancel: "Отмена",
+  alertClearArchiveConfirm: "Подтвердить очистку",
 };
 
 const generateTranslations = () => {
@@ -49,7 +72,8 @@ const generateTranslations = () => {
 const pageTranslations = generateTranslations();
 
 export default function ErrorArchivePage() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, clearErrorArchive } = useUserData();
+  const [isClearArchiveDialogOpen, setIsClearArchiveDialogOpen] = React.useState(false);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
@@ -67,6 +91,11 @@ export default function ErrorArchivePage() {
   const getDateLocale = () => {
     if (currentLang === 'ru') return ru;
     return enUS;
+  };
+
+  const handleConfirmClearArchive = () => {
+    clearErrorArchive();
+    setIsClearArchiveDialogOpen(false);
   };
 
   if (isUserDataLoading) {
@@ -90,7 +119,31 @@ export default function ErrorArchivePage() {
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
               <Archive className="h-12 w-12 text-primary" />
             </div>
-            <CardTitle className="text-3xl font-bold tracking-tight">{t('title')}</CardTitle>
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
+              <CardTitle className="text-3xl font-bold tracking-tight">{t('title')}</CardTitle>
+              {errorArchive.length > 0 && (
+                <AlertDialog open={isClearArchiveDialogOpen} onOpenChange={setIsClearArchiveDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t('clearArchiveButton')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('alertClearArchiveTitle')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('alertClearArchiveDescription')}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t('alertClearArchiveCancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleConfirmClearArchive}>{t('alertClearArchiveConfirm')}</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
             <CardDescription>{t('description')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -101,7 +154,7 @@ export default function ErrorArchivePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {errorArchive.slice().reverse().map((error) => ( // Show newest errors first
+                {errorArchive.slice().reverse().map((error) => ( 
                   <Card key={error.id} className="shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
                       <h3 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
