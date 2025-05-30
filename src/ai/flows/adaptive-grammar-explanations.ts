@@ -11,25 +11,25 @@
  * - adaptiveGrammarExplanations - A function that handles the adaptive grammar explanations process.
  * - AdaptiveGrammarExplanationsInput - The input type for the adaptiveGrammarExplanations function.
  * - AdaptiveGrammarExplanationsOutput - The return type for the adaptiveGrammarExplanations function.
- * - ProficiencyLevel - Type for proficiency level.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { InterfaceLanguage as AppInterfaceLanguage } from '@/lib/types';
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
 import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } from '@/lib/types';
 
 
 const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
 export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>;
 
-const ProficiencyLevelSchema = z.enum(appProficiencyLevels); // Removed export
-export type ProficiencyLevel = z.infer<typeof ProficiencyLevelSchema>;
+// ProficiencyLevelSchema and local ProficiencyLevel type are removed.
+// We will use appProficiencyLevels (imported from @/lib/types) directly in the Zod schema.
+// The type AdaptiveGrammarExplanationsInput will infer ProficiencyLevel correctly.
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),
   grammarTopic: z.string().describe('The grammar topic to explain.'),
-  proficiencyLevel: ProficiencyLevelSchema.describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
+  proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
   learningGoal: z.string().describe('The user defined learning goal.'),
   userPastErrors: z.string().describe('A list of the user prior known errors in their past practice tasks.'),
 });
@@ -73,11 +73,14 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     // Ensure the input types from the app match the flow's expected types
     const typedInput: AdaptiveGrammarExplanationsInput = {
         ...input,
-        interfaceLanguage: input.interfaceLanguage as InterfaceLanguage,
-        proficiencyLevel: input.proficiencyLevel as ProficiencyLevel,
+        interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage, // Assuming InterfaceLanguage from this file matches AppInterfaceLanguage
+        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, // Use AppProficiencyLevel from @/lib/types
     };
     const {output} = await prompt(typedInput);
-    return output!;
+    if (!output) {
+        throw new Error("AI failed to generate grammar explanation. Output was null.");
+    }
+    return output;
   }
 );
 

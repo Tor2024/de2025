@@ -74,6 +74,8 @@ const baseEnTranslations: Record<string, string> = {
     ttsPlayText: "Play description",
     ttsStopText: "Stop speech",
     ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+    startLearningButton: "Start Learning",
+    comingSoonButton: "Coming Soon",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -125,6 +127,8 @@ const baseRuTranslations: Record<string, string> = {
     ttsPlayText: "Озвучить описание",
     ttsStopText: "Остановить озвучку",
     ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+    startLearningButton: "Начать обучение",
+    comingSoonButton: "Скоро",
 };
 
 const generateTranslations = () => {
@@ -133,8 +137,8 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) { // Add only if not explicitly defined
-      translations[code] = { ...baseEnTranslations }; // Fallback to English
+    if (!translations[code]) { 
+      translations[code] = { ...baseEnTranslations }; 
     }
   });
   return translations;
@@ -154,7 +158,7 @@ export default function DashboardPage() {
   }, [userData, isUserDataLoading, router]);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string) => {
+  const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
@@ -247,6 +251,8 @@ export default function DashboardPage() {
                 href={mod.href}
                 icon={mod.icon}
                 disabled={mod.disabled}
+                startLearningButtonText={t('startLearningButton', 'Start Learning')}
+                comingSoonButtonText={t('comingSoonButton', 'Coming Soon')}
               />
             ))}
           </div>
@@ -288,3 +294,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+

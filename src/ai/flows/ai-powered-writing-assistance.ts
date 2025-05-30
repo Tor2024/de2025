@@ -10,8 +10,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels } from '@/lib/types'; // Added proficiencyLevels
-import type { ProficiencyLevel } from './adaptive-grammar-explanations'; // Keep type import
+import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels } from '@/lib/types';
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -21,7 +22,7 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should consider the conventions of this type.'),
-  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'), // Changed to use imported proficiencyLevels
+  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
@@ -35,7 +36,8 @@ export async function aiPoweredWritingAssistance(input: AIPoweredWritingAssistan
   // Ensure the proficiencyLevel from app matches the flow's expected type
     const typedInput: AIPoweredWritingAssistanceInput = {
         ...input,
-        proficiencyLevel: input.proficiencyLevel as ProficiencyLevel,
+        interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage,
+        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, // Use AppProficiencyLevel from @/lib/types
     };
   return aiPoweredWritingAssistanceFlow(typedInput);
 }
@@ -162,7 +164,10 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await writingAssistantPrompt(input);
-    return output!;
+    if (!output) {
+        throw new Error("AI failed to generate writing assistance. Output was null.");
+    }
+    return output;
   }
 );
 
