@@ -173,18 +173,23 @@ export function OnboardingFlow() {
   const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
     mode: "onChange", 
+    defaultValues: {
+      interfaceLanguage: 'en', // Set default form value for interface language
+    },
   });
 
   const selectedInterfaceLanguage = watch("interfaceLanguage") as keyof typeof translations | undefined;
 
   useEffect(() => {
-    if (selectedInterfaceLanguage && translations[selectedInterfaceLanguage] && selectedInterfaceLanguage !== uiLang) {
-      setUiLang(selectedInterfaceLanguage);
-    } else if (selectedInterfaceLanguage && !translations[selectedInterfaceLanguage] && uiLang !== 'en') {
-      // Fallback to 'en' if the selected language doesn't have full translations defined in `translations` object
-      setUiLang('en');
+    if (selectedInterfaceLanguage) {
+      if (translations[selectedInterfaceLanguage] && selectedInterfaceLanguage !== uiLang) {
+        setUiLang(selectedInterfaceLanguage);
+      } else if (!translations[selectedInterfaceLanguage] && uiLang !== 'en') {
+        // Fallback to 'en' if the selected language doesn't have full translations defined in `translations` object
+        setUiLang('en');
+      }
     }
-  }, [selectedInterfaceLanguage, uiLang]);
+  }, [selectedInterfaceLanguage]); // Effect only depends on the selected form field value
 
   const currentTranslations = translations[uiLang] || translations.en;
 
@@ -228,7 +233,7 @@ export function OnboardingFlow() {
         await generatePersonalizedLearningRoadmap(roadmapInput);
       
       const newProgress: UserProgress = {
-        ...initialUserProgress,
+        ...initialUserProgress, // Use imported initialUserProgress
         learningRoadmap: roadmapOutput as LearningRoadmap,
       };
 
@@ -271,13 +276,13 @@ export function OnboardingFlow() {
             <Controller
               name="interfaceLanguage"
               control={control}
-              defaultValue={uiLang as InterfaceLanguage}
+              // defaultValue removed from here, handled by useForm's defaultValues
               render={({ field }) => (
                 <Select
                   onValueChange={(value) => {
                     field.onChange(value);
                   }}
-                  value={field.value || uiLang}
+                  value={field.value} // Directly use field.value
                 >
                   <SelectTrigger id="interfaceLanguage">
                     <SelectValue placeholder={currentTranslations.interfaceLanguagePlaceholder} />
