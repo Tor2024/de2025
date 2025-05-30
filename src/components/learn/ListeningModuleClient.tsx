@@ -144,7 +144,7 @@ export function ListeningModuleClient() {
       return;
     }
     
-    if (window.speechSynthesis.speaking) {
+    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
 
@@ -215,6 +215,8 @@ export function ListeningModuleClient() {
       setIsAiLoading(false);
     }
   };
+  
+  const hasScriptText = listeningResult && listeningResult.script && listeningResult.script.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -274,6 +276,7 @@ export function ListeningModuleClient() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
+                            if (!hasScriptText) return;
                             const scriptId = listeningResult.title || `script-${Date.now()}`;
                             if (currentlySpeakingScriptId === scriptId) {
                                 stopSpeech();
@@ -283,6 +286,7 @@ export function ListeningModuleClient() {
                         }}
                         className="shrink-0"
                         aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                        disabled={!hasScriptText}
                         >
                         {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
                         {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
@@ -327,3 +331,4 @@ export function ListeningModuleClient() {
     </div>
   );
 }
+
