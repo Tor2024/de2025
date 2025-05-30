@@ -71,14 +71,12 @@ const getInitialSidebarOpenState = (defaultOpenValue: boolean): boolean => {
 const SidebarProvider = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    defaultOpen?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
   }
 >(
   (
     {
-      defaultOpen = true,
       open: openProp,
       onOpenChange: setOpenProp,
       className,
@@ -91,7 +89,8 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    const [_open, _setOpen] = React.useState(() => getInitialSidebarOpenState(defaultOpen));
+    // defaultOpen is true by default for the provider itself
+    const [_open, _setOpen] = React.useState(() => getInitialSidebarOpenState(true));
 
     const open = openProp ?? _open
     const setOpen = React.useCallback(
@@ -111,9 +110,6 @@ const SidebarProvider = React.forwardRef<
     )
 
     React.useEffect(() => {
-      // This effect ensures that if the controlled `openProp` changes,
-      // the internal `_open` state is updated, and the cookie is set.
-      // It also handles the initial cookie setting if the state was derived from defaultOpen.
       if (openProp !== undefined && openProp !== _open) {
         _setOpen(openProp);
         if (typeof window !== 'undefined') {
@@ -346,13 +342,13 @@ SidebarRail.displayName = "SidebarRail"
 
 const SidebarInset = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"main">
->(({ className, ...props }, ref) => {
+  React.HTMLAttributes<HTMLDivElement> // Changed from React.ComponentProps<"main">
+>(({ className, ...props }, ref) => { // Changed type for props
   return (
-    <main
+    <div // Changed from main to div
       ref={ref}
       className={cn(
-        "relative flex min-h-svh flex-1 flex-col bg-background",
+        "relative flex min-h-svh flex-1 flex-col bg-background", // Base classes, min-h-svh for full viewport height
         "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
         className
       )}
@@ -689,7 +685,12 @@ const SidebarMenuSkeleton = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="menu-skeleton"
-      className={cn("rounded-md h-8 flex gap-2 px-2 items-center", className)}
+      className={cn(
+        "rounded-md h-8 flex items-center", // base styles
+        "gap-2 px-2", // expanded state styles
+        "group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0", // collapsed state styles
+        className
+      )}
       {...props}
     >
       {showIcon && (
@@ -699,7 +700,10 @@ const SidebarMenuSkeleton = React.forwardRef<
         />
       )}
       <Skeleton
-        className="h-4 flex-1 max-w-[--skeleton-width]"
+        className={cn(
+          "h-4 flex-1 max-w-[--skeleton-width]",
+          "group-data-[collapsible=icon]:hidden" // hide text skeleton when collapsed
+        )}
         data-sidebar="menu-skeleton-text"
         style={
           {
