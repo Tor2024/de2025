@@ -119,9 +119,9 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="flex flex-col items-center justify-center h-full">
-        <Card className="w-full max-w-md text-center p-8 shadow-xl">
+        <Card className="w-full max-w-md text-center p-8 shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
-            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
+            <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
               <SettingsIcon className="h-12 w-12 text-primary" />
             </div>
             <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>

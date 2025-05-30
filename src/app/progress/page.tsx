@@ -80,7 +80,7 @@ export default function ProgressPage() {
   return (
     <AppShell>
       <div className="container mx-auto py-8 px-4 md:px-6">
-        <Card className="w-full shadow-xl border-primary/20">
+        <Card className="w-full shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader className="text-center">
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
               <BarChart3 className="h-12 w-12 text-primary" />
