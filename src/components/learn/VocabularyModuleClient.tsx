@@ -14,7 +14,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2 } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -60,6 +60,9 @@ const baseEnTranslations: Record<string, string> = {
   feedbackIncorrectPrefix: "Incorrect. Correct answer was:",
   practiceComplete: "Practice Complete!",
   practiceScoreMessage: "Your Score: {correct} out of {total}.",
+  showPracticeHintButton: "Show Hint (First Letter)",
+  hidePracticeHintButton: "Hide Hint",
+  hintLabel: "Hint:",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -96,6 +99,9 @@ const baseRuTranslations: Record<string, string> = {
   feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
   practiceComplete: "Практика завершена!",
   practiceScoreMessage: "Ваш результат: {correct} из {total}.",
+  showPracticeHintButton: "Показать подсказку (первая буква)",
+  hidePracticeHintButton: "Скрыть подсказку",
+  hintLabel: "Подсказка:",
 };
 
 const generateTranslations = () => {
@@ -129,6 +135,7 @@ export function VocabularyModuleClient() {
   const [practiceFeedback, setPracticeFeedback] = useState("");
   const [isPracticeSubmitted, setIsPracticeSubmitted] = useState(false);
   const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
+  const [showPracticeHint, setShowPracticeHint] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
@@ -141,11 +148,11 @@ export function VocabularyModuleClient() {
   };
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
@@ -154,13 +161,13 @@ export function VocabularyModuleClient() {
     setCurrentTopic(data.topic);
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
-    // Reset practice mode state
     setPracticeWords([]);
     setCurrentPracticeIndex(0);
     setUserPracticeAnswer("");
     setPracticeFeedback("");
     setIsPracticeSubmitted(false);
     setPracticeScore({ correct: 0, total: 0 });
+    setShowPracticeHint(false);
 
     try {
       const flowInput: GenerateVocabularyInput = {
@@ -199,13 +206,13 @@ export function VocabularyModuleClient() {
     setCurrentTopic("");
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
-    // Clear practice mode state
     setPracticeWords([]);
     setCurrentPracticeIndex(0);
     setUserPracticeAnswer("");
     setPracticeFeedback("");
     setIsPracticeSubmitted(false);
     setPracticeScore({ correct: 0, total: 0 });
+    setShowPracticeHint(false);
   };
 
   const handleNextCard = () => {
@@ -240,6 +247,7 @@ export function VocabularyModuleClient() {
       setPracticeFeedback(`${t('feedbackIncorrectPrefix')} ${currentPracticeWord.translation}`);
     }
     setIsPracticeSubmitted(true);
+    setShowPracticeHint(false); // Hide hint after submission
   };
 
   const handleNextPractice = () => {
@@ -248,14 +256,19 @@ export function VocabularyModuleClient() {
       setUserPracticeAnswer("");
       setPracticeFeedback("");
       setIsPracticeSubmitted(false);
+      setShowPracticeHint(false);
     } else {
       const finalScoreMsg = t('practiceScoreMessage')
         .replace('{correct}', practiceScore.correct.toString())
         .replace('{total}', practiceScore.total.toString());
       setPracticeFeedback(`${t('practiceComplete')} ${finalScoreMsg}`);
+      // isPracticeSubmitted remains true to show final score
     }
   };
-
+  
+  const handleTogglePracticeHint = () => {
+    setShowPracticeHint(prev => !prev);
+  };
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -311,15 +324,14 @@ export function VocabularyModuleClient() {
             {currentWordData ? (
               <div className="space-y-4">
                 <Card 
-                    className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300 cursor-pointer"
-                    onClick={() => setIsCardRevealed(!isCardRevealed)}
+                    className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300"
                 >
                   {!isCardRevealed ? (
                     <>
                       <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
                         {currentWordData.word}
                       </h3>
-                      <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}} size="lg" variant="outline">
+                      <Button onClick={() => setIsCardRevealed(true)} size="lg" variant="outline">
                         <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
                       </Button>
                     </>
@@ -333,7 +345,7 @@ export function VocabularyModuleClient() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => { e.stopPropagation(); setIsCardRevealed(false);}}
+                          onClick={() => setIsCardRevealed(false)}
                           className="whitespace-nowrap shrink-0 ml-2"
                         >
                           <EyeOff className="mr-2 h-4 w-4" /> {t('hideDetailsButton')}
@@ -416,15 +428,32 @@ export function VocabularyModuleClient() {
                       )}
                     />
                   </div>
-                  {!isPracticeSubmitted ? (
-                    <Button onClick={handleCheckPractice} disabled={!userPracticeAnswer.trim()}>
-                      {t('practiceCheckButton')}
-                    </Button>
-                  ) : (
-                    <Button onClick={handleNextPractice}>
-                      {t('practiceNextButton')}
+                  
+                  {!isPracticeSubmitted && (
+                    <Button onClick={handleTogglePracticeHint} variant="link" size="sm" className="p-0 h-auto text-xs">
+                        <Lightbulb className="h-3 w-3 mr-1"/>
+                        {showPracticeHint ? t('hidePracticeHintButton') : t('showPracticeHintButton')}
                     </Button>
                   )}
+
+                  {showPracticeHint && !isPracticeSubmitted && currentPracticeWord && (
+                     <p className="text-sm mt-1 text-muted-foreground bg-background p-2 rounded-md shadow-sm">
+                        {t('hintLabel')}: <span className="font-semibold text-primary">{currentPracticeWord.translation.charAt(0)}...</span>
+                    </p>
+                  )}
+                  
+                  <div className="pt-2">
+                    {!isPracticeSubmitted ? (
+                      <Button onClick={handleCheckPractice} disabled={!userPracticeAnswer.trim()}>
+                        {t('practiceCheckButton')}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleNextPractice}>
+                        {t('practiceNextButton')}
+                      </Button>
+                    )}
+                  </div>
+
                    {practiceFeedback && (
                     <p className={cn(
                         "text-sm mt-2 flex items-center gap-1",
