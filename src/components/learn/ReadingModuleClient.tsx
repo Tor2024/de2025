@@ -40,6 +40,7 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
   noQuestions: "No comprehension questions were generated for this text.",
+  answerIndication: "Answer indication",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -58,6 +59,7 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
   noQuestions: "Для этого текста не было сгенерировано вопросов на понимание.",
+  answerIndication: "Указание на ответ",
 };
 
 const generateTranslations = () => {
@@ -195,7 +197,7 @@ export function ReadingModuleClient() {
                           </ul>
                         )}
                         {q.answer && (
-                           <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication', 'Answer indication')}: {q.answer}</em></p>
+                           <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
                         )}
                       </li>
                     ))}
@@ -212,5 +214,4 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-
     

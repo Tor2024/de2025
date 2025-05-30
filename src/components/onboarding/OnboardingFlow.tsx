@@ -26,7 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { InterfaceLanguage, TargetLanguage, UserSettings, LearningRoadmap, UserProgress, ProficiencyLevel } from "@/lib/types";
-import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames, initialUserProgress, proficiencyLevels } from "@/lib/types";
+import { supportedLanguages, interfaceLanguageCodes, targetLanguageNames, proficiencyLevels, initialUserProgress } from "@/lib/types";
 import { generatePersonalizedLearningRoadmap } from "@/ai/flows/ai-learning-roadmap";
 import type { GeneratePersonalizedLearningRoadmapInput, GeneratePersonalizedLearningRoadmapOutput } from "@/ai/flows/ai-learning-roadmap";
 import { useToast } from "@/hooks/use-toast";
@@ -181,6 +181,7 @@ export function OnboardingFlow() {
     if (selectedInterfaceLanguage && translations[selectedInterfaceLanguage] && selectedInterfaceLanguage !== uiLang) {
       setUiLang(selectedInterfaceLanguage);
     } else if (selectedInterfaceLanguage && !translations[selectedInterfaceLanguage] && uiLang !== 'en') {
+      // Fallback to 'en' if the selected language doesn't have full translations defined in `translations` object
       setUiLang('en');
     }
   }, [selectedInterfaceLanguage, uiLang]);
@@ -209,7 +210,6 @@ export function OnboardingFlow() {
   const onSubmit: SubmitHandler<OnboardingFormData> = async (data) => {
     setIsLoading(true);
     try {
-      // Prepare the settings part
       const settingsData: UserSettings = {
         userName: data.userName,
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
@@ -218,18 +218,17 @@ export function OnboardingFlow() {
         goal: data.goal,
       };
 
-      // Generate roadmap (ASYNC)
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage as InterfaceLanguage,
         targetLanguage: data.targetLanguage as TargetLanguage,
-        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel, 
+        proficiencyLevel: data.proficiencyLevel as ProficiencyLevel,
         personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
       
       const newProgress: UserProgress = {
-        ...initialUserProgress, 
+        ...initialUserProgress,
         learningRoadmap: roadmapOutput as LearningRoadmap,
       };
 
@@ -244,9 +243,10 @@ export function OnboardingFlow() {
       });
     } catch (error) {
       console.error("Onboarding error:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: currentTranslations.errorTitle || "Error",
-        description: currentTranslations.errorDescription || "Failed to complete setup. Please try again.",
+        description: `${currentTranslations.errorDescription || "Failed to complete setup. Please try again."} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -352,7 +352,7 @@ export function OnboardingFlow() {
   };
 
   const stepTitle = currentTranslations[steps[currentStep].titleKey] || `Step ${currentStep + 1} Title`;
-  const stepDescription = (currentTranslations.stepDescription)
+  const stepDescription = (currentTranslations.stepDescription || "Step {current} of {total}")
     .replace("{current}", (currentStep + 1).toString())
     .replace("{total}", steps.length.toString());
 
@@ -396,5 +396,4 @@ export function OnboardingFlow() {
     </div>
   );
 }
-
     

@@ -187,7 +187,7 @@ export function ListeningModuleClient() {
   const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
     setIsAiLoading(true);
     setListeningResult(null);
-    stopSpeech(); // Stop any ongoing speech
+    stopSpeech(); 
     setCurrentTopic(data.topic);
     try {
       const flowInput: GenerateListeningMaterialInput = {
@@ -328,6 +328,4 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-
-
     

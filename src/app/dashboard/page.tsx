@@ -14,7 +14,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
 import * as React from 'react';
-import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; // Import the new flow
+import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
+import { useToast } from "@/hooks/use-toast";
+
 
 const learningModules = [
   { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen, disabled: false },
@@ -36,6 +38,8 @@ const baseEnTranslations: Record<string, string> = {
     aiTutorTipsTitle: "AI Tutor Tips",
     aiTutorTipStatic: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
     aiTutorTipLoading: "Generating a fresh tip for you...",
+    aiTutorTipErrorTitle: "AI Tip Error",
+    aiTutorTipErrorDescription: "Could not load a new tip from the AI tutor at this time.",
     xp: "XP",
     streak: "Streak",
     days: "days",
@@ -90,6 +94,8 @@ const baseRuTranslations: Record<string, string> = {
     aiTutorTipsTitle: "Советы от AI-Репетитора",
     aiTutorTipStatic: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
     aiTutorTipLoading: "Генерирую свежий совет для вас...",
+    aiTutorTipErrorTitle: "Ошибка совета ИИ",
+    aiTutorTipErrorDescription: "В данный момент не удалось загрузить новый совет от AI-репетитора.",
     xp: "ОП",
     streak: "Серия",
     days: "дней",
@@ -137,8 +143,9 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    const base = code === 'ru' ? baseRuTranslations : baseEnTranslations;
-    translations[code] = { ...baseEnTranslations, ...base };
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    translations[code] = base;
   });
   return translations;
 };
@@ -151,11 +158,19 @@ export default function DashboardPage() {
   const router = useRouter();
   const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
+  const { toast } = useToast();
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
-    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
+    if (langTranslations && langTranslations[key]) {
+      return langTranslations[key];
+    }
+    const enTranslations = pageTranslations['en'];
+    if (enTranslations && enTranslations[key]) {
+      return enTranslations[key]; 
+    }
+    return defaultText || key; 
   };
 
   useEffect(() => {
@@ -177,13 +192,19 @@ export default function DashboardPage() {
       })
       .catch(error => {
         console.error("Failed to generate tutor tip:", error);
-        setAiTutorTip(t('aiTutorTipStatic')); // Fallback to static tip on error
+        setAiTutorTip(t('aiTutorTipStatic')); 
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast({
+            title: t('aiTutorTipErrorTitle'),
+            description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+            variant: "destructive",
+        });
       })
       .finally(() => {
         setIsTipLoading(false);
       });
     }
-  }, [isUserDataLoading, userData.settings, currentLang]); // Added currentLang to dependencies to refetch tip if interface lang changes
+  }, [isUserDataLoading, userData.settings, currentLang, t, toast]); 
   
   if (isUserDataLoading) {
     return (
