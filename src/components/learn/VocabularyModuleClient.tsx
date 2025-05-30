@@ -14,7 +14,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,6 +64,9 @@ const baseEnTranslations: Record<string, string> = {
   hidePracticeHintButton: "Hide Hint",
   hintLabel: "Hint:",
   practiceAgainButton: "Practice Again",
+  archiveMistakeButton: "Archive this mistake",
+  mistakeArchivedToastTitle: "Mistake Archived",
+  mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -104,6 +107,9 @@ const baseRuTranslations: Record<string, string> = {
   hidePracticeHintButton: "Скрыть подсказку",
   hintLabel: "Подсказка:",
   practiceAgainButton: "Практиковать снова",
+  archiveMistakeButton: "Добавить ошибку в архив",
+  mistakeArchivedToastTitle: "Ошибка добавлена в архив",
+  mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
 };
 
 const generateTranslations = () => {
@@ -121,7 +127,7 @@ const generateTranslations = () => {
 const componentTranslations = generateTranslations();
 
 export function VocabularyModuleClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
@@ -130,7 +136,6 @@ export function VocabularyModuleClient() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isCardRevealed, setIsCardRevealed] = useState(false);
 
-  // State for practice mode
   const [practiceWords, setPracticeWords] = useState<VocabularyWord[]>([]);
   const [currentPracticeIndex, setCurrentPracticeIndex] = useState(0);
   const [userPracticeAnswer, setUserPracticeAnswer] = useState("");
@@ -138,6 +143,8 @@ export function VocabularyModuleClient() {
   const [isPracticeSubmitted, setIsPracticeSubmitted] = useState(false);
   const [practiceScore, setPracticeScore] = useState({ correct: 0, total: 0 });
   const [showPracticeHint, setShowPracticeHint] = useState(false);
+  const [isCurrentPracticeMistakeArchived, setIsCurrentPracticeMistakeArchived] = useState(false);
+
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
@@ -150,11 +157,11 @@ export function VocabularyModuleClient() {
   };
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
@@ -170,6 +177,7 @@ export function VocabularyModuleClient() {
     setIsPracticeSubmitted(false);
     setPracticeScore({ correct: 0, total: 0 });
     setShowPracticeHint(false);
+    setIsCurrentPracticeMistakeArchived(false);
 
     try {
       const flowInput: GenerateVocabularyInput = {
@@ -215,6 +223,7 @@ export function VocabularyModuleClient() {
     setIsPracticeSubmitted(false);
     setPracticeScore({ correct: 0, total: 0 });
     setShowPracticeHint(false);
+    setIsCurrentPracticeMistakeArchived(false);
   };
 
   const handleNextCard = () => {
@@ -250,6 +259,7 @@ export function VocabularyModuleClient() {
     }
     setIsPracticeSubmitted(true);
     setShowPracticeHint(false); 
+    setIsCurrentPracticeMistakeArchived(false); // Reset archive status for new check
   };
 
   const handleNextPractice = () => {
@@ -259,6 +269,7 @@ export function VocabularyModuleClient() {
       setPracticeFeedback("");
       setIsPracticeSubmitted(false);
       setShowPracticeHint(false);
+      setIsCurrentPracticeMistakeArchived(false);
     } else {
       const finalScoreMsg = t('practiceScoreMessage')
         .replace('{correct}', practiceScore.correct.toString())
@@ -276,8 +287,24 @@ export function VocabularyModuleClient() {
     setUserPracticeAnswer("");
     setPracticeFeedback("");
     setIsPracticeSubmitted(false);
-    setPracticeScore(prev => ({ ...prev, correct: 0 })); // Reset only correct answers, total remains
+    setPracticeScore(prev => ({ ...prev, correct: 0 }));
     setShowPracticeHint(false);
+    setIsCurrentPracticeMistakeArchived(false);
+  };
+
+  const handleArchivePracticeMistake = () => {
+    if (!currentPracticeWord || !userData.settings) return;
+    addErrorToArchive({
+      module: "Vocabulary Practice",
+      context: currentPracticeWord.word, // Store the target language word as context
+      userAttempt: userPracticeAnswer,
+      correctAnswer: currentPracticeWord.translation,
+    });
+    setIsCurrentPracticeMistakeArchived(true);
+    toast({
+      title: t('mistakeArchivedToastTitle'),
+      description: t('mistakeArchivedToastDescription'),
+    });
   };
 
   return (
@@ -452,7 +479,7 @@ export function VocabularyModuleClient() {
                     </p>
                   )}
                   
-                  <div className="pt-2">
+                  <div className="pt-2 flex items-center gap-2">
                     {!isPracticeSubmitted ? (
                       <Button onClick={handleCheckPractice} disabled={!userPracticeAnswer.trim()}>
                         {t('practiceCheckButton')}
@@ -461,6 +488,12 @@ export function VocabularyModuleClient() {
                       <Button onClick={handleNextPractice}>
                         {t('practiceNextButton')}
                       </Button>
+                    )}
+                    {isPracticeSubmitted && practiceFeedback !== t('feedbackCorrect') && !isCurrentPracticeMistakeArchived && (
+                       <Button variant="outline" size="sm" onClick={handleArchivePracticeMistake} className="text-xs">
+                          <Archive className="mr-1.5 h-3.5 w-3.5" />
+                          {t('archiveMistakeButton')}
+                       </Button>
                     )}
                   </div>
 
