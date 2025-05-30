@@ -9,24 +9,14 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, LayoutGrid, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; 
+import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from "@/lib/types";
 import * as React from 'react';
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
 import { useToast } from "@/hooks/use-toast";
-
-
-const learningModules = [
-  { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen, disabled: false },
-  { titleKey: "writingAssistant", defaultTitle: "Writing Assistant", descriptionKey: "writingAssistantDescription", defaultDescription: "Get feedback on your texts.", href: "/learn/writing", icon: Edit3, disabled: false },
-  { titleKey: "vocabulary", defaultTitle: "Vocabulary", descriptionKey: "vocabularyDescription", defaultDescription: "Expand your word bank.", href: "/learn/vocabulary", icon: FileText, disabled: false },
-  { titleKey: "reading", defaultTitle: "Reading", descriptionKey: "readingDescription", defaultDescription: "Understand written texts.", href: "/learn/reading", icon: BookOpen, disabled: false },
-  { titleKey: "listening", defaultTitle: "Listening", descriptionKey: "listeningDescription", defaultDescription: "Sharpen your comprehension.", href: "/learn/listening", icon: Headphones, disabled: false },
-  { titleKey: "speaking", defaultTitle: "Speaking", descriptionKey: "speakingDescription", defaultDescription: "Practice your pronunciation.", href: "/learn/speaking", icon: Mic, disabled: true },
-  { titleKey: "wordPractice", defaultTitle: "Word Practice", descriptionKey: "wordPracticeDescription", defaultDescription: "Reinforce with fun drills.", href: "/learn/practice", icon: Repeat, disabled: true },
-];
+import { appModulesConfig } from "@/lib/modulesConfig"; // Import the centralized config
 
 const baseEnTranslations: Record<string, string> = {
     loadingUserData: "Loading user data...",
@@ -53,6 +43,7 @@ const baseEnTranslations: Record<string, string> = {
     goToSettings: "Go to Settings",
     viewFullProgress: "View Full Progress",
     viewAllAchievements: "View All Achievements",
+    // Module titles and descriptions for dashboard cards
     grammar: "Grammar",
     grammarDescription: "Master sentence structures.",
     writingAssistant: "Writing Assistant",
@@ -83,6 +74,8 @@ const baseEnTranslations: Record<string, string> = {
     ttsPlayText: "Play description",
     ttsStopText: "Stop speech",
     ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+    ttsNotSupportedTitle: "TTS Not Supported",
+    ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
     startLearningButton: "Start Learning",
     comingSoonButton: "Coming Soon",
 };
@@ -142,6 +135,8 @@ const baseRuTranslations: Record<string, string> = {
     ttsPlayText: "Озвучить описание",
     ttsStopText: "Остановить озвучку",
     ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+    ttsNotSupportedTitle: "TTS не поддерживается",
+    ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
     startLearningButton: "Начать обучение",
     comingSoonButton: "Скоро",
 };
@@ -270,6 +265,8 @@ export default function DashboardPage() {
               ttsPlayText={t('ttsPlayText')}
               ttsStopText={t('ttsStopText')}
               ttsExperimentalText={t('ttsExperimentalText')}
+              ttsNotSupportedTitle={t('ttsNotSupportedTitle')}
+              ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
             />
           </div>
           <div className="md:w-1/3 space-y-6">
@@ -314,9 +311,9 @@ export default function DashboardPage() {
             {t('exploreLearningModules')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {learningModules.map((mod) => (
+            {appModulesConfig.map((mod) => (
               <ModuleLinkCard
-                key={mod.titleKey}
+                key={mod.id} // Use a unique id from the config
                 title={t(mod.titleKey, mod.defaultTitle)}
                 description={t(mod.descriptionKey, mod.defaultDescription)}
                 href={mod.href}
@@ -385,5 +382,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-    

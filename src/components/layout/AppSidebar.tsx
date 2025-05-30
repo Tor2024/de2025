@@ -11,25 +11,21 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarMenuSkeleton, // Already available from ui/sidebar
+  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import {
   Home,
-  BookOpen,
-  Edit3,
-  Headphones,
-  Mic,
-  FileText,
-  Repeat,
-  Award,
   BarChart3,
-  Settings,
+  Settings as SettingsIconLucide, // Renamed to avoid conflict with Settings type
+  Award,
   Bot,
-} from "lucide-react";
-import { useUserData } from "@/contexts/UserDataContext";
+} from "lucide-react"; // Removed unused icons, kept Bot
 import type { LucideIcon } from "lucide-react";
-import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types"; 
-import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
+import { useUserData } from "@/contexts/UserDataContext";
+import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types"; 
+import { interfaceLanguageCodes } from "@/lib/types"; 
+import { Skeleton } from "@/components/ui/skeleton";
+import { appModulesConfig, type AppModuleConfig } from "@/lib/modulesConfig"; // Import the centralized config
 
 interface NavItemDef {
   href: string;
@@ -41,34 +37,26 @@ interface NavItemDef {
   disabled?: boolean; 
 }
 
-const learningModulesConfig = [
-  { titleKey: "grammar", defaultTitle: "Grammar", href: "/learn/grammar", icon: BookOpen, tooltipKey: "grammarTooltip", defaultTooltip: "Grammar", disabled: false },
-  { titleKey: "writing", defaultTitle: "Writing Assistant", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant", disabled: false },
-  { titleKey: "vocabulary", defaultTitle: "Vocabulary", href: "/learn/vocabulary", icon: FileText, tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary", disabled: false },
-  { titleKey: "reading", defaultTitle: "Reading", href: "/learn/reading", icon: BookOpen, tooltipKey: "readingTooltip", defaultTooltip: "Reading", disabled: false }, 
-  { titleKey: "listening", defaultTitle: "Listening", href: "/learn/listening", icon: Headphones, tooltipKey: "listeningTooltip", defaultTooltip: "Listening", disabled: false },
-  { titleKey: "speaking", defaultTitle: "Speaking", href: "/learn/speaking", icon: Mic, tooltipKey: "speakingTooltip", defaultTooltip: "Speaking", disabled: true },
-  { titleKey: "wordPractice", defaultTitle: "Word Practice", href: "/learn/practice", icon: Repeat, tooltipKey: "wordPracticeTooltip", defaultTooltip: "Word Practice", disabled: true },
-];
+// Transform appModulesConfig into the NavItemDef structure for sidebar
+const learningModuleNavItems: NavItemDef[] = appModulesConfig.map(mod => ({
+  href: mod.href,
+  icon: mod.icon,
+  labelKey: mod.titleKey,
+  defaultLabel: mod.defaultTitle,
+  tooltipKey: mod.tooltipKey,
+  defaultTooltip: mod.defaultTooltip,
+  disabled: mod.disabled,
+}));
 
-const navItemDefinitions: NavItemDef[] = [
+const mainNavItemDefinitions: NavItemDef[] = [
   { href: "/dashboard", icon: Home, labelKey: "dashboard", defaultLabel: "Dashboard", tooltipKey: "dashboardTooltip", defaultTooltip: "Dashboard" },
-  ...learningModulesConfig.map(mod => ({ 
-    href: mod.href,
-    icon: mod.icon,
-    labelKey: mod.titleKey,
-    defaultLabel: mod.defaultTitle,
-    tooltipKey: mod.tooltipKey,
-    defaultTooltip: mod.defaultTooltip,
-    disabled: mod.disabled,
-  })),
+  ...learningModuleNavItems,
 ];
-
 
 const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/progress", icon: BarChart3, labelKey: "progress", defaultLabel: "Progress", tooltipKey: "progressTooltip", defaultTooltip: "Progress" },
   { href: "/achievements", icon: Award, labelKey: "achievements", defaultLabel: "Achievements", tooltipKey: "achievementsTooltip", defaultTooltip: "Achievements" },
-  { href: "/settings", icon: Settings, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
+  { href: "/settings", icon: SettingsIconLucide, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
 ];
 
 const baseEnTranslations: Record<string, string> = {
@@ -83,8 +71,8 @@ const baseEnTranslations: Record<string, string> = {
   listeningTooltip: "Listening",
   reading: "Reading", 
   readingTooltip: "Reading", 
-  writing: "Writing Assistant", 
-  writingTooltip: "Writing Assistant", 
+  writingAssistant: "Writing Assistant", // Use titleKey from config
+  writingTooltip: "Writing Assistant", // Use tooltipKey from config
   speaking: "Speaking",
   speakingTooltip: "Speaking",
   wordPractice: "Word Practice",
@@ -109,7 +97,7 @@ const baseRuTranslations: Record<string, string> = {
   listeningTooltip: "Аудирование",
   reading: "Чтение", 
   readingTooltip: "Чтение", 
-  writing: "Помощник по письму", 
+  writingAssistant: "Помощник по письму", 
   writingTooltip: "Помощник по письму",
   speaking: "Говорение",
   speakingTooltip: "Говорение",
@@ -169,14 +157,14 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {Array.from({ length: 8 }).map((_, index) => (
+            {Array.from({ length: mainNavItemDefinitions.length }).map((_, index) => ( // Use length of actual items for skeleton
               <SidebarMenuSkeleton key={`skel-top-${index}`} showIcon={true} />
             ))}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2">
           <SidebarMenu>
-            {Array.from({ length: 3 }).map((_, index) => (
+            {Array.from({ length: bottomNavItemDefinitions.length }).map((_, index) => ( // Use length of actual items for skeleton
               <SidebarMenuSkeleton key={`skel-bottom-${index}`} showIcon={true} />
             ))}
           </SidebarMenu>
@@ -191,7 +179,7 @@ export function AppSidebar() {
     tooltip: t(itemDef.tooltipKey, itemDef.defaultTooltip),
   });
 
-  const navItems = navItemDefinitions.map(mapNavItem);
+  const navItems = mainNavItemDefinitions.map(mapNavItem);
   const bottomNavItems = bottomNavItemDefinitions.map(mapNavItem);
 
   return (
@@ -249,4 +237,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
