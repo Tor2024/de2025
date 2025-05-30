@@ -36,15 +36,15 @@ const LessonSchema = z.object({
   id: z.string().describe("A unique identifier for this lesson (e.g., 'module_a1_lesson_1', 'german_b2_topic_3'). This ID should be concise and stable."),
   level: z.string().describe("CEFR level for this lesson/module (e.g., A1, A2, B1). The text itself (e.g., 'Level A1', 'Уровень A1') MUST be in the specified `interfaceLanguage`."),
   title: z.string().describe("Title of the lesson/module. MUST be in the specified `interfaceLanguage`."),
-  description: z.string().describe("A detailed, user-friendly description of what this lesson/module covers, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Highlight important takeaways if possible (e.g., using asterisks for emphasis like *this*). MUST be in the specified `interfaceLanguage`."),
+  description: z.string().describe("A detailed, user-friendly description of what this lesson/module covers, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Do NOT use asterisks or other Markdown-like characters for emphasis in the description. MUST be in the specified `interfaceLanguage`."),
   topics: z.array(z.string()).describe("Specific topics covered, providing a clear breakdown of lesson content. Each topic string ITSELF MUST be in the specified `interfaceLanguage`. These strings should be descriptive and may include very brief examples or clarifications to aid understanding (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения'). Aim for a balance of grammar, vocabulary, and practical application within each module, covering reading, writing, listening, and speaking aspects appropriate to the level."),
   estimatedDuration: z.string().optional().describe("Estimated time to complete this lesson/module (e.g., '2 weeks', '10 hours', '2 недели', '10 часов'). MUST be in the specified `interfaceLanguage`.")
 });
 
 const GeneratePersonalizedLearningRoadmapOutputSchema = z.object({
-  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`. If the user provided a `proficiencyLevel`, acknowledge it as their starting point but emphasize the plan covers A0-C2."),
+  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`. If the user provided a `proficiencyLevel`, acknowledge it as their starting point but emphasize the plan covers A0-C2. Do NOT use asterisks or other Markdown-like characters for emphasis."),
   lessons: z.array(LessonSchema).describe("An array of lessons, structured sequentially from A0/A1 to C2. Ensure comprehensive coverage for the `targetLanguage` across all CEFR levels. Each lesson should aim to integrate various skills (grammar, vocabulary, listening, reading, writing, speaking) in a thematic or functional context where possible."),
-  conclusion: z.string().optional().describe("A concluding remark or encouragement. MUST be in the specified `interfaceLanguage`.")
+  conclusion: z.string().optional().describe("A concluding remark or encouragement. MUST be in the specified `interfaceLanguage`. Do NOT use asterisks or other Markdown-like characters for emphasis.")
 });
 
 export type GeneratePersonalizedLearningRoadmapOutput = z.infer<
@@ -68,18 +68,18 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
 
   The output MUST be a JSON object matching the provided schema. Each lesson object in the 'lessons' array must include a unique 'id' field (e.g., 'module_a1_lesson_1', 'german_b2_topic_3').
 
-  VERY IMPORTANT INSTRUCTIONS REGARDING LANGUAGE:
+  VERY IMPORTANT INSTRUCTIONS REGARDING LANGUAGE AND FORMATTING:
   1.  **Interface Language ({{{interfaceLanguage}}})**: ALL user-facing text within the roadmap structure ITSELF must be in this language. This includes:
       *   The 'introduction' field (provide a welcoming and informative intro. If the user provided a 'proficiencyLevel', acknowledge it as their starting point but emphasize the plan covers A0-C2 for comprehensive learning.).
       *   The 'conclusion' field (if present, make it encouraging).
       *   For EACH lesson in the 'lessons' array:
           *   CRITICALLY: The 'level' text (e.g., for Russian interface: 'Уровень A1', for English interface: 'Level A1'). This text MUST be in the {{{interfaceLanguage}}}.
           *   The 'title' of the lesson (make it engaging and clear). MUST be in the {{{interfaceLanguage}}}.
-          *   The 'description' of the lesson (make this detailed and user-friendly, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Highlight important takeaways if possible, e.g., using asterisks for emphasis like *this*). MUST be in the {{{interfaceLanguage}}}.
+          *   The 'description' of the lesson (make this detailed and user-friendly, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate). MUST be in the {{{interfaceLanguage}}}.
           *   The 'estimatedDuration' text (e.g., '2 недели', '2 weeks'). MUST be in the {{{interfaceLanguage}}}.
           *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. These topic strings should be descriptive and may include very brief examples or clarifications to aid understanding. (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения').
-
   2.  **Target Language ({{{targetLanguage}}})**: The actual linguistic concepts, grammar rules, vocabulary themes, etc., that the roadmap teaches should pertain to this language.
+  3.  **NO ASTERISKS/MARKDOWN FOR EMPHASIS**: Do NOT use asterisks (*, **) or underscores (_, __) or any other Markdown-like characters for text emphasis (like bolding or italicizing) in any of the generated text fields (introduction, lesson descriptions, lesson topics, conclusion). Present information clearly without such special formatting characters.
 
   CONTENT AND STRUCTURE OF LESSONS:
   *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided {{{proficiencyLevel}}} indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
@@ -89,14 +89,14 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
 
   EXAMPLE (if interfaceLanguage='ru', targetLanguage='German', proficiencyLevel='A1-A2'):
-  - 'introduction' field will be in Russian, and might state something like: "Добро пожаловать! Этот план поможет вам выучить немецкий язык. Вы указали, что ваш текущий уровень A1-A2. План охватывает все уровни от A0 до C2..."
-  - 'conclusion' fields will be in Russian.
+  - 'introduction' field will be in Russian, and might state something like: "Добро пожаловать! Этот план поможет вам выучить немецкий язык. Вы указали, что ваш текущий уровень A1-A2. План охватывает все уровни от A0 до C2..." (No asterisks for emphasis).
+  - 'conclusion' fields will be in Russian. (No asterisks).
   - A lesson object might look like:
     {
       "id": "german_a1_module_1_alphabet",
       "level": "Уровень A1", // In Russian - THIS IS CRITICAL.
       "title": "Основы немецкого: Алфавит и приветствия", // In Russian
-      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. *Важно* запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'. Мы начнем с самых азов, чтобы заложить прочный фундамент.", // In Russian, detailed, with example of emphasis
+      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. Важно запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'. Мы начнем с самых азов, чтобы заложить прочный фундамент.", // In Russian, detailed, NO asterisks for emphasis
       "topics": [
           "Лексика: Немецкий алфавит (Das deutsche Alphabet) и его особенности",
           "Фонетика: Основные правила произношения, звуки ä, ö, ü, ß, буквосочетания ei, eu, ch, sch",
@@ -167,8 +167,8 @@ Dativ/ Akkusativ с артиклями и предлогами
 Простые придаточные: weil, dass, wenn
 Степени сравнения прилагательных
 
-🇩🇪 B1 — Средний уровень
-Цель: уметь выражать личное мнение, рассказывать о прошлом, планах и гипотетических ситуациях.
+🇩🇪 B1 — Пороговый уровень
+Цель: участвовать в более сложных диалогах, выражать мнение.
 
 📚 Лексика:
 Работа и профессия, резюме, интервью
@@ -188,12 +188,13 @@ Konjunktiv II (würde, könnte, hätte…)
 Инфинитивные конструкции mit "zu"
 Relativsätze (который, где…)
 Предлоги с Genitiv (trotz, während, wegen и др.)
-💡 Совет: B1 — минимальный уровень для начала подготовки к TestDaF.
 Употребление временных и причинно-следственных конструкций
 Индиректная речь (введение)
 
+💡 Совет: B1 — минимальный уровень для начала подготовки к TestDaF.
+
 🇩🇪 B2 — Продвинутый уровень
-Цель: свободное владение грамматикой для работы, учёбы и аргументированной речи.
+Цель: формулировать аргументированное мнение, понимать абстрактные темы.
 
 📚 Лексика:
 Политика, наука, техника
@@ -215,8 +216,8 @@ Nominalisierung (Verlust → der Verlust)
 Точная структура и инверсия в длинных предложениях
 Absolutformen (глагольные конструкции без личного подлежащего)
 
-🇩🇪 C1 — Академический и профессиональный уровень
-Цель: использовать сложные грамматические структуры с точностью и гибкостью.
+🇩🇪 C1 — Продвинутый профессиональный
+Цель: владение языком на академическом уровне, участие в дискуссиях, написание эссе.
 Уровень сдачи TestDaF и Goethe-Zertifikat C1.
 
 📚 Лексика:
