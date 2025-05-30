@@ -35,6 +35,7 @@ const baseEnTranslations: Record<string, string> = {
   resultsTitlePrefix: "Explanation for:",
   explanationHeader: "Explanation",
   practiceTasksHeader: "Practice Tasks",
+  noPracticeTasks: "No practice tasks were generated for this topic.",
   toastSuccessTitle: "Explanation Generated!",
   toastSuccessDescriptionTemplate: "Grammar explanation for \"{topic}\" is ready.",
   toastErrorTitle: "Error",
@@ -52,6 +53,7 @@ const baseRuTranslations: Record<string, string> = {
   resultsTitlePrefix: "Объяснение для:",
   explanationHeader: "Объяснение",
   practiceTasksHeader: "Практические задания",
+  noPracticeTasks: "Для этой темы практические задания не были сгенерированы.",
   toastSuccessTitle: "Объяснение создано!",
   toastSuccessDescriptionTemplate: "Объяснение грамматики для темы \"{topic}\" готово.",
   toastErrorTitle: "Ошибка",
@@ -63,11 +65,9 @@ const baseRuTranslations: Record<string, string> = {
 const generateTranslations = () => {
   const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code === 'ru') {
-      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
-    } else {
-      translations[code] = { ...baseEnTranslations };
-    }
+    let base = baseEnTranslations;
+    if (code === 'ru') base = { ...baseEnTranslations, ...baseRuTranslations };
+    translations[code] = base;
   });
   return translations;
 };
@@ -113,9 +113,9 @@ export function GrammarModuleClient() {
     setCurrentTopic(data.grammarTopic);
     try {
       const grammarInput: AdaptiveGrammarExplanationsInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        interfaceLanguage: userData.settings!.interfaceLanguage,
         grammarTopic: data.grammarTopic,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
+        proficiencyLevel: userData.settings!.proficiencyLevel,
         learningGoal: userData.settings!.goal,
         userPastErrors: userData.progress!.errorArchive.map(e => `${e.topic}: ${e.error}`).join('\n') || "No past errors recorded.",
       };
@@ -185,11 +185,15 @@ export function GrammarModuleClient() {
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
               <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-                <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap text-sm leading-relaxed">
-                  {explanationResult.practiceTasks.map((task, index) => (
-                    <li key={index}>{task}</li>
-                  ))}
-                </ul>
+                {explanationResult.practiceTasks && explanationResult.practiceTasks.length > 0 ? (
+                  <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap text-sm leading-relaxed">
+                    {explanationResult.practiceTasks.map((task, index) => (
+                      <li key={index}>{task}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">{t('noPracticeTasks')}</p>
+                )}
               </ScrollArea>
             </div>
           </CardContent>
