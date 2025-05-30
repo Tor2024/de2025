@@ -91,16 +91,16 @@ export function RoadmapDisplay({
     }
 
 
-    const trimmedTextToSpeak = textToSpeak.trim();
+    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
         setCurrentlySpeakingLessonId(null);
         return; // Do not proceed if text is empty
     }
 
     // Basic sentence splitting. More robust splitting might be needed for complex texts.
-    const sentences = trimmedTextToSpeak.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     
-    if (sentences.length === 0) { // If splitting results in no sentences (e.g. text without standard delimiters)
+    if (sentences.length === 0 && trimmedTextToSpeak) { // If splitting results in no sentences (e.g. text without standard delimiters)
         sentences.push(trimmedTextToSpeak); // Speak the whole trimmed text
     }
 
@@ -114,7 +114,7 @@ export function RoadmapDisplay({
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext]); // Removed interfaceLanguage from dependencies
+  }, [currentlySpeakingLessonId, speakNext]);
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -126,12 +126,12 @@ export function RoadmapDisplay({
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
     return (
-      <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
+      <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 h-full flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{loadingTitleText}</CardTitle>
           <CardDescription>{loadingDescriptionText}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow">
           <p>{loadingContentText}</p>
         </CardContent>
       </Card>
@@ -143,10 +143,10 @@ export function RoadmapDisplay({
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{titleText}</CardTitle>
         <CardDescription>{descriptionText}</CardDescription>
-         {ttsExperimentalText && <p className="text-xs text-muted-foreground mt-1 italic">{ttsExperimentalText}</p>}
+         {typeof window !== 'undefined' && window.speechSynthesis && ttsExperimentalText && <p className="text-xs text-muted-foreground mt-1 italic">{ttsExperimentalText}</p>}
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
-        <ScrollArea className="h-[400px] rounded-md border p-1 bg-muted/30">
+        <ScrollArea className="h-[calc(100vh-20rem)] md:h-[400px] rounded-md border p-1 bg-muted/30">
           {roadmap.introduction && (
             <div className="p-3 mb-4 bg-background rounded-md shadow">
               <h3 className="text-lg font-semibold mb-2 flex items-center"><Info className="mr-2 h-5 w-5 text-primary/80" />{introductionHeaderText}</h3>
@@ -157,12 +157,12 @@ export function RoadmapDisplay({
           <Accordion type="multiple" className="w-full">
             {roadmap.lessons.map((lesson: Lesson, index: number) => (
               <AccordionItem 
-                value={`lesson-item-${index}`} // Use index for unique accordion item value
-                key={`lesson-key-${index}`}    // Use index for unique React key
+                value={`lesson-item-${index}`} 
+                key={`lesson-key-${index}`}    
                 className="bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow"
               >
                 <AccordionTrigger className="p-4 text-base hover:no-underline">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full">
                     <span className="bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm">{lesson.level}</span>
                     <span className="font-medium text-left flex-1">{lesson.title}</span>
                   </div>
@@ -175,9 +175,6 @@ export function RoadmapDisplay({
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          // Use lesson.id for TTS logic if it's meant to be a stable ID for the content,
-                          // or construct a unique ID for speech if lesson.id might not be unique.
-                          // For this example, assuming lesson.id is for content identification.
                           const speechId = lesson.id || `speech-id-${index}`;
                           if (currentlySpeakingLessonId === speechId) {
                             stopSpeech();
