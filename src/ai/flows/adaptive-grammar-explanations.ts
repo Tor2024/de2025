@@ -15,8 +15,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
 import { proficiencyLevels as appProficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
+import type { ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
 
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
@@ -28,10 +28,10 @@ const AdaptiveGrammarExplanationsInputSchema = z.object({
 });
 export type AdaptiveGrammarExplanationsInput = z.infer<typeof AdaptiveGrammarExplanationsInputSchema>;
 
-const PracticeTaskSchema = z.object({
+export const PracticeTaskSchema = z.object({
   id: z.string().describe('A unique ID for the task, e.g., "task_1", "task_2".'),
   type: z.enum(['fill-in-the-blank']).describe('The type of the task. For now, only "fill-in-the-blank" is supported.'),
-  taskDescription: z.string().describe('The task itself, e.g., "The cat ____ on the mat." The blank should be indicated by "____". This description must be in the {{{interfaceLanguage}}}.'),
+  taskDescription: z.string().describe('The task itself, including very clear instructions on what the user should do and in what format the answer is expected. E.g., for a fill-in-the-blank task: "Complete the sentence: The cat ____ on the mat." The blank should be indicated by "____". This description MUST be in the {{{interfaceLanguage}}}.'),
   correctAnswer: z.string().describe('The correct word(s) for the blank. This should be in the target language the user is learning.'),
 });
 export type PracticeTask = z.infer<typeof PracticeTaskSchema>;
@@ -57,24 +57,28 @@ You will generate a grammar explanation and structured practice tasks tailored t
 CRITICAL INSTRUCTIONS:
 1.  **Interface Language ({{{interfaceLanguage}}})**: 
     *   ALL textual content of your 'explanation' field MUST be in this language.
-    *   For EACH task in the 'practiceTasks' array, the 'taskDescription' field MUST be in this language.
+    *   For EACH task in the 'practiceTasks' array, the 'taskDescription' field (which includes the instructions for the task) MUST be in this language.
 2.  **Target Language Examples**: When explaining the '{{{grammarTopic}}}' for the target language the user is learning, all example sentences demonstrating the grammar rule MUST be IN THE TARGET LANGUAGE. If you provide translations for these example sentences to help the user understand, these translations MUST be into the '{{{interfaceLanguage}}}'. The primary examples illustrating the target language grammar must be in the target language itself.
 3.  **ABSOLUTELY NO MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, task descriptions). Present all text plainly.
-4.  **Practice Task Structure**: Each task in the 'practiceTasks' array MUST be an object with 'id' (e.g., "task_1"), 'type' (currently only "fill-in-the-blank"), 'taskDescription' (sentence with "____" for the blank, in {{{interfaceLanguage}}}), and 'correctAnswer' (the word for the blank, in the target language).
+4.  **Practice Task Structure**: Each task in the 'practiceTasks' array MUST be an object with:
+    *   'id': A unique ID (e.g., "task_1").
+    *   'type': Currently only "fill-in-the-blank".
+    *   'taskDescription': The task itself, including VERY CLEAR AND UNAMBIGUOUS instructions on what the user should do and in what format the answer is expected. For "fill-in-the-blank" tasks, the blank MUST be indicated by "____". This 'taskDescription' field (including instructions) MUST be in the {{{interfaceLanguage}}}.
+    *   'correctAnswer': The correct word(s) for the blank. This MUST be in the target language.
 
 User Details:
 Grammar Topic: {{{grammarTopic}}}
 Proficiency Level: {{{proficiencyLevel}}}
 Learning Goal: {{{learningGoal}}}
 User's Past Errors (if any, pay attention to those relevant to the current Grammar Topic):
-{{{userPastErrors}}}
+Module: {{userPastErrors.split('\n')[0]?.split(',')[0]?.split(':')[1]?.trim() || 'N/A'}}, Context: {{userPastErrors.split('\n')[0]?.split(',')[1]?.split(':')[1]?.trim() || 'N/A'}}, User attempt: {{userPastErrors.split('\n')[0]?.split(',')[2]?.split(':')[1]?.trim() || 'N/A'}}, Correct: {{userPastErrors.split('\n')[0]?.split(',')[3]?.split(':')[1]?.trim() || 'N/A'}}
 
 Your task:
 1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
 2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
-3.  Generate a list of **Practice Tasks** (usually 2-5 tasks). These tasks should:
-    *   Follow the structured format: \`{ id: "task_N", type: "fill-in-the-blank", taskDescription: "Sentence with ____ in {{{interfaceLanguage}}}.", correctAnswer: "answerInTargetLanguage" }\`.
-    *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}}.
+3.  Generate a list of **Practice Tasks** (usually 2-3 tasks). These tasks should:
+    *   Follow the structured format described in "Practice Task Structure" above.
+    *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}} and be extremely clear.
     *   The 'correctAnswer' MUST be in the target language.
     *   Be suitable for the user's {{{proficiencyLevel}}}.
     *   Help achieve the {{{learningGoal}}}.

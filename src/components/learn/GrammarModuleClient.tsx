@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
-import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
+import { adaptiveGrammarExplanations, PracticeTaskSchema } from "@/ai/flows/adaptive-grammar-explanations"; // PracticeTaskSchema is no longer directly exported, but PracticeTask type is
 import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -177,7 +177,7 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
     console.log('TTS: GrammarModuleClient - Selected Google voice:', googleVoice.name);
     return googleVoice;
   }
-
+  
   const defaultVoice = targetLangVoices.find(voice => voice.default);
   if (defaultVoice) {
     console.log('TTS: GrammarModuleClient - Selected default voice:', defaultVoice.name);
@@ -287,7 +287,7 @@ export function GrammarModuleClient() {
         if (event.error === "interrupted") {
           console.info('TTS: GrammarModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
         } else {
-          console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
+          console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
           toast({
             title: t('ttsUtteranceErrorTitle'),
             description: t('ttsUtteranceErrorDescription'),
@@ -549,7 +549,7 @@ export function GrammarModuleClient() {
 
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
-              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                 {explanationResult.practiceTasks && explanationResult.practiceTasks.length > 0 ? (
                   <div className="space-y-4">
                     {explanationResult.practiceTasks.map((task, index) => (
