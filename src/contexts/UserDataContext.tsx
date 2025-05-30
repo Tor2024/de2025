@@ -30,6 +30,10 @@ const initialUserData: UserData = {
 const BADGE_FIRST_LESSON_COMPLETED = "First Lesson Completed";
 const BADGE_XP_100 = "100 XP Earned";
 const BADGE_STREAK_3_DAYS = "3-Day Streak";
+const BADGE_XP_500 = "500 XP Milestone";
+const BADGE_STREAK_7_DAYS = "7-Day Learning Habit";
+const BADGE_LESSONS_5_COMPLETED = "5 Lessons Conquered";
+
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
@@ -66,13 +70,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       if (isCompleted) {
         // Mark as incomplete
         newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
-        newXp = Math.max(0, newXp - 25);
-        // For simplicity, streak is not decremented, nor are badges removed.
+        newXp = Math.max(0, newXp - 25); // Assuming 25 XP per lesson
+        // For simplicity, streak is not decremented, nor are badges removed when un-completing.
       } else {
         // Mark as complete
         newCompletedLessonIds = [...currentCompletedIds, lessonId];
-        newXp += 25;
-        newStreak += 1; // Simplified streak logic
+        newXp += 25; // Award XP
+        newStreak += 1; // Increment streak (simplified logic)
 
         // Award badges
         if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
@@ -81,8 +85,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (newXp >= 100 && !newBadges.includes(BADGE_XP_100)) {
           newBadges.push(BADGE_XP_100);
         }
+        if (newXp >= 500 && !newBadges.includes(BADGE_XP_500)) {
+          newBadges.push(BADGE_XP_500);
+        }
         if (newStreak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) {
           newBadges.push(BADGE_STREAK_3_DAYS);
+        }
+        if (newStreak >= 7 && !newBadges.includes(BADGE_STREAK_7_DAYS)) {
+          newBadges.push(BADGE_STREAK_7_DAYS);
+        }
+        if (newCompletedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
+          newBadges.push(BADGE_LESSONS_5_COMPLETED);
         }
       }
 
@@ -107,11 +120,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
       };
       const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
+      // Limit error archive size to, e.g., last 50 errors to prevent localStorage bloat
+      const limitedErrorArchive = updatedErrorArchive.slice(-50); 
+
       return {
         ...prev,
         progress: {
           ...(prev.progress || initialUserProgress),
-          errorArchive: updatedErrorArchive,
+          errorArchive: limitedErrorArchive,
         },
       };
     });
