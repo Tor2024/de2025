@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,7 +16,7 @@ import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutpu
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles, XCircle } from "lucide-react";
+import { Sparkles, XCircle, Volume2, Ban } from "lucide-react";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -46,6 +46,11 @@ const baseEnTranslations: Record<string, string> = {
   hintDer: "Masculine Nominative",
   hintDie: "Feminine/Plural Nominative/Accusative",
   hintDas: "Neuter Nominative/Accusative",
+  ttsPlayExplanation: "Play explanation",
+  ttsStopExplanation: "Stop explanation",
+  ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+  ttsNotSupportedTitle: "TTS Not Supported",
+  ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -68,6 +73,11 @@ const baseRuTranslations: Record<string, string> = {
   hintDer: "Мужской род, им. падеж",
   hintDie: "Женский род/Мн. число, им./вин. падеж",
   hintDas: "Средний род, им./вин. падеж",
+  ttsPlayExplanation: "Озвучить объяснение",
+  ttsStopExplanation: "Остановить озвучку",
+  ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+  ttsNotSupportedTitle: "TTS не поддерживается",
+  ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
 };
 
 const generateTranslations = () => {
@@ -88,7 +98,6 @@ const germanArticleHighlights: Record<string, { color: string; hintKey: string }
   'der': { color: 'blue', hintKey: 'hintDer' },
   'die': { color: 'red', hintKey: 'hintDie' },
   'das': { color: 'green', hintKey: 'hintDas' },
-  // Add more articles like 'den', 'dem', 'des' with different colors/hints if needed
 };
 
 const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<string, { color: string; hintKey: string }>; translateFn: (key: string, defaultText?: string) => string }> = ({ text, highlights, translateFn }) => {
@@ -97,7 +106,6 @@ const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<strin
   const highlightKeys = Object.keys(highlights);
   if (highlightKeys.length === 0) return <>{text}</>;
 
-  // Regex to match whole words, case-insensitive, considering word boundaries
   const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
   
   const parts = text.split(regex);
@@ -136,6 +144,12 @@ export function GrammarModuleClient() {
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
+  // TTS States
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
+  const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
+  const currentUtteranceIndexRef = React.useRef<number>(0);
+
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
   });
@@ -145,6 +159,80 @@ export function GrammarModuleClient() {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
+
+  // TTS Functions
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const speakNext = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
+      const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
+      utterance.onend = () => {
+        currentUtteranceIndexRef.current++;
+        speakNext();
+      };
+      utterance.onerror = (event) => {
+        console.error('SpeechSynthesisUtterance.onerror', event);
+        setCurrentlySpeakingTTSId(null);
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setCurrentlySpeakingTTSId(null);
+    }
+  }, []);
+
+  const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      toast({
+        title: t('ttsNotSupportedTitle'),
+        description: t('ttsNotSupportedDescription'),
+        variant: 'destructive',
+      });
+      setCurrentlySpeakingTTSId(null);
+      return;
+    }
+
+    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
+      window.speechSynthesis.cancel();
+      setCurrentlySpeakingTTSId(null);
+      return;
+    }
+    
+    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+
+    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
+    if (!trimmedTextToSpeak) {
+      setCurrentlySpeakingTTSId(null);
+      return;
+    }
+
+    const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
+
+    utteranceQueueRef.current = sentences.map(sentence => {
+      const utterance = new SpeechSynthesisUtterance(sentence.trim());
+      utterance.lang = langCode;
+      return utterance;
+    });
+
+    currentUtteranceIndexRef.current = 0;
+    setCurrentlySpeakingTTSId(textId);
+    speakNext();
+  }, [currentlySpeakingTTSId, speakNext, t, toast]);
+
+  const stopSpeech = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setCurrentlySpeakingTTSId(null);
+  }, []);
 
 
   if (isUserDataLoading) {
@@ -159,6 +247,7 @@ export function GrammarModuleClient() {
     setIsAiLoading(true);
     setExplanationResult(null);
     setCurrentTopic(data.grammarTopic);
+    stopSpeech();
     try {
       const grammarInput: AdaptiveGrammarExplanationsInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage,
@@ -191,7 +280,11 @@ export function GrammarModuleClient() {
   const handleClearResults = () => {
     setExplanationResult(null);
     setCurrentTopic("");
+    stopSpeech();
   };
+
+  const explanationTTSId = `grammar-explanation-${currentTopic.replace(/\s+/g, '-')}`;
+  const hasExplanationText = !!(explanationResult && explanationResult.explanation && explanationResult.explanation.trim().length > 0);
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -201,7 +294,12 @@ export function GrammarModuleClient() {
             <Sparkles className="h-8 w-8 text-primary animate-pulse" />
             {t('title')}
           </CardTitle>
-          <CardDescription>{t('description')}</CardDescription>
+          <CardDescription>
+            {t('description')}
+            {typeof window !== 'undefined' && window.speechSynthesis && (
+              <span className="block text-xs text-muted-foreground mt-1 italic">{t('ttsExperimentalText')}</span>
+            )}
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
@@ -236,7 +334,36 @@ export function GrammarModuleClient() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold text-lg mb-2">{t('explanationHeader')}</h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-lg">{t('explanationHeader')}</h3>
+                {typeof window !== 'undefined' && window.speechSynthesis && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (!hasExplanationText || !explanationResult?.explanation) return;
+                          if (currentlySpeakingTTSId === explanationTTSId) {
+                            stopSpeech();
+                          } else {
+                            playText(explanationTTSId, explanationResult.explanation, userData.settings!.interfaceLanguage);
+                          }
+                        }}
+                        className="shrink-0"
+                        aria-label={currentlySpeakingTTSId === explanationTTSId ? t('ttsStopExplanation') : t('ttsPlayExplanation')}
+                        disabled={!hasExplanationText || isAiLoading}
+                      >
+                        {currentlySpeakingTTSId === explanationTTSId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                        {currentlySpeakingTTSId === explanationTTSId ? t('ttsStopExplanation') : t('ttsPlayExplanation')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{currentlySpeakingTTSId === explanationTTSId ? t('ttsStopExplanation') : t('ttsPlayExplanation')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                    <HighlightedTextRenderer text={explanationResult.explanation} highlights={germanArticleHighlights} translateFn={t} />
