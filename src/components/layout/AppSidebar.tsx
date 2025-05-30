@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarMenuSkeleton, // Already available from ui/sidebar
 } from "@/components/ui/sidebar";
 import {
   Home,
@@ -28,6 +29,7 @@ import {
 import { useUserData } from "@/contexts/UserDataContext";
 import type { LucideIcon } from "lucide-react";
 import { interfaceLanguageCodes } from "@/lib/types"; 
+import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 interface NavItemDef {
   href: string;
@@ -155,7 +157,35 @@ export function AppSidebar() {
   };
   
   if (isUserDataLoading || !userData.settings) {
-    return null; 
+    // Render Skeleton UI for Sidebar
+    return (
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="p-2">
+          <div className="flex items-center justify-center group-data-[collapsible=icon]:justify-center p-2 rounded-md">
+            <Skeleton className="h-8 w-8 rounded-md group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
+            <Skeleton className="ml-2 h-4 w-20 group-data-[collapsible=icon]:hidden" />
+          </div>
+        </SidebarHeader>
+        <SidebarContent className="p-2">
+          <SidebarMenu>
+            {/* Typically 5-7 main nav items */}
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="p-2">
+          <SidebarMenu>
+            {/* 3 bottom nav items */}
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+    );
   }
 
   const mapNavItem = (itemDef: NavItemDef) => ({
