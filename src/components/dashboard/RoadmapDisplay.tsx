@@ -2,18 +2,17 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useRef } from "react"; // Removed useState, useEffect for TTS here as they come from parent/context now
+import { useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUserData } from "@/contexts/UserDataContext";
 import { BookMarked, ListChecks, Clock, Info, Square, CheckSquare, Volume2, Ban } from "lucide-react";
 import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
-// import { Button } from "@/components/ui/button"; // Button not used directly in this component anymore for TTS
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { mapInterfaceLanguageToBcp47 } from "@/lib/types"; // For interface language TTS
+import { mapInterfaceLanguageToBcp47 } from "@/lib/types";
 
 interface RoadmapDisplayProps {
   titleText: string;
@@ -65,19 +64,35 @@ export function RoadmapDisplay({
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
-  const playTextInternalIdRef = React.useRef<number>(0); // To interrupt previous playText calls
+  const playTextInternalIdRef = React.useRef<number>(0);
+
+  const currentLang = userData.settings?.interfaceLanguage || 'en';
+  const t = (key: string, defaultText?: string): string => {
+    const translations: Record<string, Record<string,string>> = {
+        // Dummy translations, actual ones are passed via props
+        ttsPlayText: ttsPlayText,
+        ttsStopText: ttsStopText,
+        ttsExperimentalText: ttsExperimentalText,
+        ttsNotSupportedTitle: ttsNotSupportedTitle,
+        ttsNotSupportedDescription: ttsNotSupportedDescription,
+        ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
+        ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
+    };
+    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
+  };
+
 
   React.useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: RoadmapDisplay - Voices loaded:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log('TTS: RoadmapDisplay - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices(); // Initial load
-      window.speechSynthesis.onvoiceschanged = updateVoices; // Subsequent changes
+      updateVoices();
+      window.speechSynthesis.onvoiceschanged = updateVoices;
     }
 
     return () => {
@@ -96,20 +111,59 @@ export function RoadmapDisplay({
       console.warn('TTS: RoadmapDisplay - Voices not available or synthesis not supported.');
       return undefined;
     }
+    console.log(`TTS: RoadmapDisplay - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
       const baseLang = langCode.split('-')[0];
       targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
+      if (targetLangVoices.length) {
+        console.log(`TTS: RoadmapDisplay - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+      }
     }
-    if (!targetLangVoices.length) return undefined;
+
+    if (!targetLangVoices.length) {
+      console.warn(`TTS: RoadmapDisplay - No voices found for lang "${langCode}" or base lang.`);
+      return undefined;
+    }
+    
+    if (langCode.startsWith('de')) {
+      const specificGermanVoice = targetLangVoices.find(voice =>
+        voice.name.toLowerCase().includes('german') || voice.name.toLowerCase().includes('deutsch')
+      );
+      if (specificGermanVoice) {
+        console.log(`TTS: RoadmapDisplay - Selected specific German voice: ${specificGermanVoice.name}`);
+        return specificGermanVoice;
+      }
+    }
+
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-    if (googleVoice) return googleVoice;
+    if (googleVoice) {
+      console.log('TTS: RoadmapDisplay - Selected Google voice:', googleVoice.name);
+      return googleVoice;
+    }
+
     const defaultVoice = targetLangVoices.find(voice => voice.default);
-    if (defaultVoice) return defaultVoice;
+    if (defaultVoice) {
+      console.log('TTS: RoadmapDisplay - Selected default voice:', defaultVoice.name);
+      return defaultVoice;
+    }
+    
     const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-    if (localServiceVoice) return localServiceVoice;
-    return targetLangVoices[0];
+    if (localServiceVoice) {
+      console.log('TTS: RoadmapDisplay - Selected local service voice:', localServiceVoice.name);
+      return localServiceVoice;
+    }
+    
+    if (targetLangVoices.length > 0) {
+      console.log('TTS: RoadmapDisplay - Selected first available voice:', targetLangVoices[0].name);
+      return targetLangVoices[0];
+    }
+    
+    console.warn(`TTS: RoadmapDisplay - Could not select any voice for lang "${langCode}".`);
+    return undefined;
   }, []);
+
 
   const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
     if (!text) return "";
@@ -126,7 +180,7 @@ export function RoadmapDisplay({
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) return; // Interrupted by new playText call
+    if (playTextInternalIdRef.current !== currentPlayId) return;
 
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -139,17 +193,17 @@ export function RoadmapDisplay({
           console.info('TTS: RoadmapDisplay - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: ttsUtteranceErrorTitle, description: ttsUtteranceErrorDescription, variant: 'destructive' });
+          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingLessonId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { // Check if it was a "Пииип" initiated speech
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangCode = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-        endSignalUtterance.lang = interfaceLangCode;
-        const voice = selectPreferredVoice(interfaceLangCode, voicesRef.current || []);
+        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+        endSignalUtterance.lang = interfaceLangBcp47;
+        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
         if (voice) endSignalUtterance.voice = voice;
         endSignalUtterance.rate = 0.95;
         endSignalUtterance.pitch = 1.1;
@@ -157,14 +211,15 @@ export function RoadmapDisplay({
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [setCurrentlySpeakingLessonId, toast, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [setCurrentlySpeakingLessonId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
+
 
   const playText = useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
-    playTextInternalIdRef.current += 1; // Increment to invalidate previous calls
+    playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
 
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      toast({ title: ttsNotSupportedTitle, description: ttsNotSupportedDescription, variant: "destructive" });
+      toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
       return;
     }
     if (window.speechSynthesis.speaking) {
@@ -203,7 +258,7 @@ export function RoadmapDisplay({
 
     setCurrentlySpeakingLessonId(lessonId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, ttsNotSupportedTitle, ttsNotSupportedDescription, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -246,6 +301,7 @@ export function RoadmapDisplay({
               const isCompleted = completedLessonIds.includes(lesson.id);
               const hasDescription = lesson.description && lesson.description.trim().length > 0;
               const isCurrentlySpeakingThis = currentlySpeakingLessonId === lesson.id;
+              const ttsButtonId = `tts-lesson-${lesson.id || index}`;
 
               return (
                 <AccordionItem

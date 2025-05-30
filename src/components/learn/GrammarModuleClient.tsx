@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
-import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
+import { adaptiveGrammarExplanations} from "@/ai/flows/adaptive-grammar-explanations";
 import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
 import type { ExplainGrammarTaskErrorInput } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -183,7 +183,7 @@ export function GrammarModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-         console.log('TTS: GrammarModule - Voices loaded:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+         console.log('TTS: GrammarModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -203,22 +203,60 @@ export function GrammarModuleClient() {
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-      console.warn('TTS: GrammarModule - Voices not available or synthesis not supported.');
+      console.warn('TTS: GrammarModuleClient - Voices not available or synthesis not supported.');
       return undefined;
     }
+    console.log(`TTS: GrammarModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
       const baseLang = langCode.split('-')[0];
       targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
+      if (targetLangVoices.length) {
+        console.log(`TTS: GrammarModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+      }
     }
-    if (!targetLangVoices.length) return undefined;
+
+    if (!targetLangVoices.length) {
+      console.warn(`TTS: GrammarModuleClient - No voices found for lang "${langCode}" or base lang.`);
+      return undefined;
+    }
+    
+    if (langCode.startsWith('de')) {
+      const specificGermanVoice = targetLangVoices.find(voice =>
+        voice.name.toLowerCase().includes('german') || voice.name.toLowerCase().includes('deutsch')
+      );
+      if (specificGermanVoice) {
+        console.log(`TTS: GrammarModuleClient - Selected specific German voice: ${specificGermanVoice.name}`);
+        return specificGermanVoice;
+      }
+    }
+
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-    if (googleVoice) return googleVoice;
+    if (googleVoice) {
+      console.log('TTS: GrammarModuleClient - Selected Google voice:', googleVoice.name);
+      return googleVoice;
+    }
+
     const defaultVoice = targetLangVoices.find(voice => voice.default);
-    if (defaultVoice) return defaultVoice;
+    if (defaultVoice) {
+      console.log('TTS: GrammarModuleClient - Selected default voice:', defaultVoice.name);
+      return defaultVoice;
+    }
+    
     const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-    if (localServiceVoice) return localServiceVoice;
-    return targetLangVoices[0];
+    if (localServiceVoice) {
+      console.log('TTS: GrammarModuleClient - Selected local service voice:', localServiceVoice.name);
+      return localServiceVoice;
+    }
+    
+    if (targetLangVoices.length > 0) {
+      console.log('TTS: GrammarModuleClient - Selected first available voice:', targetLangVoices[0].name);
+      return targetLangVoices[0];
+    }
+    
+    console.warn(`TTS: GrammarModuleClient - Could not select any voice for lang "${langCode}".`);
+    return undefined;
   }, []);
 
   const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
@@ -246,16 +284,16 @@ export function GrammarModuleClient() {
       };
       utterance.onerror = (event) => {
          if (event.error === "interrupted") {
-          console.info('TTS: GrammarModule - Speech synthesis interrupted.');
+          console.info('TTS: GrammarModuleClient - Speech synthesis interrupted.');
         } else {
-          console.error('TTS: GrammarModule - SpeechSynthesisUtterance.onerror - Error type:', event.error);
+          console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { // Check if it was a "Пииип" initiated speech
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
         const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
@@ -288,7 +326,7 @@ export function GrammarModuleClient() {
       setCurrentlySpeakingTTSId(null);
       return;
     }
-
+    
     const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
@@ -297,7 +335,7 @@ export function GrammarModuleClient() {
     startSignalUtterance.rate = 0.95;
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
-    
+
     const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
     sentences.forEach(sentence => {
       if (sentence.trim()) {
@@ -312,7 +350,7 @@ export function GrammarModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -416,7 +454,8 @@ export function GrammarModuleClient() {
   };
 
   const hasExplanationText = !!(explanationResult && explanationResult.explanation && explanationResult.explanation.trim().length > 0);
-  const isCurrentlySpeakingThisExplanation = currentlySpeakingTTSId === 'grammarExplanation';
+  const ttsPlayButtonId = `tts-grammar-${currentTopic.replace(/\s+/g, '-') || 'explanation'}`;
+  const isCurrentlySpeakingThisExplanation = currentlySpeakingTTSId === ttsPlayButtonId;
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -483,12 +522,13 @@ export function GrammarModuleClient() {
                             if (isCurrentlySpeakingThisExplanation) {
                               stopSpeech();
                             } else {
-                              const langCode = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-                              playText('grammarExplanation', explanationResult.explanation, langCode);
+                               const langCode = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+                               playText(ttsPlayButtonId, explanationResult.explanation, langCode);
                             }
                           }}
                           aria-label={isCurrentlySpeakingThisExplanation ? t('ttsStopExplanation') : t('ttsPlayExplanation')}
                           className="ml-2 p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                          disabled={!hasExplanationText}
                         >
                           {isCurrentlySpeakingThisExplanation ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                         </button>

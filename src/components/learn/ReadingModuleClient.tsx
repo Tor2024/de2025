@@ -162,7 +162,7 @@ export function ReadingModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: ReadingModule - Voices loaded:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log('TTS: ReadingModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
 
@@ -183,22 +183,60 @@ export function ReadingModuleClient() {
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-      console.warn('TTS: ReadingModule - Voices not available or synthesis not supported.');
+      console.warn('TTS: ReadingModuleClient - Voices not available or synthesis not supported.');
       return undefined;
     }
+    console.log(`TTS: ReadingModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
       const baseLang = langCode.split('-')[0];
       targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
+      if (targetLangVoices.length) {
+        console.log(`TTS: ReadingModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
+      }
     }
-    if (!targetLangVoices.length) return undefined;
+
+    if (!targetLangVoices.length) {
+      console.warn(`TTS: ReadingModuleClient - No voices found for lang "${langCode}" or base lang.`);
+      return undefined;
+    }
+    
+    if (langCode.startsWith('de')) {
+      const specificGermanVoice = targetLangVoices.find(voice =>
+        voice.name.toLowerCase().includes('german') || voice.name.toLowerCase().includes('deutsch')
+      );
+      if (specificGermanVoice) {
+        console.log(`TTS: ReadingModuleClient - Selected specific German voice: ${specificGermanVoice.name}`);
+        return specificGermanVoice;
+      }
+    }
+
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-    if (googleVoice) return googleVoice;
+    if (googleVoice) {
+      console.log('TTS: ReadingModuleClient - Selected Google voice:', googleVoice.name);
+      return googleVoice;
+    }
+
     const defaultVoice = targetLangVoices.find(voice => voice.default);
-    if (defaultVoice) return defaultVoice;
+    if (defaultVoice) {
+      console.log('TTS: ReadingModuleClient - Selected default voice:', defaultVoice.name);
+      return defaultVoice;
+    }
+    
     const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-    if (localServiceVoice) return localServiceVoice;
-    return targetLangVoices[0];
+    if (localServiceVoice) {
+      console.log('TTS: ReadingModuleClient - Selected local service voice:', localServiceVoice.name);
+      return localServiceVoice;
+    }
+    
+    if (targetLangVoices.length > 0) {
+      console.log('TTS: ReadingModuleClient - Selected first available voice:', targetLangVoices[0].name);
+      return targetLangVoices[0];
+    }
+    
+    console.warn(`TTS: ReadingModuleClient - Could not select any voice for lang "${langCode}".`);
+    return undefined;
   }, []);
 
   const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
@@ -226,9 +264,9 @@ export function ReadingModuleClient() {
       };
       utterance.onerror = (event) => {
         if (event.error === "interrupted") {
-          console.info('TTS: ReadingModule - Speech synthesis interrupted.');
+          console.info('TTS: ReadingModuleClient - Speech synthesis interrupted.');
         } else {
-          console.error('TTS: ReadingModule - SpeechSynthesisUtterance.onerror - Error type:', event.error);
+          console.error('TTS: ReadingModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
@@ -292,7 +330,7 @@ export function ReadingModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -398,16 +436,18 @@ export function ReadingModuleClient() {
   };
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const hasTextToRead = readingResult && readingResult.readingText && readingResult.readingText.trim().length > 0;
   const hasQuestions = readingResult && readingResult.comprehensionQuestions && readingResult.comprehensionQuestions.length > 0;
   const totalQuestions = readingResult?.comprehensionQuestions?.length || 0;
-  const isCurrentlySpeakingThisText = currentlySpeakingTTSId === 'readingText';
+  const ttsPlayButtonId = `tts-reading-${readingResult?.title?.replace(/\s+/g, '-') || currentTopic.replace(/\s+/g, '-') || 'text'}`;
+  const isCurrentlySpeakingThisText = currentlySpeakingTTSId === ttsPlayButtonId;
+
 
   const getScoreMessage = () => {
     if (!isAnswersSubmitted || !hasQuestions) return null;
@@ -514,12 +554,15 @@ export function ReadingModuleClient() {
                                 if (isCurrentlySpeakingThisText) {
                                   stopSpeech();
                                 } else {
-                                  const langCode = userData.settings?.targetLanguage ? mapTargetLanguageToBcp47(userData.settings.targetLanguage) : 'en-US';
-                                  playText('readingText', readingResult.readingText, langCode);
+                                  if (userData.settings?.targetLanguage) {
+                                     const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage);
+                                     playText(ttsPlayButtonId, readingResult.readingText, langCode);
+                                  }
                                 }
                               }}
                               aria-label={isCurrentlySpeakingThisText ? t('ttsStopText') : t('ttsPlayText')}
                               className="ml-2 p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                              disabled={!hasTextToRead}
                             >
                               {isCurrentlySpeakingThisText ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                             </button>
