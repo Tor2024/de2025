@@ -15,7 +15,7 @@ import { generateReadingMaterial } from "@/ai/flows/generate-reading-material-fl
 import type { GenerateReadingMaterialInput, GenerateReadingMaterialOutput } from "@/ai/flows/generate-reading-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { BookOpen, HelpCircle } from "lucide-react";
+import { BookOpen, HelpCircle, Sparkles } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 
@@ -66,7 +66,7 @@ const generateTranslations = () => {
     if (code === 'ru') {
       translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
     } else {
-      translations[code] = { ...baseEnTranslations }; // Fallback to English
+      translations[code] = { ...baseEnTranslations }; 
     }
   });
   return translations;
@@ -77,7 +77,7 @@ const componentTranslations = generateTranslations();
 export function ReadingModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [readingResult, setReadingResult] = useState<GenerateReadingMaterialOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
@@ -107,7 +107,7 @@ export function ReadingModuleClient() {
   }
 
   const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
-    setIsLoading(true);
+    setIsAiLoading(true);
     setReadingResult(null);
     setCurrentTopic(data.topic); 
     try {
@@ -134,7 +134,7 @@ export function ReadingModuleClient() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsAiLoading(false);
     }
   };
 
@@ -157,8 +157,8 @@ export function ReadingModuleClient() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-              {isLoading ? <LoadingSpinner /> : t('getTextButton')}
+            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
+              {isAiLoading ? <LoadingSpinner /> : t('getTextButton')}
             </Button>
           </CardFooter>
         </form>
@@ -167,7 +167,8 @@ export function ReadingModuleClient() {
       {readingResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
+               <Sparkles className="h-6 w-6 text-primary" />
               {t('resultsTitlePrefix')} {currentTopic}
               {readingResult.title && <span className="block text-lg text-muted-foreground mt-1">({readingResult.title})</span>}
             </CardTitle>
@@ -184,17 +185,17 @@ export function ReadingModuleClient() {
                 <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                   <ul className="space-y-3">
                     {readingResult.comprehensionQuestions.map((q, index) => (
-                      <li key={index} className="text-sm">
+                      <li key={index} className="text-sm p-2 rounded-md bg-card border">
                         <p className="font-medium mb-1 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-primary/80" />{q.question}</p>
                         {q.options && q.options.length > 0 && (
-                          <ul className="list-disc pl-5 space-y-1 text-xs">
+                          <ul className="list-disc pl-5 space-y-1 text-xs ml-4">
                             {q.options.map((opt, optIndex) => (
                               <li key={optIndex}>{opt}</li>
                             ))}
                           </ul>
                         )}
                         {q.answer && (
-                           <p className="text-xs text-muted-foreground mt-1"><em>Answer indication: {q.answer}</em></p>
+                           <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication', 'Answer indication')}: {q.answer}</em></p>
                         )}
                       </li>
                     ))}
@@ -203,7 +204,7 @@ export function ReadingModuleClient() {
               </>
             )}
             {(!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && (
-                <p className="text-sm text-muted-foreground italic">{t('noQuestions')}</p>
+                <p className="text-sm text-muted-foreground italic mt-4">{t('noQuestions')}</p>
             )}
           </CardContent>
         </Card>
@@ -211,3 +212,5 @@ export function ReadingModuleClient() {
     </div>
   );
 }
+
+    
