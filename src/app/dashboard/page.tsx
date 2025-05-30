@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react'; 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Добавлен useCallback
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -71,21 +71,15 @@ const baseEnTranslations: Record<string, string> = {
     roadmapTopicsToCover: "Topics to Cover:",
     roadmapEstimatedDuration: "Estimated duration:",
     roadmapConclusion: "Conclusion",
-    ttsPlayText: "Play description",
-    ttsStopText: "Stop speech",
-    ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
-    ttsNotSupportedTitle: "TTS Not Supported",
-    ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
+    markCompleteTooltip: "Mark as complete",
+    markIncompleteTooltip: "Mark as incomplete",
     startLearningButton: "Start Learning",
     comingSoonButton: "Coming Soon",
     tooltipInterfaceLanguage: "Interface Language",
     tooltipTargetLanguage: "Target Language",
     tooltipProficiency: "Proficiency Level",
     tooltipGoal: "Current Goal",
-    markCompleteTooltip: "Mark as complete",
-    markIncompleteTooltip: "Mark as incomplete",
-    ttsUtteranceErrorTitle: "Speech Error",
-    ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+    // Ключи для TTS удалены из RoadmapDisplay
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -140,21 +134,15 @@ const baseRuTranslations: Record<string, string> = {
     roadmapTopicsToCover: "Темы для изучения:",
     roadmapEstimatedDuration: "Предполагаемая длительность:",
     roadmapConclusion: "Заключение",
-    ttsPlayText: "Озвучить описание",
-    ttsStopText: "Остановить озвучку",
-    ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
-    ttsNotSupportedTitle: "TTS не поддерживается",
-    ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
+    markCompleteTooltip: "Отметить как пройденный",
+    markIncompleteTooltip: "Отметить как не пройденный",
     startLearningButton: "Начать обучение",
     comingSoonButton: "Скоро",
     tooltipInterfaceLanguage: "Язык интерфейса",
     tooltipTargetLanguage: "Изучаемый язык",
     tooltipProficiency: "Уровень владения",
     tooltipGoal: "Текущая цель",
-    markCompleteTooltip: "Отметить как пройденный",
-    markIncompleteTooltip: "Отметить как не пройденный",
-    ttsUtteranceErrorTitle: "Ошибка синтеза речи",
-    ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+    // Ключи для TTS удалены из RoadmapDisplay
 };
 
 const generateTranslations = () => {
@@ -194,7 +182,7 @@ export default function DashboardPage() {
     return defaultText || key; 
   };
 
-  const fetchTutorTip = React.useCallback(async () => {
+  const fetchTutorTip = useCallback(async () => {
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
       return;
     }
@@ -239,13 +227,15 @@ export default function DashboardPage() {
       setIsTipLoading(false);
     }
   }, [ 
-    userData.settings,
-    t, 
-    toast, 
     isTipLoading, 
-    tipCooldownEndTime
+    tipCooldownEndTime, 
+    userData.settings, 
+    t, 
+    toast
   ]); 
   
+  // useEffect для автоматической загрузки совета удален
+
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
@@ -309,17 +299,11 @@ export default function DashboardPage() {
               loadingContentText={t('roadmapLoadingContent')}
               introductionHeaderText={t('roadmapIntroduction')}
               topicsToCoverText={t('topicsToCoverText')}
-              estimatedDurationText={t('estimatedDurationText')}
+              estimatedDurationText={t('roadmapEstimatedDuration')}
               conclusionHeaderText={t('roadmapConclusion')}
-              ttsPlayText={t('ttsPlayText')}
-              ttsStopText={t('ttsStopText')}
-              ttsExperimentalText={t('ttsExperimentalText')}
-              ttsNotSupportedTitle={t('ttsNotSupportedTitle')}
-              ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
               markCompleteTooltip={t('markCompleteTooltip')}
               markIncompleteTooltip={t('markIncompleteTooltip')}
-              ttsUtteranceErrorTitle={t('ttsUtteranceErrorTitle')}
-              ttsUtteranceErrorDescription={t('ttsUtteranceErrorDescription')}
+              // TTS props удалены
             />
           </div>
           <div className="md:w-1/3 space-y-6">

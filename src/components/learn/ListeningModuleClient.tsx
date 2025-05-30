@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react"; // Добавлен useRef
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,9 +16,9 @@ import { generateListeningMaterial } from "@/ai/flows/generate-listening-materia
 import type { GenerateListeningMaterialInput, GenerateListeningMaterialOutput } from "@/ai/flows/generate-listening-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Headphones, Sparkles, Volume2, Ban, HelpCircle, Info, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive } from "lucide-react";
+import { Headphones, Sparkles, HelpCircle, Info, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive } from "lucide-react"; // Volume2, Ban удалены
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+// import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"; // Не используется без TTS
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ type ListeningFormData = z.infer<typeof listeningSchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Listening Practice",
-  description: "Enter a topic. Our AI will generate a short script (dialogue or monologue) in your target language, adapted to your proficiency level, along with optional comprehension questions. You can listen to the script using Text-to-Speech.",
+  description: "Enter a topic. Our AI will generate a short script (dialogue or monologue) in your target language, adapted to your proficiency level, along with optional comprehension questions.", // TTS part removed
   topicLabel: "Topic for Listening Material",
   topicPlaceholder: "E.g., Weekend plans, Ordering at a cafe, A news report",
   getMaterialButton: "Get Listening Material",
@@ -47,11 +47,6 @@ const baseEnTranslations: Record<string, string> = {
   noScenario: "No scenario description provided.",
   noQuestions: "No comprehension questions were generated for this script.",
   answerIndication: "Answer indication",
-  ttsPlayScript: "Play script",
-  ttsStopScript: "Stop script",
-  ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
-  ttsNotSupportedTitle: "TTS Not Supported",
-  ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   noScriptGenerated: "The AI did not generate a script for this topic. Please try a different topic or try again.",
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
@@ -64,13 +59,12 @@ const baseEnTranslations: Record<string, string> = {
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
-  ttsUtteranceErrorTitle: "Speech Error",
-  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+  // Ключи для TTS удалены
 };
 
 const baseRuTranslations: Record<string, string> = {
   title: "Практика аудирования",
-  description: "Введите тему. Наш ИИ сгенерирует короткий сценарий (диалог или монолог) на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание. Вы можете прослушать сценарий с помощью функции Text-to-Speech.",
+  description: "Введите тему. Наш ИИ сгенерирует короткий сценарий (диалог или монолог) на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание.", // TTS part removed
   topicLabel: "Тема для аудирования",
   topicPlaceholder: "Напр., Планы на выходные, Заказ в кафе, Новостной репортаж",
   getMaterialButton: "Получить материал",
@@ -87,11 +81,6 @@ const baseRuTranslations: Record<string, string> = {
   noScenario: "Описание сценария не предоставлено.",
   noQuestions: "Для этого скрипта не было сгенерировано вопросов на понимание.",
   answerIndication: "Указание на ответ",
-  ttsPlayScript: "Озвучить скрипт",
-  ttsStopScript: "Остановить озвучку",
-  ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
-  ttsNotSupportedTitle: "TTS не поддерживается",
-  ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   noScriptGenerated: "ИИ не сгенерировал скрипт для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
@@ -104,8 +93,7 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
-  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
-  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+  // Ключи для TTS удалены
 };
 
 const generateTranslations = () => {
@@ -122,77 +110,6 @@ const generateTranslations = () => {
 
 const componentTranslations = generateTranslations();
 
-const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
-  if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-    console.warn('TTS: ListeningModuleClient - Voices not available or synthesis not supported.');
-    return undefined;
-  }
-
-  console.log(`TTS: ListeningModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
-
-  let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
-  if (!targetLangVoices.length) {
-    const baseLang = langCode.split('-')[0];
-    targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
-     if (targetLangVoices.length) {
-      console.log(`TTS: ListeningModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
-    }
-  }
-
-  if (!targetLangVoices.length) {
-    console.warn(`TTS: ListeningModuleClient - No voices found for lang "${langCode}" or base lang.`);
-    return undefined;
-  }
-
-  const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-  if (googleVoice) {
-    console.log('TTS: ListeningModuleClient - Selected Google voice:', googleVoice.name);
-    return googleVoice;
-  }
-
-  const defaultVoice = targetLangVoices.find(voice => voice.default);
-  if (defaultVoice) {
-    console.log('TTS: ListeningModuleClient - Selected default voice:', defaultVoice.name);
-    return defaultVoice;
-  }
-
-  const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-  if (localServiceVoice) {
-    console.log('TTS: ListeningModuleClient - Selected local service voice:', localServiceVoice.name);
-    return localServiceVoice;
-  }
-  
-  if (targetLangVoices.length > 0) {
-    console.log('TTS: ListeningModuleClient - Selected first available voice:', targetLangVoices[0].name);
-    return targetLangVoices[0];
-  }
-
-  console.warn(`TTS: ListeningModuleClient - Could not select any voice for lang "${langCode}".`);
-  return undefined;
-};
-
-const sanitizeTextForTTS = (text: string | undefined): string => {
-  if (!text) return "";
-  let sanitizedText = text;
-  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
-  sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  // 2. Remove various types of quotes
-  sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  // 3. Remove apostrophes/single quotes
-  sanitizedText = sanitizedText.replace(/'/g, '');
-  // 4. Remove backticks (Markdown code)
-  sanitizedText = sanitizedText.replace(/`/g, '');
-  // 5. Remove hyphens used as list item markers at the beginning of a line
-  sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  // 6. Remove parentheses
-  sanitizedText = sanitizedText.replace(/[()]/g, '');
-  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
-  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
-  // 8. Normalize multiple spaces to a single space
-  sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
-  return sanitizedText.trim();
-};
-
 export function ListeningModuleClient() {
   const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
   const { toast } = useToast();
@@ -200,10 +117,11 @@ export function ListeningModuleClient() {
   const [listeningResult, setListeningResult] = useState<GenerateListeningMaterialOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
-  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
-  const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
-  const currentUtteranceIndexRef = React.useRef<number>(0);
-  const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
+  // Состояния и логика для TTS удалены
+  // const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
+  // const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
+  // const currentUtteranceIndexRef = React.useRef<number>(0);
+  // const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
@@ -227,137 +145,7 @@ export function ListeningModuleClient() {
     return defaultText || key; 
   }, [currentLang]);
 
-  useEffect(() => {
-    const updateVoices = () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        voicesRef.current = window.speechSynthesis.getVoices();
-         console.log('TTS: ListeningModuleClient - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
-      }
-    };
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices();
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
-    return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-        }
-      }
-    };
-  }, []);
-
-  const speakNext = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
-      const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
-      utterance.onend = () => {
-        currentUtteranceIndexRef.current++;
-        speakNext();
-      };
-      utterance.onerror = (event) => {
-        if (event.error === "interrupted") {
-          console.info('TTS: ListeningModuleClient - SpeechSynthesisUtterance playback was interrupted.', event);
-        } else {
-          console.error('TTS: ListeningModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error, event);
-          toast({
-            title: t('ttsUtteranceErrorTitle'),
-            description: t('ttsUtteranceErrorDescription'),
-            variant: 'destructive',
-          });
-        }
-        setCurrentlySpeakingTTSId(null);
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
-        const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
-        if (lastUtteranceText !== "Пииип" || utteranceQueueRef.current.length > 1) {
-          const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
-          if (userData.settings) {
-            endCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-            const voice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
-            if (voice) endCueUtterance.voice = voice;
-          }
-           if (typeof window !== 'undefined' && window.speechSynthesis) {
-              window.speechSynthesis.speak(endCueUtterance);
-           }
-        }
-      }
-      setCurrentlySpeakingTTSId(null);
-    }
-  }, [userData.settings, t, toast]); // Added toast to dependencies
-
-  const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      toast({
-        title: t('ttsNotSupportedTitle'),
-        description: t('ttsNotSupportedDescription'),
-        variant: 'destructive',
-      });
-      setCurrentlySpeakingTTSId(null);
-      return;
-    }
-
-    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === scriptId) {
-      window.speechSynthesis.cancel();
-      setCurrentlySpeakingTTSId(null);
-      return;
-    }
-
-    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
-    }
-
-    const textToActuallySpeak = sanitizeTextForTTS(textToSpeak);
-    if (!textToActuallySpeak) {
-      setCurrentlySpeakingTTSId(null);
-      return;
-    }
-
-    utteranceQueueRef.current = [];
-
-    const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
-    if (userData.settings) {
-      startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
-      const startVoice = selectPreferredVoice(userData.settings.interfaceLanguage, voicesRef.current || []);
-      if (startVoice) startCueUtterance.voice = startVoice;
-    }
-    utteranceQueueRef.current.push(startCueUtterance);
-
-    const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
-
-    const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
-
-    sentences.forEach(sentence => {
-        const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode;
-        if(selectedVoice) {
-            utterance.voice = selectedVoice;
-        }
-        utteranceQueueRef.current.push(utterance);
-    });
-    
-    currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingTTSId(scriptId);
-    speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]); // Added toast and userData.settings
-
-  const stopSpeech = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    setCurrentlySpeakingTTSId(null);
-  }, []);
-
-  if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
-  }
-
-  if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
-  }
+  // useEffect для TTS удален
 
   const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
     setIsAiLoading(true);
@@ -366,7 +154,7 @@ export function ListeningModuleClient() {
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
-    stopSpeech();
+    // stopSpeech(); // Удален вызов TTS
     setCurrentTopic(data.topic);
     try {
       const flowInput: GenerateListeningMaterialInput = {
@@ -403,7 +191,7 @@ export function ListeningModuleClient() {
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
-    stopSpeech();
+    // stopSpeech(); // Удален вызов TTS
   };
 
   const handleAnswerChange = (questionIndex: number, value: string) => {
@@ -450,6 +238,14 @@ export function ListeningModuleClient() {
   };
 
 
+  if (isUserDataLoading) {
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+  }
+
+  if (!userData.settings) {
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+  }
+
   const hasScriptText = !!(listeningResult && listeningResult.script && listeningResult.script.trim().length > 0);
   const hasQuestions = !!(listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0);
   const totalQuestions = listeningResult?.comprehensionQuestions?.length || 0;
@@ -477,9 +273,7 @@ export function ListeningModuleClient() {
             {t('title')}
           </CardTitle>
           <CardDescription>{t('description')}
-           {typeof window !== 'undefined' && window.speechSynthesis && (
-            <span className="block text-xs text-muted-foreground mt-1 italic">{t('ttsExperimentalText')}</span>
-          )}
+           {/* TTS Experimental text удален */}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -536,34 +330,7 @@ export function ListeningModuleClient() {
             <div>
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="font-semibold text-lg">{t('scriptHeader')} ({userData.settings.targetLanguage})</h3>
-                    {typeof window !== 'undefined' && window.speechSynthesis && hasScriptText && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (!hasScriptText || !listeningResult.script) return;
-                                const scriptId = listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
-                                if (currentlySpeakingTTSId === scriptId) {
-                                    stopSpeech();
-                                } else {
-                                    playText(scriptId, listeningResult.script, userData.settings!.targetLanguage as AppTargetLanguage);
-                                }
-                            }}
-                            className="shrink-0"
-                            aria-label={currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
-                            disabled={!hasScriptText || isAiLoading}
-                            >
-                            {currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                            {currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{currentlySpeakingTTSId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                    {/* Кнопка TTS удалена */}
                 </div>
                 {hasScriptText ? (
                     <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
