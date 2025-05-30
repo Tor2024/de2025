@@ -14,10 +14,11 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2 } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -172,7 +173,7 @@ export function VocabularyModuleClient() {
       const result = await generateVocabulary(flowInput);
       setVocabularyResult(result);
       if (result && result.words && result.words.length > 0) {
-        setPracticeWords([...result.words]); // Initialize words for practice, ensure new array
+        setPracticeWords([...result.words]); 
         setPracticeScore(prev => ({ ...prev, total: result.words.length }));
       }
       toast({
@@ -248,12 +249,10 @@ export function VocabularyModuleClient() {
       setPracticeFeedback("");
       setIsPracticeSubmitted(false);
     } else {
-      // All words practiced
       const finalScoreMsg = t('practiceScoreMessage')
         .replace('{correct}', practiceScore.correct.toString())
         .replace('{total}', practiceScore.total.toString());
       setPracticeFeedback(`${t('practiceComplete')} ${finalScoreMsg}`);
-      // Optionally disable further practice or show a "Restart Practice" button
     }
   };
 
@@ -311,13 +310,16 @@ export function VocabularyModuleClient() {
           <CardContent>
             {currentWordData ? (
               <div className="space-y-4">
-                <Card className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300">
+                <Card 
+                    className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300 cursor-pointer"
+                    onClick={() => setIsCardRevealed(!isCardRevealed)}
+                >
                   {!isCardRevealed ? (
                     <>
                       <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
                         {currentWordData.word}
                       </h3>
-                      <Button onClick={() => setIsCardRevealed(true)} size="lg">
+                      <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}} size="lg" variant="outline">
                         <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
                       </Button>
                     </>
@@ -331,7 +333,7 @@ export function VocabularyModuleClient() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setIsCardRevealed(false)}
+                          onClick={(e) => { e.stopPropagation(); setIsCardRevealed(false);}}
                           className="whitespace-nowrap shrink-0 ml-2"
                         >
                           <EyeOff className="mr-2 h-4 w-4" /> {t('hideDetailsButton')}
@@ -383,7 +385,6 @@ export function VocabularyModuleClient() {
             )}
           </CardContent>
 
-          {/* Practice Mode Section */}
           {practiceWords.length > 0 && (
             <CardFooter className="flex-col items-start border-t mt-6 pt-6">
               <CardTitle className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -405,8 +406,13 @@ export function VocabularyModuleClient() {
                       onChange={handleUserPracticeAnswerChange}
                       disabled={isPracticeSubmitted}
                       className={cn(
-                        isPracticeSubmitted && practiceFeedback === t('feedbackCorrect') && 'border-green-500 focus-visible:ring-green-500 bg-green-50/50 text-green-700',
-                        isPracticeSubmitted && practiceFeedback !== t('feedbackCorrect') && 'border-red-500 focus-visible:ring-red-500 bg-red-50/50 text-red-700'
+                        "transition-colors duration-300 ease-in-out",
+                        isPracticeSubmitted && 
+                        (practiceFeedback === t('feedbackCorrect') ? 
+                            'border-green-500 focus-visible:ring-green-500 bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                            : 
+                            'border-red-500 focus-visible:ring-red-500 bg-red-100/50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        )
                       )}
                     />
                   </div>
@@ -420,7 +426,12 @@ export function VocabularyModuleClient() {
                     </Button>
                   )}
                    {practiceFeedback && (
-                    <p className={`text-sm mt-2 ${practiceFeedback === t('feedbackCorrect') ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={cn(
+                        "text-sm mt-2 flex items-center gap-1",
+                        practiceFeedback === t('feedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {practiceFeedback === t('feedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                       {practiceFeedback}
                     </p>
                   )}
@@ -435,6 +446,4 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
-
-
     
