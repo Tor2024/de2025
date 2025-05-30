@@ -235,7 +235,7 @@ export function SpeakingModuleClient() {
   };
 
   const hasPracticeScript = speakingResult && speakingResult.practiceScript && speakingResult.practiceScript.trim().length > 0;
-  const practiceScriptTTSId = `practice-script-${(speakingResult?.speakingTopic || "default").substring(0,10)}`;
+  const practiceScriptTTSId = `practice-script-${(speakingResult?.speakingTopic || "default").substring(0,20).replace(/\s/g, '-')}`;
 
 
   return (
@@ -295,79 +295,65 @@ export function SpeakingModuleClient() {
               </ScrollArea>
             </div>
             
-            {speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0 && (
-                 <div>
-                    <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                        <HelpCircle className="h-5 w-5 text-primary/80" />
-                        {t('guidingQuestionsHeader')}
-                    </h3>
-                    <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                        <ul className="list-disc pl-5 space-y-1">
+            <div>
+                <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
+                    <HelpCircle className="h-5 w-5 text-primary/80" />
+                    {t('guidingQuestionsHeader')}
+                </h3>
+                <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
+                    {(speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0) ? (
+                        <ul className="list-disc pl-5 space-y-1 text-sm">
                         {speakingResult.guidingQuestions.map((question, index) => (
-                            <li key={index} className="text-sm">{question}</li>
+                            <li key={index}>{question}</li>
                         ))}
                         </ul>
-                    </ScrollArea>
-                 </div>
-            )}
-            {(!speakingResult.guidingQuestions || speakingResult.guidingQuestions.length === 0) && !isAiLoading && (
-                <div className="mt-4">
-                    <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                        <HelpCircle className="h-5 w-5 text-primary/80" />
-                        {t('guidingQuestionsHeader')}
-                    </h3>
-                    <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
-                      <p className="text-sm text-muted-foreground italic">{t('noGuidingQuestions')}</p>
-                    </div>
-                </div>
-            )}
-
-            {speakingResult.practiceScript && (
-              <div>
-                <div className="flex justify-between items-center mt-4 mb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary/80" />
-                    {t('practiceScriptHeader')} ({userData.settings!.targetLanguage})
-                  </h3>
-                  {typeof window !== 'undefined' && window.speechSynthesis && hasPracticeScript && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            playText(practiceScriptTTSId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
-                          }}
-                          className="shrink-0"
-                          aria-label={currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
-                          disabled={!hasPracticeScript || isAiLoading}
-                        >
-                          {currentlySpeakingTTSId === practiceScriptTTSId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                          {currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-                <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{speakingResult.practiceScript}</p>
+                    ) : (
+                        <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
+                            {t('noGuidingQuestions')}
+                        </div>
+                    )}
                 </ScrollArea>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mt-4 mb-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary/80" />
+                  {t('practiceScriptHeader')} ({userData.settings!.targetLanguage})
+                </h3>
+                {typeof window !== 'undefined' && window.speechSynthesis && hasPracticeScript && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          playText(practiceScriptTTSId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
+                        }}
+                        className="shrink-0"
+                        aria-label={currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
+                        disabled={!hasPracticeScript || isAiLoading}
+                      >
+                        {currentlySpeakingTTSId === practiceScriptTTSId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                        {currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
-            )}
-            {(!speakingResult.practiceScript && !isAiLoading) && (
-                <div className="mt-4">
-                    <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary/80" />
-                        {t('practiceScriptHeader')}
-                    </h3>
-                     <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
-                      <p className="text-sm text-muted-foreground italic">{t('noPracticeScript')}</p>
+              <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+                 {hasPracticeScript ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{speakingResult.practiceScript}</p>
+                  ) : (
+                    <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
+                        {t('noPracticeScript')}
                     </div>
-                </div>
-            )}
+                  )}
+              </ScrollArea>
+            </div>
             
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
@@ -375,10 +361,10 @@ export function SpeakingModuleClient() {
                 {t('tipsHeader')}
               </h3>
               <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                {speakingResult.tips && speakingResult.tips.length > 0 ? (
-                  <ul className="list-disc pl-5 space-y-1">
+                {(speakingResult.tips && speakingResult.tips.length > 0) ? (
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
                     {speakingResult.tips.map((tip, index) => (
-                      <li key={index} className="text-sm">{tip}</li>
+                      <li key={index}>{tip}</li>
                     ))}
                   </ul>
                 ) : (
@@ -394,3 +380,6 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+
+
+    
