@@ -2,8 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
-import { useForm, type SubmitHandler, Controller } from "react-hook-form"; // Added Controller
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useForm, type SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,11 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
-import { interfaceLanguageCodes, proficiencyLevels } from "@/lib/types"; // Added proficiencyLevels
+import { interfaceLanguageCodes, proficiencyLevels } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const readingSchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -57,6 +57,8 @@ const baseEnTranslations: Record<string, string> = {
   ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
   ttsNotSupportedTitle: "TTS Not Supported",
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
+  ttsUtteranceErrorTitle: "Speech Error",
+  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
   checkAnswersButton: "Check Answers",
   tryAgainButton: "Try Again",
   clearResultsButton: "Clear Results",
@@ -68,8 +70,6 @@ const baseEnTranslations: Record<string, string> = {
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
-  ttsUtteranceErrorTitle: "Speech Error",
-  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -97,6 +97,8 @@ const baseRuTranslations: Record<string, string> = {
   ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
   ttsNotSupportedTitle: "TTS не поддерживается",
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
+  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
   checkAnswersButton: "Проверить ответы",
   tryAgainButton: "Попробовать снова",
   clearResultsButton: "Очистить результаты",
@@ -108,8 +110,6 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
-  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
-  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
 };
 
 const generateTranslations = () => {
@@ -189,9 +189,9 @@ export function ReadingModuleClient() {
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
   const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
-  const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
-  const currentUtteranceIndexRef = React.useRef<number>(0);
-  const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
+  const utteranceQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
+  const currentUtteranceIndexRef = useRef<number>(0);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
@@ -304,6 +304,7 @@ export function ReadingModuleClient() {
       return;
     }
     utteranceQueueRef.current = [];
+    
     const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
@@ -311,8 +312,10 @@ export function ReadingModuleClient() {
       if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
+    
     const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
+    
     const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -333,14 +336,6 @@ export function ReadingModuleClient() {
     }
     setCurrentlySpeakingTTSId(null);
   }, []);
-
-  if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
-  }
-
-  if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
-  }
 
   const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
     setIsAiLoading(true);
@@ -365,7 +360,6 @@ export function ReadingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      // reset(); // Do not reset the form here, user might want to regenerate with same topic/level or slightly different
     } catch (error) {
       console.error("Reading material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -387,7 +381,7 @@ export function ReadingModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
     stopSpeech();
-    reset({ // Reset form to defaults
+    reset({
       topic: "",
       proficiencyLevel: userData.settings?.proficiencyLevel || proficiencyLevels[0],
     });
@@ -436,9 +430,18 @@ export function ReadingModuleClient() {
     }
   };
 
+  if (isUserDataLoading) {
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+  }
+
+  if (!userData.settings) {
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+  }
+
   const hasTextToRead = readingResult && readingResult.readingText && readingResult.readingText.trim().length > 0;
   const hasQuestions = readingResult && readingResult.comprehensionQuestions && readingResult.comprehensionQuestions.length > 0;
   const totalQuestions = readingResult?.comprehensionQuestions?.length || 0;
+  const readingTextTTSId = `reading-text-${(readingResult?.title || currentTopic).replace(/\s+/g, '-') || Date.now()}`;
 
   const getScoreMessage = () => {
     if (!isAnswersSubmitted || !hasQuestions) return null;
@@ -546,23 +549,22 @@ export function ReadingModuleClient() {
                             size="sm"
                             onClick={() => {
                                 if (!hasTextToRead || !readingResult.readingText) return;
-                                const textId = readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
-                                if (currentlySpeakingTTSId === textId) {
+                                if (currentlySpeakingTTSId === readingTextTTSId) {
                                     stopSpeech();
                                 } else {
-                                    playText(textId, readingResult.readingText, userData.settings!.targetLanguage as AppTargetLanguage);
+                                    playText(readingTextTTSId, readingResult.readingText, userData.settings!.targetLanguage as AppTargetLanguage);
                                 }
                             }}
                             className="shrink-0"
-                            aria-label={currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
+                            aria-label={currentlySpeakingTTSId === readingTextTTSId ? t('ttsStopText') : t('ttsPlayText')}
                             disabled={!hasTextToRead || isAiLoading}
                             >
-                            {currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                            {currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}
+                            {currentlySpeakingTTSId === readingTextTTSId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                            {currentlySpeakingTTSId === readingTextTTSId ? t('ttsStopText') : t('ttsPlayText')}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>{currentlySpeakingTTSId === (readingResult.title || `text-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopText') : t('ttsPlayText')}</p>
+                            <p>{currentlySpeakingTTSId === readingTextTTSId ? t('ttsStopText') : t('ttsPlayText')}</p>
                         </TooltipContent>
                         </Tooltip>
                     )}
@@ -678,3 +680,4 @@ export function ReadingModuleClient() {
   );
 }
 
+    
