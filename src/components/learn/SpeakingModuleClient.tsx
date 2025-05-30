@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,11 +15,12 @@ import { generateSpeakingTopic } from "@/ai/flows/generate-speaking-topic-flow";
 import type { GenerateSpeakingTopicInput, GenerateSpeakingTopicOutput } from "@/ai/flows/generate-speaking-topic-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle } from "lucide-react";
+import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const speakingSchema = z.object({
-  generalTopic: z.string().min(3).optional().or(z.literal('')), // Allow empty string or min 3 chars
+  generalTopic: z.string().min(3).optional().or(z.literal('')),
 });
 
 type SpeakingFormData = z.infer<typeof speakingSchema>;
@@ -36,6 +37,10 @@ const baseEnTranslations: Record<string, string> = {
   noGuidingQuestions: "No specific guiding questions were generated for this topic.",
   tipsHeader: "Quick Tips",
   noTipsGenerated: "No specific tips were generated for this topic.",
+  practiceScriptHeader: "Practice Script",
+  noPracticeScript: "No practice script was generated for this topic.",
+  ttsPlayScript: "Play script",
+  ttsStopScript: "Stop script",
   toastSuccessTitle: "Speaking Topic Generated!",
   toastSuccessDescription: "Your speaking topic is ready.",
   toastErrorTitle: "Error Generating Topic",
@@ -57,6 +62,10 @@ const baseRuTranslations: Record<string, string> = {
   noGuidingQuestions: "Для этой темы не было сгенерировано наводящих вопросов.",
   tipsHeader: "Краткие советы",
   noTipsGenerated: "Для этой темы не было сгенерировано конкретных советов.",
+  practiceScriptHeader: "Текст для практики",
+  noPracticeScript: "Для этой темы не было сгенерировано текста для практики.",
+  ttsPlayScript: "Озвучить текст",
+  ttsStopScript: "Остановить озвучку",
   toastSuccessTitle: "Тема для говорения сгенерирована!",
   toastSuccessDescription: "Ваша тема для говорения готова.",
   toastErrorTitle: "Ошибка генерации темы",
@@ -86,6 +95,10 @@ export function SpeakingModuleClient() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [speakingResult, setSpeakingResult] = useState<GenerateSpeakingTopicOutput | null>(null);
 
+  const [currentlySpeakingScriptId, setCurrentlySpeakingScriptId] = useState<string | null>(null);
+  const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
+  const currentUtteranceIndexRef = React.useRef<number>(0);
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<SpeakingFormData>({
     resolver: zodResolver(speakingSchema),
   });
@@ -95,6 +108,80 @@ export function SpeakingModuleClient() {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
+
+   useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const speakNext = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
+      const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
+      utterance.onend = () => {
+        currentUtteranceIndexRef.current++;
+        speakNext();
+      };
+      utterance.onerror = (event) => {
+        console.error('SpeechSynthesisUtterance.onerror', event);
+        setCurrentlySpeakingScriptId(null);
+      };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setCurrentlySpeakingScriptId(null);
+    }
+  }, []);
+
+  const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      toast({
+        title: t('ttsNotSupportedTitle', 'TTS Not Supported'), // Default added
+        description: t('ttsNotSupportedDescription', 'Text-to-Speech is not supported by your browser.'), // Default added
+        variant: 'destructive',
+      });
+      setCurrentlySpeakingScriptId(null);
+      return;
+    }
+
+    if (window.speechSynthesis.speaking && currentlySpeakingScriptId === scriptId) {
+      window.speechSynthesis.cancel();
+      setCurrentlySpeakingScriptId(null);
+      return;
+    }
+    
+    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+
+    const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
+    if (!trimmedTextToSpeak) {
+      setCurrentlySpeakingScriptId(null);
+      return;
+    }
+
+    const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
+    if (sentences.length === 0 && trimmedTextToSpeak) sentences.push(trimmedTextToSpeak);
+
+    utteranceQueueRef.current = sentences.map(sentence => {
+      const utterance = new SpeechSynthesisUtterance(sentence.trim());
+      utterance.lang = langCode;
+      return utterance;
+    });
+
+    currentUtteranceIndexRef.current = 0;
+    setCurrentlySpeakingScriptId(scriptId);
+    speakNext();
+  }, [currentlySpeakingScriptId, speakNext, t, toast]);
+
+  const stopSpeech = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setCurrentlySpeakingScriptId(null);
+  }, []);
+
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -107,6 +194,7 @@ export function SpeakingModuleClient() {
   const onSubmit: SubmitHandler<SpeakingFormData> = async (data) => {
     setIsAiLoading(true);
     setSpeakingResult(null);
+    stopSpeech();
     try {
       const flowInput: GenerateSpeakingTopicInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
@@ -137,7 +225,10 @@ export function SpeakingModuleClient() {
 
   const handleClearResults = () => {
     setSpeakingResult(null);
+    stopSpeech();
   };
+
+  const hasPracticeScript = speakingResult && speakingResult.practiceScript && speakingResult.practiceScript.trim().length > 0;
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -186,7 +277,7 @@ export function SpeakingModuleClient() {
                 <MessageSquare className="h-5 w-5 text-primary/80" />
                 {t('speakingTopicHeader')}
               </h3>
-              <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                 <p className="whitespace-pre-wrap text-base leading-relaxed">{speakingResult.speakingTopic}</p>
               </ScrollArea>
             </div>
@@ -197,7 +288,7 @@ export function SpeakingModuleClient() {
                         <HelpCircle className="h-5 w-5 text-primary/80" />
                         {t('guidingQuestionsHeader')}
                     </h3>
-                    <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+                    <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                         <ul className="list-disc pl-5 space-y-1">
                         {speakingResult.guidingQuestions.map((question, index) => (
                             <li key={index} className="text-sm">{question}</li>
@@ -217,13 +308,66 @@ export function SpeakingModuleClient() {
                     </div>
                 </div>
             )}
+
+            {speakingResult.practiceScript && (
+              <div>
+                <div className="flex justify-between items-center mt-4 mb-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary/80" />
+                    {t('practiceScriptHeader')} ({userData.settings!.targetLanguage})
+                  </h3>
+                  {typeof window !== 'undefined' && window.speechSynthesis && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (!hasPracticeScript || !speakingResult.practiceScript) return;
+                            const scriptId = `speaking-script-${Date.now()}`;
+                            if (currentlySpeakingScriptId === scriptId) {
+                                stopSpeech();
+                            } else {
+                                playText(scriptId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
+                            }
+                          }}
+                          className="shrink-0"
+                          aria-label={currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                          disabled={!hasPracticeScript || isAiLoading}
+                        >
+                          {currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                          {currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{currentlySpeakingScriptId === `speaking-script-${Date.now()}` ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{speakingResult.practiceScript}</p>
+                </ScrollArea>
+              </div>
+            )}
+            {(!speakingResult.practiceScript && !isAiLoading) && (
+                <div className="mt-4">
+                    <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary/80" />
+                        {t('practiceScriptHeader')}
+                    </h3>
+                    <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground italic">{t('noPracticeScript')}</p>
+                    </div>
+                </div>
+            )}
             
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-primary/80" />
                 {t('tipsHeader')}
               </h3>
-              <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                 {speakingResult.tips && speakingResult.tips.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-1">
                     {speakingResult.tips.map((tip, index) => (

@@ -25,6 +25,7 @@ const GenerateSpeakingTopicOutputSchema = z.object({
   speakingTopic: z.string().describe('The generated speaking topic, suitable for the targetLanguage and proficiencyLevel.'),
   tips: z.array(z.string()).optional().describe('Optional short tips (2-3) on how to approach speaking on this topic, in the interfaceLanguage.'),
   guidingQuestions: z.array(z.string()).optional().describe('Optional short guiding questions or sub-topics (2-3) to help the user structure their speech, in the interfaceLanguage.'),
+  practiceScript: z.string().optional().describe('An optional short script or text (e.g., a few sentences, a mini-dialogue) related to the speakingTopic, in the targetLanguage, that the user can use for practice.'),
 });
 export type GenerateSpeakingTopicOutput = z.infer<typeof GenerateSpeakingTopicOutputSchema>;
 
@@ -37,14 +38,14 @@ const generateSpeakingTopicPrompt = ai.definePrompt({
   name: 'generateSpeakingTopicPrompt',
   input: {schema: GenerateSpeakingTopicInputSchema},
   output: {schema: GenerateSpeakingTopicOutputSchema},
-  prompt: `You are an AI language learning assistant specializing in creating engaging speaking practice topics.
+  prompt: `You are an AI language learning assistant specializing in creating engaging speaking practice topics and supporting materials.
 
-Task: Generate a speaking topic, 2-3 optional short tips for the user, and 2-3 optional guiding questions or sub-topics to help structure the speech.
+Task: Generate a speaking topic, 2-3 optional short tips for the user, 2-3 optional guiding questions or sub-topics to help structure the speech, and an optional short practice script (a few sentences or a mini-dialogue).
 
 User Preferences:
 - Interface Language (for tips and guiding questions): {{{interfaceLanguage}}}
-- Target Language (for the context of the speaking topic): {{{targetLanguage}}}
-- Proficiency Level (for topic complexity): {{{proficiencyLevel}}}
+- Target Language (for the context of the speaking topic and the practice script): {{{targetLanguage}}}
+- Proficiency Level (for topic complexity and script complexity): {{{proficiencyLevel}}}
 {{#if generalTopic}}
 - User-defined General Topic: {{{generalTopic}}}
 {{/if}}
@@ -63,6 +64,11 @@ Instructions:
     *   Provide 2-3 brief, actionable tips on how the user might approach speaking on the generated topic.
     *   These tips MUST be in the {{{interfaceLanguage}}}.
     *   Examples of tips: "Try to use vocabulary related to...", "Think about specific examples.", "Don't be afraid to pause and think."
+4.  **Practice Script (Optional):**
+    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script (e.g., a few example sentences a user might say, or a very short dialogue related to the topic).
+    *   The script MUST be in the {{{targetLanguage}}}.
+    *   The complexity of the script should be appropriate for the {{{proficiencyLevel}}}.
+    *   This script is intended to give the user a starting point or some phrases they could use.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 `,
