@@ -90,9 +90,9 @@ export default function SettingsPage() {
   };
 
   const handleResetOnboarding = () => {
+    setIsResetDialogOpen(false); // Close dialog first
     clearUserData();
     router.push('/');
-    setIsResetDialogOpen(false);
   };
 
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
@@ -119,7 +119,7 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="flex flex-col items-center justify-center h-full">
-        <Card className="w-full max-w-md text-center p-8 shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
+        <Card className="w-full max-w-md text-center p-6 shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
               <SettingsIcon className="h-12 w-12 text-primary" />
@@ -179,3 +179,4 @@ export default function SettingsPage() {
     </AppShell>
   );
 }
+
