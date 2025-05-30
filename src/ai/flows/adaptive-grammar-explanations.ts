@@ -20,7 +20,7 @@ import { proficiencyLevels as appProficiencyLevels, InterfaceLanguageSchema } fr
 
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
-  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),
+  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de). All explanations and task instructions MUST be in this language.'),
   grammarTopic: z.string().describe('The grammar topic to explain.'),
   proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
   learningGoal: z.string().describe('The user defined learning goal.'),
@@ -29,25 +29,29 @@ const AdaptiveGrammarExplanationsInputSchema = z.object({
 export type AdaptiveGrammarExplanationsInput = z.infer<typeof AdaptiveGrammarExplanationsInputSchema>;
 
 const AdaptiveGrammarExplanationsOutputSchema = z.object({
-  explanation: z.string().describe('A clear and concise explanation of the grammar topic.'),
-  practiceTasks: z.array(z.string()).describe('A list of practice tasks tailored to the user.'),
+  explanation: z.string().describe('A clear and concise explanation of the grammar topic. Ensure the text is well-suited for text-to-speech conversion (clear, concise, avoids complex sentence structures if possible). ABSOLUTELY NO MARKDOWN-LIKE FORMATTING. Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in your response. Present all text plainly.'),
+  practiceTasks: z.array(z.string()).describe('A list of practice tasks tailored to the user. These tasks must be in the interfaceLanguage.'),
 });
 export type AdaptiveGrammarExplanationsOutput = z.infer<typeof AdaptiveGrammarExplanationsOutputSchema>;
 
-// Exported wrapper function
 export async function adaptiveGrammarExplanations(input: AdaptiveGrammarExplanationsInput): Promise<AdaptiveGrammarExplanationsOutput> {
   return adaptiveGrammarExplanationsFlow(input);
 }
 
-const prompt = ai.definePrompt({
+const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
   name: 'adaptiveGrammarExplanationsPrompt',
   input: {schema: AdaptiveGrammarExplanationsInputSchema},
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
   prompt: `You are an expert language tutor, specializing in grammar explanations.
 
-You will generate a grammar explanation and practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, and easy to understand. All explanations and practice tasks must be in the language specified by the interfaceLanguage code.
+You will generate a grammar explanation and practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, easy to understand, and TTS-friendly.
 
-Interface Language (ISO 639-1 code): {{{interfaceLanguage}}}
+CRITICAL INSTRUCTIONS:
+1.  **Interface Language ({{{interfaceLanguage}}})**: ALL textual content of your response, including the main 'explanation' and each string in the 'practiceTasks' array, MUST be in this language.
+2.  **Target Language Examples**: When explaining the '{{{grammarTopic}}}' for the target language the user is learning, all example sentences demonstrating the grammar rule MUST be IN THE TARGET LANGUAGE. If you provide translations for these example sentences to help the user understand, these translations MUST be into the '{{{interfaceLanguage}}}'. The primary examples illustrating the target language grammar must be in the target language itself.
+3.  **ABSOLUTELY NO MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, practice tasks). Present all text plainly.
+
+User Details:
 Grammar Topic: {{{grammarTopic}}}
 Proficiency Level: {{{proficiencyLevel}}}
 Learning Goal: {{{learningGoal}}}
@@ -55,20 +59,17 @@ User's Past Errors (if any, pay attention to those relevant to the current Gramm
 {{{userPastErrors}}}
 
 Your task:
-1.  Provide a clear and concise Explanation of the {{{grammarTopic}}} in the {{{interfaceLanguage}}}.
-2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples or a slightly different angle on the parts of the topic the user struggled with. For example, if a past error indicates confusion with a specific verb tense related to the {{{grammarTopic}}}, provide more examples of that tense.
-3.  Generate a list of Practice Tasks. These tasks should:
+1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
+2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
+3.  Generate a list of **Practice Tasks**. These tasks should:
     *   Be in the {{{interfaceLanguage}}}.
     *   Be suitable for the user's {{{proficiencyLevel}}}.
     *   Help achieve the {{{learningGoal}}}.
     *   If relevant past errors were noted, some tasks should specifically target re-learning or reinforcing those concepts related to the current {{{grammarTopic}}}.
 
 Output format:
-Explanation: [Your explanation here]
-Practice Tasks:
-- Task 1
-- Task 2
-...`,
+Your response must be a JSON object matching the defined output schema.
+`,
 });
 
 const adaptiveGrammarExplanationsFlow = ai.defineFlow(
@@ -78,7 +79,7 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     outputSchema: AdaptiveGrammarExplanationsOutputSchema,
   },
   async (input: AdaptiveGrammarExplanationsInput) => {
-    const {output} = await prompt(input);
+    const {output} = await adaptiveGrammarExplanationsPrompt(input);
     if (!output) {
         throw new Error("AI failed to generate grammar explanation. Output was null.");
     }
