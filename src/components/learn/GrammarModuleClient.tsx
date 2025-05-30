@@ -12,8 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
-import { adaptiveGrammarExplanations, explainGrammarTaskError } from "@/ai/flows/adaptive-grammar-explanations"; 
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask, ExplainGrammarTaskErrorInput } from "@/ai/flows/adaptive-grammar-explanations";
+import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
+import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
+import type { ExplainGrammarTaskErrorInput } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -206,21 +208,13 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
-  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  // 2. Remove various types of quotes
   sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  // 3. Remove apostrophes/single quotes
   sanitizedText = sanitizedText.replace(/'/g, '');
-  // 4. Remove backticks (Markdown code)
   sanitizedText = sanitizedText.replace(/`/g, '');
-  // 5. Remove hyphens used as list item markers at the beginning of a line
   sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  // 6. Remove parentheses
   sanitizedText = sanitizedText.replace(/[()]/g, '');
-  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
-  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
-  // 8. Normalize multiple spaces to a single space
+  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
   sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
@@ -320,7 +314,7 @@ export function GrammarModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast]);
+  }, [userData.settings, t, toast, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]); // Added dependencies
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -346,7 +340,7 @@ export function GrammarModuleClient() {
     const textToActuallySpeak = sanitizeTextForTTS(textToSpeak);
     if (!textToActuallySpeak) {
       setCurrentlySpeakingTTSId(null);
-      return;
+      return; 
     }
     
     utteranceQueueRef.current = [];
@@ -366,9 +360,9 @@ export function GrammarModuleClient() {
 
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode;
+        utterance.lang = langCode; 
         if (selectedVoice) {
-            utterance.voice = selectedVoice;
+          utterance.voice = selectedVoice;
         }
         utteranceQueueRef.current.push(utterance);
     });
@@ -376,14 +370,15 @@ export function GrammarModuleClient() {
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
+
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]); // Added dependencies
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
 
   if (isUserDataLoading) {
@@ -410,7 +405,7 @@ export function GrammarModuleClient() {
         return;
       }
       const grammarInput: AdaptiveGrammarExplanationsInput = {
-        interfaceLanguage: userData.settings.interfaceLanguage,
+        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         grammarTopic: data.grammarTopic,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         learningGoal: userData.settings.goal,
@@ -449,7 +444,6 @@ export function GrammarModuleClient() {
 
   const handleTaskAnswerChange = (taskId: string, answer: string) => {
     setTaskAnswers(prev => ({ ...prev, [taskId]: answer }));
-    // Reset feedback if user changes answer after submission
     if (taskFeedback[taskId]?.submitted) {
       setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: false, isCorrect: false } }));
       setTaskErrorExplanations(prev => ({ ...prev, [taskId]: null }));
@@ -467,7 +461,7 @@ export function GrammarModuleClient() {
       setIsFetchingExplanation(prev => ({ ...prev, [taskId]: true }));
       try {
         const errorInput: ExplainGrammarTaskErrorInput = {
-          interfaceLanguage: userData.settings.interfaceLanguage,
+          interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
           grammarTopic: currentTopic,
           taskDescription: task.taskDescription,
           userAttempt: taskAnswers[taskId] || "",
@@ -477,8 +471,13 @@ export function GrammarModuleClient() {
         setTaskErrorExplanations(prev => ({ ...prev, [taskId]: errorExplanationResult.explanation }));
       } catch (error) {
         console.error("AI error explanation failed:", error);
-        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: "Failed to load AI explanation for this error." }));
-        // Optionally, show a toast for this specific error
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: `Failed to load AI explanation for this error. ${errorMessage}` }));
+        toast({
+            title: "AI Explanation Error",
+            description: `Could not fetch explanation for task error. ${errorMessage}`,
+            variant: "destructive"
+        });
       } finally {
         setIsFetchingExplanation(prev => ({ ...prev, [taskId]: false }));
       }
@@ -650,3 +649,5 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+
+    
