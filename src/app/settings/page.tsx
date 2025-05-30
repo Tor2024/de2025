@@ -40,8 +40,8 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
-      translations[code] = { ...baseEnTranslations };
+    if (!translations[code]) { // Add only if not explicitly defined
+      translations[code] = { ...baseEnTranslations }; // Fallback to English
     }
   });
   return translations;
@@ -82,7 +82,7 @@ export default function SettingsPage() {
     return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
   };
 
-  if (isUserDataLoading && !userData.settings) { // Show loading only if settings are not yet available
+  if (isUserDataLoading) { 
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">

@@ -26,7 +26,7 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
+    if (!translations[code]) { 
       translations[code] = { ...baseEnTranslations };
     }
   });
@@ -51,7 +51,7 @@ export default function AchievementsPage() {
     return defaultText || key;
   };
   
-  if (isUserDataLoading && !userData.settings) { // Show loading only if settings are not yet available
+  if (isUserDataLoading) { 
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">

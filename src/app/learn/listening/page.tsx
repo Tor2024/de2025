@@ -26,8 +26,8 @@ const generateTranslations = () => {
     ru: baseRuTranslations,
   };
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
-      translations[code] = { ...baseEnTranslations };
+    if (!translations[code]) { 
+      translations[code] = { ...baseEnTranslations }; 
     }
   });
   return translations;
@@ -51,7 +51,7 @@ export default function ListeningPage() {
     return defaultText || key;
   };
 
-  if (isUserDataLoading && !userData.settings) { // Show loading only if settings are not yet available
+  if (isUserDataLoading) { 
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
