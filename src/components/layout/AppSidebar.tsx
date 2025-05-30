@@ -72,6 +72,7 @@ const bottomNavItemDefinitions: NavItemDef[] = [
 ];
 
 const baseEnTranslations: Record<string, string> = {
+  aiTutor: "AI Tutor",
   dashboard: "Dashboard",
   dashboardTooltip: "Dashboard",
   grammar: "Grammar",
@@ -94,10 +95,10 @@ const baseEnTranslations: Record<string, string> = {
   achievementsTooltip: "Achievements",
   settings: "Settings",
   settingsTooltip: "Settings",
-  aiTutor: "AI Tutor",
 };
 
 const baseRuTranslations: Record<string, string> = {
+  aiTutor: "AI Репетитор",
   dashboard: "Панель",
   dashboardTooltip: "Панель управления",
   grammar: "Грамматика",
@@ -120,7 +121,6 @@ const baseRuTranslations: Record<string, string> = {
   achievementsTooltip: "Достижения",
   settings: "Настройки",
   settingsTooltip: "Настройки",
-  aiTutor: "AI Репетитор",
 };
 
 const generateSidebarTranslations = () => {
@@ -157,7 +157,6 @@ export function AppSidebar() {
   };
   
   if (isUserDataLoading || !userData.settings) {
-    // Render Skeleton UI for Sidebar
     return (
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-2">
@@ -168,7 +167,9 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {/* Typically 5-7 main nav items */}
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
+            <SidebarMenuSkeleton showIcon={true} />
             <SidebarMenuSkeleton showIcon={true} />
             <SidebarMenuSkeleton showIcon={true} />
             <SidebarMenuSkeleton showIcon={true} />
@@ -178,7 +179,6 @@ export function AppSidebar() {
         </SidebarContent>
         <SidebarFooter className="p-2">
           <SidebarMenu>
-            {/* 3 bottom nav items */}
             <SidebarMenuSkeleton showIcon={true} />
             <SidebarMenuSkeleton showIcon={true} />
             <SidebarMenuSkeleton showIcon={true} />
@@ -210,7 +210,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {navItems.map((item) => (
-            <SidebarMenuItem key={item.href} className={item.disabled ? "opacity-50 cursor-not-allowed" : ""}>
+            <SidebarMenuItem key={item.href} className={item.disabled ? "cursor-not-allowed" : ""}>
               <Link href={item.disabled ? "#" : item.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   asChild
@@ -219,7 +219,7 @@ export function AppSidebar() {
                   disabled={item.disabled}
                   aria-disabled={item.disabled}
                 >
-                  <a style={item.disabled ? { pointerEvents: 'none' } : {}}>
+                  <a>
                     <item.icon />
                     <span>{item.label}</span>
                   </a>
