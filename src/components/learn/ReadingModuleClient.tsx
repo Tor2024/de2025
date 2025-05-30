@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -120,7 +121,7 @@ export function ReadingModuleClient() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [readingResult, setReadingResult] = useState<GenerateReadingMaterialOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
-  
+
   const [currentlySpeakingTextId, setCurrentlySpeakingTextId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
@@ -129,6 +130,9 @@ export function ReadingModuleClient() {
   const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
+
+  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
 
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ReadingFormData>({
@@ -141,7 +145,15 @@ export function ReadingModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
+    const startAudio = new Audio('/sounds/tts_start.mp3');
+    startAudio.preload = 'auto';
+    startCueAudioRef.current = startAudio;
+
+    const endAudio = new Audio('/sounds/tts_end.mp3');
+    endAudio.preload = 'auto';
+    endCueAudioRef.current = endAudio;
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -162,9 +174,12 @@ export function ReadingModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      if (endCueAudioRef.current) {
+        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for reading text:", e));
+      }
       setCurrentlySpeakingTextId(null);
     }
-  }, []);
+  }, [setCurrentlySpeakingTextId]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -182,7 +197,7 @@ export function ReadingModuleClient() {
       setCurrentlySpeakingTextId(null);
       return;
     }
-    
+
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
@@ -203,24 +218,27 @@ export function ReadingModuleClient() {
     });
 
     currentUtteranceIndexRef.current = 0;
+    if (startCueAudioRef.current) {
+      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for reading text:", e));
+    }
     setCurrentlySpeakingTextId(textId);
     speakNext();
-  }, [currentlySpeakingTextId, speakNext, t, toast]);
+  }, [currentlySpeakingTextId, speakNext, t, toast, setCurrentlySpeakingTextId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTextId(null);
-  }, []);
+  }, [setCurrentlySpeakingTextId]);
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
@@ -231,7 +249,7 @@ export function ReadingModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
     stopSpeech();
-    setCurrentTopic(data.topic); 
+    setCurrentTopic(data.topic);
     try {
       const flowInput: GenerateReadingMaterialInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
@@ -239,14 +257,14 @@ export function ReadingModuleClient() {
         proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic,
       };
-      
+
       const result = await generateReadingMaterial(flowInput);
       setReadingResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset(); 
+      reset();
     } catch (error) {
       console.error("Reading material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -269,7 +287,7 @@ export function ReadingModuleClient() {
     setMistakeArchiveStatus({});
     stopSpeech();
   };
-  
+
   const handleAnswerChange = (questionIndex: number, value: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
   };
@@ -363,6 +381,13 @@ export function ReadingModuleClient() {
         </form>
       </Card>
 
+      {isAiLoading && !readingResult && (
+        <div className="flex justify-center items-center p-10">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      )}
+
       {readingResult && (
         <Card className="shadow-lg">
           <CardHeader>
@@ -421,7 +446,7 @@ export function ReadingModuleClient() {
                 </div>
                 )}
             </div>
-            
+
             {hasQuestions && (
               <div>
                 <h3 className="font-semibold text-lg mt-4 mb-1">{t('comprehensionQuestionsHeader')}</h3>
@@ -451,7 +476,7 @@ export function ReadingModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500"; 
+                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500";
                                 }
 
 
@@ -477,9 +502,9 @@ export function ReadingModuleClient() {
                               <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
                           )}
                            {hasSubmitted && !isCorrect && q.answer && !mistakeArchiveStatus[index] && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="mt-2 text-xs"
                               onClick={() => handleArchiveMistake(index)}
                             >
@@ -520,4 +545,3 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-

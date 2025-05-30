@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -107,7 +108,7 @@ const HighlightedTextRenderer: React.FC<{ text: string; highlights: Record<strin
   if (highlightKeys.length === 0) return <>{text}</>;
 
   const regex = new RegExp(`\\b(${highlightKeys.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
-  
+
   const parts = text.split(regex);
 
   return (
@@ -144,10 +145,12 @@ export function GrammarModuleClient() {
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
 
-  // TTS States
   const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
+
+  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
 
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
@@ -160,8 +163,15 @@ export function GrammarModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-  // TTS Functions
-  useEffect(() => {
+  React.useEffect(() => {
+    const startAudio = new Audio('/sounds/tts_start.mp3');
+    startAudio.preload = 'auto';
+    startCueAudioRef.current = startAudio;
+
+    const endAudio = new Audio('/sounds/tts_end.mp3');
+    endAudio.preload = 'auto';
+    endCueAudioRef.current = endAudio;
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -182,9 +192,12 @@ export function GrammarModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      if (endCueAudioRef.current) {
+        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for grammar explanation:", e));
+      }
       setCurrentlySpeakingTTSId(null);
     }
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -202,7 +215,7 @@ export function GrammarModuleClient() {
       setCurrentlySpeakingTTSId(null);
       return;
     }
-    
+
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
@@ -223,24 +236,27 @@ export function GrammarModuleClient() {
     });
 
     currentUtteranceIndexRef.current = 0;
+    if (startCueAudioRef.current) {
+      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for grammar explanation:", e));
+    }
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
 
   if (isUserDataLoading) {
-     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
-  
+
   if (!userData.settings || !userData.progress) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
@@ -256,14 +272,14 @@ export function GrammarModuleClient() {
         learningGoal: userData.settings!.goal,
         userPastErrors: userData.progress!.errorArchive.map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`).join('\n') || "No past errors recorded.",
       };
-      
+
       const result = await adaptiveGrammarExplanations(grammarInput);
       setExplanationResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.grammarTopic),
       });
-      reset(); 
+      reset();
     } catch (error) {
       console.error("Grammar explanation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -318,6 +334,13 @@ export function GrammarModuleClient() {
         </form>
       </Card>
 
+      {isAiLoading && !explanationResult && (
+        <div className="flex justify-center items-center p-10">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      )}
+
       {explanationResult && (
         <Card className="shadow-lg">
           <CardHeader>
@@ -370,7 +393,7 @@ export function GrammarModuleClient() {
                 </p>
               </ScrollArea>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
               <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
@@ -391,6 +414,3 @@ export function GrammarModuleClient() {
     </div>
   );
 }
-    
-
-    

@@ -11,6 +11,7 @@ import type { Lesson } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface RoadmapDisplayProps {
@@ -50,16 +51,29 @@ export function RoadmapDisplay({
   markCompleteTooltip,
   markIncompleteTooltip,
 }: RoadmapDisplayProps) {
-  const { userData, toggleLessonCompletion, isLoading: isUserDataLoading } = useUserData();
+  const { userData, toggleLessonCompletion } = useUserData();
   const roadmap = userData.progress?.learningRoadmap;
   const interfaceLanguage = userData.settings?.interfaceLanguage || 'en';
   const completedLessonIds = userData.progress?.completedLessonIds || [];
+  const { toast } = useToast();
 
   const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
+  const playTextInternalIdRef = React.useRef<string | null>(null);
+
+  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
 
   React.useEffect(() => {
+    const startAudio = new Audio('/sounds/tts_start.mp3');
+    startAudio.preload = 'auto';
+    startCueAudioRef.current = startAudio;
+
+    const endAudio = new Audio('/sounds/tts_end.mp3');
+    endAudio.preload = 'auto';
+    endCueAudioRef.current = endAudio;
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -76,19 +90,25 @@ export function RoadmapDisplay({
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingLessonId(null); 
+        setCurrentlySpeakingLessonId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      setCurrentlySpeakingLessonId(null); 
+      if (endCueAudioRef.current) {
+        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for lesson description:", e));
+      }
+      setCurrentlySpeakingLessonId(null);
     }
-  }, []);
+  }, [setCurrentlySpeakingLessonId]); // Added setCurrentlySpeakingLessonId dependency
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
+    playTextInternalIdRef.current = lessonId;
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      // Toast is handled by the caller or a global handler, if TTS is critical.
-      // For now, just log and prevent further action.
-      console.warn(ttsNotSupportedDescription);
+      toast({
+        title: ttsNotSupportedTitle,
+        description: ttsNotSupportedDescription,
+        variant: 'destructive',
+      });
       setCurrentlySpeakingLessonId(null);
       return;
     }
@@ -100,38 +120,40 @@ export function RoadmapDisplay({
     }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel(); 
+      window.speechSynthesis.cancel();
     }
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-        setCurrentlySpeakingLessonId(null);
-        return; 
+      setCurrentlySpeakingLessonId(null);
+      return;
     }
-    
+
     const sentences = trimmedTextToSpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    
-    if (sentences.length === 0 && trimmedTextToSpeak) { 
-        sentences.push(trimmedTextToSpeak); 
+    if (sentences.length === 0 && trimmedTextToSpeak) {
+      sentences.push(trimmedTextToSpeak);
     }
 
     utteranceQueueRef.current = sentences.map(sentence => {
       const utterance = new SpeechSynthesisUtterance(sentence.trim());
-      utterance.lang = langCode; 
+      utterance.lang = langCode;
       return utterance;
     });
 
     currentUtteranceIndexRef.current = 0;
+    if (startCueAudioRef.current) {
+      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for lesson description:", e));
+    }
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]); 
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedTitle, ttsNotSupportedDescription, toast, setCurrentlySpeakingLessonId]); // Added dependencies
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingLessonId(null);
-  }, []);
+  }, [setCurrentlySpeakingLessonId]);
 
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
@@ -171,9 +193,9 @@ export function RoadmapDisplay({
               const isCompleted = completedLessonIds.includes(lesson.id);
 
               return (
-                <AccordionItem 
-                  value={`lesson-item-${index}`} 
-                  key={`lesson-key-${index}`}    
+                <AccordionItem
+                  value={`lesson-item-${index}`}
+                  key={`lesson-key-${index}`}
                   className={cn(
                     "bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow",
                     isCompleted && "bg-green-500/10 border-green-500/30"
@@ -188,7 +210,7 @@ export function RoadmapDisplay({
                             size="icon"
                             className="h-7 w-7 shrink-0"
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent accordion from toggling
+                              e.stopPropagation(); 
                               toggleLessonCompletion(lesson.id);
                             }}
                             aria-label={isCompleted ? markIncompleteTooltip : markCompleteTooltip}
@@ -201,11 +223,11 @@ export function RoadmapDisplay({
                         </TooltipContent>
                       </Tooltip>
                       <span className={cn(
-                        "bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm", 
+                        "bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm",
                         isCompleted && "line-through text-muted-foreground bg-muted/40"
                       )}>{lesson.level}</span>
                       <span className={cn(
-                        "font-medium text-left flex-1", 
+                        "font-medium text-left flex-1",
                         isCompleted && "line-through text-muted-foreground"
                       )}>{lesson.title}</span>
                     </div>
@@ -239,7 +261,7 @@ export function RoadmapDisplay({
                          </Tooltip>
                       )}
                     </div>
-                    
+
                     {lesson.topics && lesson.topics.length > 0 && (
                       <div className="mb-3">
                         <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
@@ -271,4 +293,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-

@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -105,6 +106,9 @@ export function SpeakingModuleClient() {
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
 
+  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<SpeakingFormData>({
     resolver: zodResolver(speakingSchema),
   });
@@ -115,7 +119,15 @@ export function SpeakingModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-   useEffect(() => {
+   React.useEffect(() => {
+    const startAudio = new Audio('/sounds/tts_start.mp3');
+    startAudio.preload = 'auto';
+    startCueAudioRef.current = startAudio;
+
+    const endAudio = new Audio('/sounds/tts_end.mp3');
+    endAudio.preload = 'auto';
+    endCueAudioRef.current = endAudio;
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -136,9 +148,12 @@ export function SpeakingModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      if (endCueAudioRef.current) {
+        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for speaking practice script:", e));
+      }
       setCurrentlySpeakingTTSId(null);
     }
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -156,7 +171,7 @@ export function SpeakingModuleClient() {
       setCurrentlySpeakingTTSId(null);
       return;
     }
-    
+
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
@@ -177,24 +192,27 @@ export function SpeakingModuleClient() {
     });
 
     currentUtteranceIndexRef.current = 0;
+    if (startCueAudioRef.current) {
+      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for speaking practice script:", e));
+    }
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, []);
+  }, [setCurrentlySpeakingTTSId]);
 
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<SpeakingFormData> = async (data) => {
@@ -215,7 +233,7 @@ export function SpeakingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset(); 
+      reset();
     } catch (error) {
       console.error("Speaking topic generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -270,6 +288,13 @@ export function SpeakingModuleClient() {
         </form>
       </Card>
 
+      {isAiLoading && !speakingResult && (
+        <div className="flex justify-center items-center p-10">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      )}
+
       {speakingResult && (
         <Card className="shadow-lg">
           <CardHeader>
@@ -294,7 +319,7 @@ export function SpeakingModuleClient() {
                 <p className="whitespace-pre-wrap text-base leading-relaxed">{speakingResult.speakingTopic}</p>
               </ScrollArea>
             </div>
-            
+
             <div>
                 <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
                     <HelpCircle className="h-5 w-5 text-primary/80" />
@@ -328,7 +353,12 @@ export function SpeakingModuleClient() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          playText(practiceScriptTTSId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
+                          if (!hasPracticeScript || !speakingResult.practiceScript) return;
+                          if (currentlySpeakingTTSId === practiceScriptTTSId) {
+                            stopSpeech();
+                          } else {
+                            playText(practiceScriptTTSId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
+                          }
                         }}
                         className="shrink-0"
                         aria-label={currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
@@ -354,7 +384,7 @@ export function SpeakingModuleClient() {
                   )}
               </ScrollArea>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-primary/80" />
@@ -380,6 +410,3 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
-
-
-    

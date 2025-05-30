@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -133,6 +134,9 @@ export function ListeningModuleClient() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
 
+  const startCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const endCueAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ListeningFormData>({
     resolver: zodResolver(listeningSchema),
   });
@@ -143,7 +147,15 @@ export function ListeningModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
+    const startAudio = new Audio('/sounds/tts_start.mp3');
+    startAudio.preload = 'auto';
+    startCueAudioRef.current = startAudio;
+
+    const endAudio = new Audio('/sounds/tts_end.mp3');
+    endAudio.preload = 'auto';
+    endCueAudioRef.current = endAudio;
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -164,9 +176,12 @@ export function ListeningModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
+      if (endCueAudioRef.current) {
+        endCueAudioRef.current.play().catch(e => console.warn("TTS end cue play error for listening script:", e));
+      }
       setCurrentlySpeakingScriptId(null);
     }
-  }, []);
+  }, [setCurrentlySpeakingScriptId]);
 
   const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -184,7 +199,7 @@ export function ListeningModuleClient() {
       setCurrentlySpeakingScriptId(null);
       return;
     }
-    
+
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
@@ -205,23 +220,26 @@ export function ListeningModuleClient() {
     });
 
     currentUtteranceIndexRef.current = 0;
+    if (startCueAudioRef.current) {
+      startCueAudioRef.current.play().catch(e => console.warn("TTS start cue play error for listening script:", e));
+    }
     setCurrentlySpeakingScriptId(scriptId);
     speakNext();
-  }, [currentlySpeakingScriptId, speakNext, t, toast]);
+  }, [currentlySpeakingScriptId, speakNext, t, toast, setCurrentlySpeakingScriptId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingScriptId(null);
-  }, []);
+  }, [setCurrentlySpeakingScriptId]);
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <p>{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
@@ -231,7 +249,7 @@ export function ListeningModuleClient() {
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
-    stopSpeech(); 
+    stopSpeech();
     setCurrentTopic(data.topic);
     try {
       const flowInput: GenerateListeningMaterialInput = {
@@ -247,7 +265,7 @@ export function ListeningModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset(); 
+      reset();
     } catch (error) {
       console.error("Listening material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -270,7 +288,7 @@ export function ListeningModuleClient() {
     setMistakeArchiveStatus({});
     stopSpeech();
   };
-  
+
   const handleAnswerChange = (questionIndex: number, value: string) => {
     setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
   };
@@ -302,7 +320,7 @@ export function ListeningModuleClient() {
     if (question && userAnswer && question.answer !== userAnswer) {
       addErrorToArchive({
         module: "Listening Practice",
-        context: question.question, // Or listeningResult.script for more context
+        context: question.question,
         userAttempt: userAnswer,
         correctAnswer: question.answer,
       });
@@ -364,6 +382,13 @@ export function ListeningModuleClient() {
         </form>
       </Card>
 
+      {isAiLoading && !listeningResult && (
+        <div className="flex justify-center items-center p-10">
+          <LoadingSpinner size={32} />
+          <p className="ml-2">{t('loading')}</p>
+        </div>
+      )}
+
       {listeningResult && (
         <Card className="shadow-lg">
           <CardHeader>
@@ -401,8 +426,8 @@ export function ListeningModuleClient() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                                if (!hasScriptText || !listeningResult.script) return; 
-                                const scriptId = listeningResult.title || `script-${Date.now()}`;
+                                if (!hasScriptText || !listeningResult.script) return;
+                                const scriptId = listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
                                 if (currentlySpeakingScriptId === scriptId) {
                                     stopSpeech();
                                 } else {
@@ -410,15 +435,15 @@ export function ListeningModuleClient() {
                                 }
                             }}
                             className="shrink-0"
-                            aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                            aria-label={currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                             disabled={!hasScriptText || isAiLoading}
                             >
-                            {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                            {currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
+                            {currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                            {currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>{currentlySpeakingScriptId === (listeningResult.title || `script-${Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                          <p>{currentlySpeakingScriptId === (listeningResult.title || `script-${currentTopic.replace(/\s+/g, '-') || Date.now()}`) ? t('ttsStopScript') : t('ttsPlayScript')}</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -433,7 +458,7 @@ export function ListeningModuleClient() {
                   </div>
                 )}
             </div>
-            
+
             {hasQuestions && (
               <div>
                 <h3 className="font-semibold text-lg mt-4 mb-1">{t('comprehensionQuestionsHeader')}</h3>
@@ -463,7 +488,7 @@ export function ListeningModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500"; 
+                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500";
                                 }
 
                                 return (
@@ -480,17 +505,17 @@ export function ListeningModuleClient() {
                               })}
                             </RadioGroup>
                           ) : (
-                            q.answer && hasSubmitted && ( 
+                            q.answer && hasSubmitted && (
                                <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
                             )
                           )}
-                           {q.answer && !q.options && !hasSubmitted && ( 
+                           {q.answer && !q.options && !hasSubmitted && (
                               <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
                           )}
                            {hasSubmitted && !isCorrect && q.answer && !mistakeArchiveStatus[index] && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="mt-2 text-xs"
                               onClick={() => handleArchiveMistake(index)}
                             >
@@ -531,5 +556,3 @@ export function ListeningModuleClient() {
     </div>
   );
 }
-
-    
