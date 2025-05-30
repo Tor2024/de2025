@@ -53,7 +53,7 @@ export default function WordPracticePage() {
   if (isUserDataLoading) { 
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={32} />
           <p className="ml-2">{t('loading')}</p>
         </div>
@@ -63,7 +63,7 @@ export default function WordPracticePage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full p-4 md:p-6 lg:p-8">
         <Card className="w-full max-w-md text-center shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
              <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
