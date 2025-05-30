@@ -65,10 +65,10 @@ Instructions:
     *   These tips MUST be in the {{{interfaceLanguage}}}.
     *   Examples of tips: "Try to use vocabulary related to...", "Think about specific examples.", "Don't be afraid to pause and think."
 4.  **Practice Script (Optional):**
-    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script (e.g., a few example sentences a user might say, or a very short dialogue related to the topic).
+    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script. This could be a few example sentences a user might say, or a very short dialogue related to the topic.
     *   The script MUST be in the {{{targetLanguage}}}.
     *   The complexity of the script should be appropriate for the {{{proficiencyLevel}}}.
-    *   This script is intended to give the user a starting point or some phrases they could use.
+    *   This script is intended to give the user a starting point or some phrases they could use for their own speech practice. Ensure it's useful and directly related to the main speaking topic.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 `,

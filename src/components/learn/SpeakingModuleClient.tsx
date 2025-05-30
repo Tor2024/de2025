@@ -101,7 +101,7 @@ export function SpeakingModuleClient() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [speakingResult, setSpeakingResult] = useState<GenerateSpeakingTopicOutput | null>(null);
 
-  const [currentlySpeakingScriptId, setCurrentlySpeakingScriptId] = useState<string | null>(null);
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
 
@@ -132,28 +132,28 @@ export function SpeakingModuleClient() {
       };
       utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror', event);
-        setCurrentlySpeakingScriptId(null);
+        setCurrentlySpeakingTTSId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
     }
   }, []);
 
-  const playText = useCallback((scriptId: string, textToSpeak: string | undefined, langCode: string) => {
+  const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
         title: t('ttsNotSupportedTitle'),
         description: t('ttsNotSupportedDescription'),
         variant: 'destructive',
       });
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    if (window.speechSynthesis.speaking && currentlySpeakingScriptId === scriptId) {
+    if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
       window.speechSynthesis.cancel();
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
     
@@ -163,7 +163,7 @@ export function SpeakingModuleClient() {
 
     const trimmedTextToSpeak = textToSpeak ? textToSpeak.trim() : "";
     if (!trimmedTextToSpeak) {
-      setCurrentlySpeakingScriptId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
@@ -177,15 +177,15 @@ export function SpeakingModuleClient() {
     });
 
     currentUtteranceIndexRef.current = 0;
-    setCurrentlySpeakingScriptId(scriptId);
+    setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingScriptId, speakNext, t, toast]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingScriptId(null);
+    setCurrentlySpeakingTTSId(null);
   }, []);
 
 
@@ -235,6 +235,8 @@ export function SpeakingModuleClient() {
   };
 
   const hasPracticeScript = speakingResult && speakingResult.practiceScript && speakingResult.practiceScript.trim().length > 0;
+  const practiceScriptTTSId = `practice-script-${(speakingResult?.speakingTopic || "default").substring(0,10)}`;
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -327,31 +329,25 @@ export function SpeakingModuleClient() {
                     <FileText className="h-5 w-5 text-primary/80" />
                     {t('practiceScriptHeader')} ({userData.settings!.targetLanguage})
                   </h3>
-                  {typeof window !== 'undefined' && window.speechSynthesis && (
+                  {typeof window !== 'undefined' && window.speechSynthesis && hasPracticeScript && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            if (!hasPracticeScript || !speakingResult.practiceScript) return;
-                            const scriptId = `speaking-script-${speakingResult.speakingTopic.substring(0,10)}`; // More stable ID
-                            if (currentlySpeakingScriptId === scriptId) {
-                                stopSpeech();
-                            } else {
-                                playText(scriptId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
-                            }
+                            playText(practiceScriptTTSId, speakingResult.practiceScript, userData.settings!.targetLanguage as AppTargetLanguage);
                           }}
                           className="shrink-0"
-                          aria-label={currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                          aria-label={currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
                           disabled={!hasPracticeScript || isAiLoading}
                         >
-                          {currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
-                          {currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}
+                          {currentlySpeakingTTSId === practiceScriptTTSId ? <Ban className="h-5 w-5 mr-1" /> : <Volume2 className="h-5 w-5 mr-1" />}
+                          {currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{currentlySpeakingScriptId === `speaking-script-${speakingResult.speakingTopic.substring(0,10)}` ? t('ttsStopScript') : t('ttsPlayScript')}</p>
+                        <p>{currentlySpeakingTTSId === practiceScriptTTSId ? t('ttsStopScript') : t('ttsPlayScript')}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -367,7 +363,7 @@ export function SpeakingModuleClient() {
                         <FileText className="h-5 w-5 text-primary/80" />
                         {t('practiceScriptHeader')}
                     </h3>
-                    <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
+                     <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
                       <p className="text-sm text-muted-foreground italic">{t('noPracticeScript')}</p>
                     </div>
                 </div>
@@ -398,5 +394,3 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
-
-
