@@ -26,6 +26,7 @@ const GenerateSpeakingTopicOutputSchema = z.object({
   tips: z.array(z.string()).optional().describe('Optional short tips (2-3) on how to approach speaking on this topic, in the interfaceLanguage.'),
   guidingQuestions: z.array(z.string()).optional().describe('Optional short guiding questions or sub-topics (2-3) to help the user structure their speech, in the interfaceLanguage.'),
   practiceScript: z.string().optional().describe('An optional short script or text (e.g., a few sentences, a mini-dialogue) related to the speakingTopic, in the targetLanguage, that the user can use for practice.'),
+  followUpQuestions: z.array(z.string()).optional().describe('Optional short follow-up questions (2-3) directly related to the speakingTopic to simulate a conversation, in the interfaceLanguage.'),
 });
 export type GenerateSpeakingTopicOutput = z.infer<typeof GenerateSpeakingTopicOutputSchema>;
 
@@ -40,10 +41,10 @@ const generateSpeakingTopicPrompt = ai.definePrompt({
   output: {schema: GenerateSpeakingTopicOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging speaking practice topics and supporting materials.
 
-Task: Generate a speaking topic, 2-3 optional short tips for the user, 2-3 optional guiding questions or sub-topics to help structure the speech, and an optional short practice script (a few sentences or a mini-dialogue).
+Task: Generate a speaking topic, 2-3 optional short tips for the user, 2-3 optional guiding questions or sub-topics to help structure the speech, an optional short practice script (a few sentences or a mini-dialogue), and 2-3 optional follow-up questions.
 
 User Preferences:
-- Interface Language (for tips and guiding questions): {{{interfaceLanguage}}}
+- Interface Language (for tips, guiding questions, and follow-up questions): {{{interfaceLanguage}}}
 - Target Language (for the context of the speaking topic and the practice script): {{{targetLanguage}}}
 - Proficiency Level (for topic complexity and script complexity): {{{proficiencyLevel}}}
 {{#if generalTopic}}
@@ -57,16 +58,20 @@ Instructions:
     *   {{#if generalTopic}}The speaking topic MUST be related to the user-defined General Topic: "{{{generalTopic}}}".{{/if}}
     *   The speaking topic itself should be phrased to directly invite a spoken response from the user (e.g., as a question like 'What are your plans for the weekend?' or a scenario to describe like 'Describe your favorite hobby.'). It can be in the {{{interfaceLanguage}}}, clearly stating the task (e.g., 'Tell us about your last vacation in {{{targetLanguage}}}'), or directly in the {{{targetLanguage}}} if the user is advanced (e.g., 'Erzähle von deinem letzten Urlaub.'). Use your best judgment for clarity and engagement.
 2.  **Guiding Questions (Optional, 2-3 short questions/sub-topics):**
-    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic.
+    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic. These are more like sub-points to cover.
     *   These guiding questions/sub-topics MUST be in the {{{interfaceLanguage}}} and should be phrased as if a conversational partner is asking them to encourage a natural spoken response (e.g., if the topic is 'Your last holiday', questions could be 'So, where did you go on your last holiday?', 'What was the most interesting thing you did there?').
 3.  **Tips (Optional, 2-3 short tips):**
     *   Provide 2-3 brief, actionable tips on how the user might approach speaking on the generated topic.
     *   These tips MUST be in the {{{interfaceLanguage}}}.
     *   Examples of tips: "Try to use vocabulary related to...", "Think about specific examples.", "Don't be afraid to pause and think."
 4.  **Practice Script (Optional):**
-    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script.
+    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script. This script should be a few sentences or a mini-dialogue starter.
     *   This script MUST be in the {{{targetLanguage}}}, be very short (e.g., 1-3 lines for a monologue starter, or a 2-line mini-dialogue starter like 'A: Did you hear about...? B: No, what happened?'), and appropriate for the {{{proficiencyLevel}}}.
     *   It should give the user an immediate example or starting point for their speech. Ensure it's useful and directly related to the main speaking topic.
+5.  **Follow-up Questions (Optional, 2-3 short questions):**
+    *   Provide 2-3 brief, direct questions that a conversational partner might ask *after* the user has spoken on the main {{{speakingTopic}}}. These should encourage further elaboration or continuation of the conversation.
+    *   These follow-up questions MUST be in the {{{interfaceLanguage}}}.
+    *   Example: If speaking topic is "Describe your favorite hobby", a follow-up question could be "How long have you been doing that?" or "What's the most challenging part of your hobby?".
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 `,

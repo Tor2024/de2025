@@ -16,7 +16,7 @@ import { generateSpeakingTopic } from "@/ai/flows/generate-speaking-topic-flow";
 import type { GenerateSpeakingTopicInput, GenerateSpeakingTopicOutput } from "@/ai/flows/generate-speaking-topic-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban } from "lucide-react";
+import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban, MessageCircleQuestion } from "lucide-react"; // Added MessageCircleQuestion
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -40,6 +40,8 @@ const baseEnTranslations: Record<string, string> = {
   noTipsGenerated: "No specific tips were generated for this topic.",
   practiceScriptHeader: "Practice Script",
   noPracticeScript: "No practice script was generated for this topic.",
+  followUpQuestionsHeader: "Follow-up Questions",
+  noFollowUpQuestions: "No specific follow-up questions were generated for this topic.",
   toastSuccessTitle: "Speaking Topic Generated!",
   toastSuccessDescription: "Your speaking topic is ready.",
   toastErrorTitle: "Error Generating Topic",
@@ -70,6 +72,8 @@ const baseRuTranslations: Record<string, string> = {
   noTipsGenerated: "Для этой темы не было сгенерировано конкретных советов.",
   practiceScriptHeader: "Текст для практики",
   noPracticeScript: "Для этой темы не было сгенерировано текста для практики.",
+  followUpQuestionsHeader: "Вопросы для продолжения:",
+  noFollowUpQuestions: "Для этой темы не было сгенерировано вопросов для продолжения.",
   toastSuccessTitle: "Тема для говорения сгенерирована!",
   toastSuccessDescription: "Ваша тема для говорения готова.",
   toastErrorTitle: "Ошибка генерации темы",
@@ -114,6 +118,9 @@ export function SpeakingModuleClient() {
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<SpeakingFormData>({
     resolver: zodResolver(speakingSchema),
+    defaultValues: {
+        generalTopic: "",
+    }
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
@@ -211,14 +218,15 @@ export function SpeakingModuleClient() {
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
     sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
+    sanitizedText = sanitizedText.replace(/#+/g, '');
     sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
     return sanitizedText.trim();
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
     if (playTextInternalIdRef.current !== currentPlayId) {
-        if (window.speechSynthesis.speaking) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
         setCurrentlySpeakingTTSId(null);
@@ -242,25 +250,15 @@ export function SpeakingModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-       if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
-        const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-        endSignalUtterance.lang = interfaceLangBcp47;
-        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-        if (voice) endSignalUtterance.voice = voice;
-        endSignalUtterance.rate = 0.95;
-        endSignalUtterance.pitch = 1.1;
-        window.speechSynthesis.speak(endSignalUtterance);
-      }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [setCurrentlySpeakingTTSId, toast, t]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
     
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
       toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
       return;
     }
@@ -276,7 +274,8 @@ export function SpeakingModuleClient() {
       return;
     }
     
-    const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
+    
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -285,7 +284,7 @@ export function SpeakingModuleClient() {
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
 
-    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
+    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [sanitizedText];
     sentences.forEach(sentence => {
       if (sentence.trim()) {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
@@ -297,22 +296,31 @@ export function SpeakingModuleClient() {
         utteranceQueueRef.current.push(utterance);
       }
     });
+
+    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
+    endSignalUtterance.lang = interfaceLangBcp47;
+    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endVoice) endSignalUtterance.voice = endVoice;
+    endSignalUtterance.rate = 0.95;
+    endSignalUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endSignalUtterance);
+
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+  }, []);
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const onSubmit: SubmitHandler<SpeakingFormData> = async (data) => {
@@ -445,6 +453,26 @@ export function SpeakingModuleClient() {
                 </ScrollArea>
             </div>
             
+            <div>
+                <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
+                    <MessageCircleQuestion className="h-5 w-5 text-primary/80" /> {/* New Icon */}
+                    {t('followUpQuestionsHeader')}
+                </h3>
+                 <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
+                    {(speakingResult.followUpQuestions && speakingResult.followUpQuestions.length > 0) ? (
+                        <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
+                        {speakingResult.followUpQuestions.map((question, index) => (
+                            <li key={index}>{question}</li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
+                            {t('noFollowUpQuestions')}
+                        </div>
+                    )}
+                </ScrollArea>
+            </div>
+
             {speakingResult.practiceScript && (
               <div>
                 <div className="flex justify-between items-center mt-4 mb-2">
@@ -504,7 +532,6 @@ export function SpeakingModuleClient() {
                  </div>
             )}
 
-
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-primary/80" />
@@ -531,4 +558,3 @@ export function SpeakingModuleClient() {
   );
 }
 
-    
