@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, type SubmitHandler, Controller } from "react-hook-form"; // Added Controller
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -18,22 +18,27 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { BookOpen, HelpCircle, Sparkles, Volume2, Ban, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { interfaceLanguageCodes, proficiencyLevels } from "@/lib/types"; // Added proficiencyLevels
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select
 
 const readingSchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
+  proficiencyLevel: z.enum(proficiencyLevels, {
+    required_error: "Proficiency level is required",
+  }),
 });
 type ReadingFormData = z.infer<typeof readingSchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Reading Practice",
-  description: "Enter a topic you'd like to read about. Our AI will generate a text in your target language, adapted to your proficiency level, along with optional comprehension questions.",
+  description: "Enter a topic and select a proficiency level. Our AI will generate a text in your target language, along with optional comprehension questions.",
   topicLabel: "Topic for Reading",
   topicPlaceholder: "E.g., My Daily Routine, Space Exploration, German Food",
+  proficiencyLevelLabel: "Proficiency Level for this task",
+  proficiencyLevelPlaceholder: "Select proficiency level",
   getTextButton: "Get Reading Text",
   resultsTitlePrefix: "Reading Material on:",
   readingTextHeader: "Text",
@@ -69,9 +74,11 @@ const baseEnTranslations: Record<string, string> = {
 
 const baseRuTranslations: Record<string, string> = {
   title: "Практика чтения",
-  description: "Введите тему, о которой вы хотели бы почитать. Наш ИИ сгенерирует текст на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание.",
+  description: "Введите тему и выберите уровень сложности. Наш ИИ сгенерирует текст на изучаемом вами языке, а также опциональные вопросы на понимание.",
   topicLabel: "Тема для чтения",
   topicPlaceholder: "Напр., Мой распорядок дня, Освоение космоса, Немецкая кухня",
+  proficiencyLevelLabel: "Уровень для этого задания",
+  proficiencyLevelPlaceholder: "Выберите уровень",
   getTextButton: "Получить текст",
   resultsTitlePrefix: "Материал для чтения по теме:",
   readingTextHeader: "Текст",
@@ -124,9 +131,7 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
     console.warn('TTS: ReadingModuleClient - Voices not available or synthesis not supported.');
     return undefined;
   }
-
   console.log(`TTS: ReadingModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
-
   let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
   if (!targetLangVoices.length) {
     const baseLang = langCode.split('-')[0];
@@ -135,35 +140,29 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
       console.log(`TTS: ReadingModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
     }
   }
-
   if (!targetLangVoices.length) {
     console.warn(`TTS: ReadingModuleClient - No voices found for lang "${langCode}" or base lang.`);
     return undefined;
   }
-
   const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
   if (googleVoice) {
     console.log('TTS: ReadingModuleClient - Selected Google voice:', googleVoice.name);
     return googleVoice;
   }
-
   const defaultVoice = targetLangVoices.find(voice => voice.default);
   if (defaultVoice) {
     console.log('TTS: ReadingModuleClient - Selected default voice:', defaultVoice.name);
     return defaultVoice;
   }
-
   const localServiceVoice = targetLangVoices.find(voice => voice.localService);
   if (localServiceVoice) {
     console.log('TTS: ReadingModuleClient - Selected local service voice:', localServiceVoice.name);
     return localServiceVoice;
   }
-  
   if (targetLangVoices.length > 0) {
     console.log('TTS: ReadingModuleClient - Selected first available voice:', targetLangVoices[0].name);
     return targetLangVoices[0];
   }
-
   console.warn(`TTS: ReadingModuleClient - Could not select any voice for lang "${langCode}".`);
   return undefined;
 };
@@ -171,21 +170,13 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
-  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  // 2. Remove various types of quotes
   sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  // 3. Remove apostrophes/single quotes
   sanitizedText = sanitizedText.replace(/'/g, '');
-  // 4. Remove backticks (Markdown code)
   sanitizedText = sanitizedText.replace(/`/g, '');
-  // 5. Remove hyphens used as list item markers at the beginning of a line
   sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  // 6. Remove parentheses
   sanitizedText = sanitizedText.replace(/[()]/g, '');
-  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
   sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
-  // 8. Normalize multiple spaces to a single space
   sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
@@ -207,9 +198,12 @@ export function ReadingModuleClient() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
 
-
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ReadingFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<ReadingFormData>({
     resolver: zodResolver(readingSchema),
+    defaultValues: {
+      topic: "",
+      proficiencyLevel: userData.settings?.proficiencyLevel || proficiencyLevels[0],
+    },
   });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
@@ -220,16 +214,16 @@ export function ReadingModuleClient() {
     }
     const enTranslations = componentTranslations['en'];
     if (enTranslations && enTranslations[key]) {
-      return enTranslations[key]; 
+      return enTranslations[key];
     }
-    return defaultText || key; 
+    return defaultText || key;
   }, [currentLang]);
 
   useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-         console.log('TTS: ReadingModuleClient - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
+        console.log('TTS: ReadingModuleClient - Voices updated:', voicesRef.current.map(v => ({name: v.name, lang: v.lang})));
       }
     };
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -268,7 +262,7 @@ export function ReadingModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-       if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
          const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
          if (lastUtteranceText !== "Пииип" || utteranceQueueRef.current.length > 1) {
             const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
@@ -284,7 +278,7 @@ export function ReadingModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast]); // Added toast to dependencies
+  }, [userData.settings, t, toast]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -296,25 +290,20 @@ export function ReadingModuleClient() {
       setCurrentlySpeakingTTSId(null);
       return;
     }
-
     if (window.speechSynthesis.speaking && currentlySpeakingTTSId === textId) {
       window.speechSynthesis.cancel();
       setCurrentlySpeakingTTSId(null);
       return;
     }
-
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
     }
-    
     const textToActuallySpeak = sanitizeTextForTTS(textToSpeak);
     if (!textToActuallySpeak) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
-
     utteranceQueueRef.current = [];
-    
     const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
     if (userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
@@ -322,13 +311,9 @@ export function ReadingModuleClient() {
       if (startVoice) startCueUtterance.voice = startVoice;
     }
     utteranceQueueRef.current.push(startCueUtterance);
-
-
     const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
     if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
-    
     const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
-
     sentences.forEach(sentence => {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
         utterance.lang = langCode;
@@ -337,11 +322,10 @@ export function ReadingModuleClient() {
         }
         utteranceQueueRef.current.push(utterance);
     });
-    
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]); // Added toast and userData.settings to dependencies
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -349,7 +333,6 @@ export function ReadingModuleClient() {
     }
     setCurrentlySpeakingTTSId(null);
   }, []);
-
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -372,7 +355,7 @@ export function ReadingModuleClient() {
       const flowInput: GenerateReadingMaterialInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
         targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
+        proficiencyLevel: data.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic,
       };
 
@@ -382,7 +365,7 @@ export function ReadingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
       });
-      reset(); 
+      // reset(); // Do not reset the form here, user might want to regenerate with same topic/level or slightly different
     } catch (error) {
       console.error("Reading material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -404,6 +387,10 @@ export function ReadingModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
     stopSpeech();
+    reset({ // Reset form to defaults
+      topic: "",
+      proficiencyLevel: userData.settings?.proficiencyLevel || proficiencyLevels[0],
+    });
   };
 
   const handleAnswerChange = (questionIndex: number, value: string) => {
@@ -489,6 +476,32 @@ export function ReadingModuleClient() {
               <Input id="topic" placeholder={t('topicPlaceholder')} {...register("topic")} />
               {errors.topic && <p className="text-sm text-destructive">{errors.topic.message}</p>}
             </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="proficiencyLevel">{t('proficiencyLevelLabel')}</Label>
+              <Controller
+                name="proficiencyLevel"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                  >
+                    <SelectTrigger id="proficiencyLevel">
+                      <SelectValue placeholder={t('proficiencyLevelPlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {proficiencyLevels.map(level => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
+            </div>
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
@@ -524,7 +537,7 @@ export function ReadingModuleClient() {
           <CardContent className="space-y-4">
              <div>
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-lg">{t('readingTextHeader')} ({userData.settings.targetLanguage})</h3>
+                    <h3 className="font-semibold text-lg">{t('readingTextHeader')} ({userData.settings!.targetLanguage})</h3>
                     {typeof window !== 'undefined' && window.speechSynthesis && hasTextToRead && (
                         <Tooltip>
                         <TooltipTrigger asChild>
@@ -594,7 +607,7 @@ export function ReadingModuleClient() {
                                 } else if (hasSubmitted && isSelected && !isCorrect) {
                                   labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
                                 } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500"; 
+                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500";
                                 }
 
 
@@ -664,3 +677,4 @@ export function ReadingModuleClient() {
     </div>
   );
 }
+
