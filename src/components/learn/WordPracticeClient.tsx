@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -143,12 +143,17 @@ export function WordPracticeClient() {
     setShowOverallResults(false);
 
     try {
+      if (!userData.settings) {
+        toast({ title: t('onboardingMissing'), variant: "destructive" });
+        setIsAiLoading(false);
+        return;
+      }
       const flowInput: GenerateFillInTheBlankInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
-        targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
+        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
+        proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5, // Or make this configurable
+        count: 5,
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -163,7 +168,7 @@ export function WordPracticeClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic || t('noTopicProvided')),
       });
-      resetTopicForm(); // Reset the topic form after successful submission
+      resetTopicForm();
     } catch (error) {
       console.error("Exercise generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -368,4 +373,3 @@ export function WordPracticeClient() {
     </div>
   );
 }
-
