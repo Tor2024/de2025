@@ -10,7 +10,7 @@ import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } from '@/lib/types';
 import * as React from 'react';
@@ -18,9 +18,9 @@ import * as React from 'react';
 const learningModules = [
   { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen },
   { titleKey: "writingAssistant", defaultTitle: "Writing Assistant", descriptionKey: "writingAssistantDescription", defaultDescription: "Get feedback on your texts.", href: "/learn/writing", icon: Edit3 },
-  { titleKey: "vocabulary", defaultTitle: "Vocabulary", descriptionKey: "vocabularyDescription", defaultDescription: "Expand your word bank.", href: "/learn/vocabulary", icon: FileText, disabled: true },
+  { titleKey: "vocabulary", defaultTitle: "Vocabulary", descriptionKey: "vocabularyDescription", defaultDescription: "Expand your word bank.", href: "/learn/vocabulary", icon: FileText },
+  { titleKey: "reading", defaultTitle: "Reading", descriptionKey: "readingDescription", defaultDescription: "Understand written texts.", href: "/learn/reading", icon: BookOpen },
   { titleKey: "listening", defaultTitle: "Listening", descriptionKey: "listeningDescription", defaultDescription: "Sharpen your comprehension.", href: "/learn/listening", icon: Headphones, disabled: true },
-  { titleKey: "reading", defaultTitle: "Reading", descriptionKey: "readingDescription", defaultDescription: "Understand written texts.", href: "/learn/reading", icon: BookOpen, disabled: true },
   { titleKey: "speaking", defaultTitle: "Speaking", descriptionKey: "speakingDescription", defaultDescription: "Practice your pronunciation.", href: "/learn/speaking", icon: Mic, disabled: true },
   { titleKey: "wordPractice", defaultTitle: "Word Practice", descriptionKey: "wordPracticeDescription", defaultDescription: "Reinforce with fun drills.", href: "/learn/practice", icon: Repeat, disabled: true },
 ];
@@ -32,6 +32,7 @@ const baseEnTranslations: Record<string, string> = {
     progressOverview: "Progress Overview",
     achievements: "Achievements",
     quickSettings: "Quick Settings",
+    aiTutorTipsTitle: "AI Tutor Tips",
     aiTutorTip: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
     xp: "XP",
     streak: "Streak",
@@ -57,7 +58,6 @@ const baseEnTranslations: Record<string, string> = {
     speakingDescription: "Practice your pronunciation.",
     wordPractice: "Word Practice",
     wordPracticeDescription: "Reinforce with fun drills.",
-    aiTutorTipsTitle: "AI Tutor Tips",
     yourGoalPrefix: "Your Goal:",
     noGoalSet: "No goal set.",
     progressLabel: "Progress",
@@ -85,6 +85,7 @@ const baseRuTranslations: Record<string, string> = {
     progressOverview: "Обзор прогресса",
     achievements: "Достижения",
     quickSettings: "Быстрые настройки",
+    aiTutorTipsTitle: "Советы от AI-Репетитора",
     aiTutorTip: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
     xp: "ОП",
     streak: "Серия",
@@ -110,7 +111,6 @@ const baseRuTranslations: Record<string, string> = {
     speakingDescription: "Практикуйте произношение.",
     wordPractice: "Практика слов",
     wordPracticeDescription: "Закрепляйте знания с помощью увлекательных упражнений.",
-    aiTutorTipsTitle: "Советы от AI-Репетитора",
     yourGoalPrefix: "Ваша цель:",
     noGoalSet: "Цель не установлена.",
     progressLabel: "Прогресс",
@@ -132,12 +132,11 @@ const baseRuTranslations: Record<string, string> = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (!translations[code]) { 
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
       translations[code] = { ...baseEnTranslations }; 
     }
   });
@@ -157,24 +156,25 @@ export default function DashboardPage() {
     }
   }, [userData, isUserDataLoading, router]);
 
+  // Hydration-safe language determination for translations
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
     }
-    const enTranslations = pageTranslations['en'];
+    const enTranslations = pageTranslations['en']; // Fallback to English
     if (enTranslations && enTranslations[key]) {
       return enTranslations[key];
     }
-    return defaultText || key;
+    return defaultText || key; // Fallback to defaultText or key itself
   };
   
   if (isUserDataLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{t('loadingUserData')}</p>
+        <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function DashboardPage() {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner size={48} />
-        <p className="ml-4">{t('redirecting')}</p>
+        <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
       </div>
     );
   }
@@ -294,4 +294,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-

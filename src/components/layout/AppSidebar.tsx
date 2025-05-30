@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { LucideIcon } from "lucide-react";
-import { interfaceLanguageCodes } from "@/lib/types"; // Added import
+import { interfaceLanguageCodes } from "@/lib/types"; 
 
 interface NavItemDef {
   href: string;
@@ -36,18 +36,33 @@ interface NavItemDef {
   defaultLabel: string;
   tooltipKey: string;
   defaultTooltip: string;
+  disabled?: boolean; // Added to allow disabling from learningModules source
 }
+
+// Synchronize with learningModules from dashboard
+const learningModulesConfig = [
+  { titleKey: "grammar", defaultTitle: "Grammar", href: "/learn/grammar", icon: BookOpen, tooltipKey: "grammarTooltip", defaultTooltip: "Grammar" },
+  { titleKey: "writing", defaultTitle: "Writing", href: "/learn/writing", icon: Edit3, tooltipKey: "writingTooltip", defaultTooltip: "Writing Assistant" },
+  { titleKey: "vocabulary", defaultTitle: "Vocabulary", href: "/learn/vocabulary", icon: FileText, tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary" },
+  { titleKey: "reading", defaultTitle: "Reading", href: "/learn/reading", icon: BookOpen, tooltipKey: "readingTooltip", defaultTooltip: "Reading" }, // Assuming BookOpen is also for reading
+  { titleKey: "listening", defaultTitle: "Listening", href: "/learn/listening", icon: Headphones, tooltipKey: "listeningTooltip", defaultTooltip: "Listening", disabled: true },
+  { titleKey: "speaking", defaultTitle: "Speaking", href: "/learn/speaking", icon: Mic, tooltipKey: "speakingTooltip", defaultTooltip: "Speaking", disabled: true },
+  { titleKey: "wordPractice", defaultTitle: "Word Practice", href: "/learn/practice", icon: Repeat, tooltipKey: "wordPracticeTooltip", defaultTooltip: "Word Practice", disabled: true },
+];
 
 const navItemDefinitions: NavItemDef[] = [
   { href: "/dashboard", icon: Home, labelKey: "dashboard", defaultLabel: "Dashboard", tooltipKey: "dashboardTooltip", defaultTooltip: "Dashboard" },
-  { href: "/learn/grammar", icon: BookOpen, labelKey: "grammar", defaultLabel: "Grammar", tooltipKey: "grammarTooltip", defaultTooltip: "Grammar" },
-  { href: "/learn/vocabulary", icon: FileText, labelKey: "vocabulary", defaultLabel: "Vocabulary", tooltipKey: "vocabularyTooltip", defaultTooltip: "Vocabulary" },
-  { href: "/learn/listening", icon: Headphones, labelKey: "listening", defaultLabel: "Listening", tooltipKey: "listeningTooltip", defaultTooltip: "Listening" },
-  { href: "/learn/reading", icon: BookOpen, labelKey: "reading", defaultLabel: "Reading", tooltipKey: "readingTooltip", defaultTooltip: "Reading (variant)" },
-  { href: "/learn/writing", icon: Edit3, labelKey: "writing", defaultLabel: "Writing", tooltipKey: "writingTooltip", defaultTooltip: "Writing" },
-  { href: "/learn/speaking", icon: Mic, labelKey: "speaking", defaultLabel: "Speaking", tooltipKey: "speakingTooltip", defaultTooltip: "Speaking" },
-  { href: "/learn/practice", icon: Repeat, labelKey: "wordPractice", defaultLabel: "Word Practice", tooltipKey: "wordPracticeTooltip", defaultTooltip: "Word Practice" },
+  ...learningModulesConfig.map(mod => ({ // Spread learning modules here
+    href: mod.href,
+    icon: mod.icon,
+    labelKey: mod.titleKey,
+    defaultLabel: mod.defaultTitle,
+    tooltipKey: mod.tooltipKey,
+    defaultTooltip: mod.defaultTooltip,
+    disabled: mod.disabled,
+  })),
 ];
+
 
 const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/progress", icon: BarChart3, labelKey: "progress", defaultLabel: "Progress", tooltipKey: "progressTooltip", defaultTooltip: "Progress" },
@@ -65,10 +80,10 @@ const baseEnTranslations: Record<string, string> = {
   vocabularyTooltip: "Vocabulary",
   listening: "Listening",
   listeningTooltip: "Listening",
-  reading: "Reading",
-  readingTooltip: "Reading (variant)",
-  writing: "Writing",
-  writingTooltip: "Writing",
+  reading: "Reading", // Added
+  readingTooltip: "Reading", // Added
+  writing: "Writing Assistant", // Changed from "Writing" to match dashboard
+  writingTooltip: "Writing Assistant", // Changed from "Writing"
   speaking: "Speaking",
   speakingTooltip: "Speaking",
   wordPractice: "Word Practice",
@@ -91,10 +106,10 @@ const baseRuTranslations: Record<string, string> = {
   vocabularyTooltip: "Словарный запас",
   listening: "Аудирование",
   listeningTooltip: "Аудирование",
-  reading: "Чтение",
-  readingTooltip: "Чтение",
-  writing: "Письмо",
-  writingTooltip: "Письмо",
+  reading: "Чтение", // Added
+  readingTooltip: "Чтение", // Added
+  writing: "Помощник по письму", // Changed to match dashboard
+  writingTooltip: "Помощник по письму",
   speaking: "Говорение",
   speakingTooltip: "Говорение",
   wordPractice: "Практика слов",
@@ -110,12 +125,11 @@ const baseRuTranslations: Record<string, string> = {
 
 // Generate full translations object at module level
 const generateSidebarTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') {
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
       translations[code] = { ...baseEnTranslations }; // Fallback to English for other languages
     }
   });
@@ -129,17 +143,12 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
-  // Determine language to use for translations *for this render cycle*
-  // Crucial for hydration safety: defaults to 'en' if data is still loading.
   const currentDisplayLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
 
-  // Sidebar should not render at all if settings are not loaded,
-  // or if onboarding is not complete. This prevents trying to translate before language is known.
   if (isUserDataLoading || !userData.settings) {
     return null;
   }
 
-  // At this point, userData.settings is guaranteed to be non-null.
   const actualInterfaceLang = userData.settings.interfaceLanguage || 'en';
 
   const t = (key: string, defaultText?: string): string => {
@@ -147,16 +156,15 @@ export function AppSidebar() {
     if (langTranslations && langTranslations[key]) {
       return langTranslations[key];
     }
-    const enTranslations = sidebarTranslations['en']; // Fallback to English
+    const enTranslations = sidebarTranslations['en']; 
     if (enTranslations && enTranslations[key]) {
       return enTranslations[key];
     }
-    return defaultText || key; // Fallback to defaultText or key itself
+    return defaultText || key; 
   };
 
   const mapNavItem = (itemDef: NavItemDef) => ({
-    href: itemDef.href,
-    icon: itemDef.icon,
+    ...itemDef, // Spread to keep disabled status and other props
     label: t(itemDef.labelKey, itemDef.defaultLabel),
     tooltip: t(itemDef.tooltipKey, itemDef.defaultTooltip),
   });
@@ -175,14 +183,16 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <Link href={item.href} passHref legacyBehavior>
+            <SidebarMenuItem key={item.href} className={item.disabled ? "opacity-50 cursor-not-allowed" : ""}>
+              <Link href={item.disabled ? "#" : item.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
+                  isActive={!item.disabled && (pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href)))}
                   tooltip={{ children: item.tooltip, className: "translate-x-1" }}
+                  disabled={item.disabled}
+                  aria-disabled={item.disabled}
                 >
-                  <a>
+                  <a style={item.disabled ? { pointerEvents: 'none' } : {}}>
                     <item.icon />
                     <span>{item.label}</span>
                   </a>
