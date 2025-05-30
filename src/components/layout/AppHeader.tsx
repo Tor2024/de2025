@@ -6,7 +6,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useUserData } from "@/contexts/UserDataContext";
-import { LogOut, Settings } from "lucide-react"; // Removed UserCircle
+import { LogOut, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,18 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { interfaceLanguageCodes, type InterfaceLanguage } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton"; 
+import { Skeleton } from "@/components/ui/skeleton";
 
 const baseEnTranslations = {
   settings: "Settings",
   logout: "Log out",
   learnerSuffix: "Learner",
+  fallbackLearnerName: "Learner", // Added
 };
 
 const baseRuTranslations = {
   settings: "Настройки",
   logout: "Выйти",
   learnerSuffix: "Ученик",
+  fallbackLearnerName: "Ученик", // Added
 };
 
 const generateHeaderTranslations = () => {
@@ -64,11 +66,11 @@ export function AppHeader() {
 
   const handleLogout = () => {
     clearUserData();
-    router.push('/'); 
+    router.push('/');
   };
-  
-  const userInitial = !isUserDataLoading && userData.settings?.userName && userData.settings.userName.length > 0 
-    ? userData.settings.userName.charAt(0).toUpperCase() 
+
+  const userInitial = !isUserDataLoading && userData.settings?.userName && userData.settings.userName.length > 0
+    ? userData.settings.userName.charAt(0).toUpperCase()
     : "L";
 
   return (
@@ -102,7 +104,7 @@ export function AppHeader() {
            <DropdownMenuContent className="w-56" align="end" forceMount>
              <DropdownMenuLabel className="font-normal">
                <div className="flex flex-col space-y-1">
-                 <p className="text-sm font-medium leading-none">{userData.settings.userName || "Learner"}</p>
+                 <p className="text-sm font-medium leading-none">{userData.settings.userName || t('fallbackLearnerName', 'Learner')}</p>
                  <p className="text-xs leading-none text-muted-foreground">
                    {userData.settings.targetLanguage} {t('learnerSuffix', 'Learner')}
                  </p>
