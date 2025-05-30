@@ -50,14 +50,14 @@ export function RoadmapDisplay({
   React.useEffect(() => {
     // Cleanup speechSynthesis on component unmount
     return () => {
-      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+      if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
   const speakNext = React.useCallback(() => {
-    if (currentUtteranceIndexRef.current < utteranceQueueRef.current.length && window.speechSynthesis) {
+    if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
       utterance.onend = () => {
         currentUtteranceIndexRef.current++;
@@ -74,8 +74,9 @@ export function RoadmapDisplay({
   }, []);
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string, langCode: string) => {
-    if (!window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
       alert("Text-to-Speech is not supported by your browser.");
+      setCurrentlySpeakingLessonId(null);
       return;
     }
 
@@ -87,11 +88,17 @@ export function RoadmapDisplay({
 
     window.speechSynthesis.cancel(); // Stop any other speech
 
+    const trimmedTextToSpeak = textToSpeak.trim();
+    if (!trimmedTextToSpeak) {
+        setCurrentlySpeakingLessonId(null);
+        return; // Do not proceed if text is empty
+    }
+
     // Basic sentence splitting. More robust splitting might be needed for complex texts.
-    const sentences = textToSpeak.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentences = trimmedTextToSpeak.split(/[.!?]+/).filter(s => s.trim().length > 0);
     
-    if (sentences.length === 0) {
-        sentences.push(textToSpeak); // Speak the whole thing if no delimiters found
+    if (sentences.length === 0) { // If splitting results in no sentences (e.g. text without standard delimiters)
+        sentences.push(trimmedTextToSpeak); // Speak the whole trimmed text
     }
 
     utteranceQueueRef.current = sentences.map(sentence => {
@@ -107,7 +114,7 @@ export function RoadmapDisplay({
   }, [currentlySpeakingLessonId, speakNext]);
 
   const stopSpeech = React.useCallback(() => {
-    if (window.speechSynthesis) {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingLessonId(null);
@@ -205,3 +212,5 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
+    
