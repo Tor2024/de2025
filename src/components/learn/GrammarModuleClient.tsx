@@ -12,11 +12,11 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, InterfaceLanguage as AiInterfaceLanguage, ProficiencyLevel as AiProficiencyLevel } from "@/ai/flows/adaptive-grammar-explanations";
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput } from "@/ai/flows/adaptive-grammar-explanations";
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles } from "lucide-react";
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 
 
@@ -77,8 +77,9 @@ const componentTranslations = generateTranslations();
 export function GrammarModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [explanationResult, setExplanationResult] = useState<AdaptiveGrammarExplanationsOutput | null>(null);
+  const [currentTopic, setCurrentTopic] = useState<string>("");
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
@@ -107,11 +108,12 @@ export function GrammarModuleClient() {
   }
 
   const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
-    setIsLoading(true);
+    setIsAiLoading(true);
     setExplanationResult(null);
+    setCurrentTopic(data.grammarTopic);
     try {
       const grammarInput: AdaptiveGrammarExplanationsInput = {
-        interfaceLanguage: userData.settings!.interfaceLanguage as AiInterfaceLanguage,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
         grammarTopic: data.grammarTopic,
         proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         learningGoal: userData.settings!.goal,
@@ -134,7 +136,7 @@ export function GrammarModuleClient() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsAiLoading(false);
     }
   };
 
@@ -157,8 +159,8 @@ export function GrammarModuleClient() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
-              {isLoading ? <LoadingSpinner /> : t('getExplanationButton')}
+            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
+              {isAiLoading ? <LoadingSpinner /> : t('getExplanationButton')}
             </Button>
           </CardFooter>
         </form>
@@ -167,22 +169,29 @@ export function GrammarModuleClient() {
       {explanationResult && (
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>{t('resultsTitlePrefix')} {explanationResult.explanation.substring(0,50)}...</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                {t('resultsTitlePrefix')} {currentTopic}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <h3 className="font-semibold text-lg">{t('explanationHeader')}</h3>
-            <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-              <p className="whitespace-pre-wrap">{explanationResult.explanation}</p>
-            </ScrollArea>
+            <div>
+              <h3 className="font-semibold text-lg mb-2">{t('explanationHeader')}</h3>
+              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{explanationResult.explanation}</p>
+              </ScrollArea>
+            </div>
             
-            <h3 className="font-semibold text-lg mt-4">{t('practiceTasksHeader')}</h3>
-            <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-              <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap">
-                {explanationResult.practiceTasks.map((task, index) => (
-                  <li key={index}>{task}</li>
-                ))}
-              </ul>
-            </ScrollArea>
+            <div>
+              <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
+              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+                <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap text-sm leading-relaxed">
+                  {explanationResult.practiceTasks.map((task, index) => (
+                    <li key={index}>{task}</li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
