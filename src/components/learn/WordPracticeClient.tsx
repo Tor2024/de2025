@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const exerciseFormSchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters").optional().or(z.literal('')),
@@ -120,7 +121,7 @@ export function WordPracticeClient() {
   const [showOverallResults, setShowOverallResults] = useState(false);
 
 
-  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm, setValue: setFormValue, watch } = useForm<ExerciseFormData>({
+  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm } = useForm<ExerciseFormData>({
     resolver: zodResolver(exerciseFormSchema),
   });
 
@@ -147,7 +148,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5,
+        count: 5, // Or make this configurable
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -162,7 +163,7 @@ export function WordPracticeClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic || t('noTopicProvided')),
       });
-      resetTopicForm();
+      resetTopicForm(); // Reset the topic form after successful submission
     } catch (error) {
       console.error("Exercise generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -195,7 +196,7 @@ export function WordPracticeClient() {
   const handleToggleHint = () => {
      setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), showHint: !prev[currentExerciseIndex]?.showHint }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false }), showHint: !currentExerciseState.showHint }
     }));
   };
 
@@ -297,16 +298,24 @@ export function WordPracticeClient() {
                     value={currentExerciseState.userAnswer}
                     onChange={handleAnswerChange}
                     disabled={currentExerciseState.isSubmitted}
-                    className={
-                        currentExerciseState.isSubmitted 
-                        ? (currentExerciseState.isCorrect ? 'border-green-500 focus-visible:ring-green-500 bg-green-50/50' : 'border-red-500 focus-visible:ring-red-500 bg-red-50/50')
-                        : ''
-                    }
+                    className={cn(
+                        "transition-colors duration-300 ease-in-out",
+                        currentExerciseState.isSubmitted && 
+                        (currentExerciseState.isCorrect ? 
+                            'border-green-500 focus-visible:ring-green-500 bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                            : 
+                            'border-red-500 focus-visible:ring-red-500 bg-red-100/50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        )
+                    )}
                   />
                 </div>
 
                 {currentExerciseState.isSubmitted && (
-                  <div className={`mt-2 text-sm flex items-center ${currentExerciseState.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={cn(
+                      "mt-2 text-sm flex items-center",
+                      currentExerciseState.isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    )}
+                  >
                     {currentExerciseState.isCorrect ? <CheckCircle2 className="h-4 w-4 mr-1" /> : <XCircle className="h-4 w-4 mr-1" />}
                     {currentExerciseState.isCorrect ? t('feedbackCorrect') : t('feedbackIncorrect')}
                   </div>
@@ -336,7 +345,7 @@ export function WordPracticeClient() {
           {!showOverallResults && currentExercise && (
             <CardFooter className="flex justify-end gap-2 border-t pt-4 mt-4">
                 {!currentExerciseState.isSubmitted ? (
-                     <Button onClick={handleCheckAnswer} disabled={!currentExerciseState.userAnswer.trim()}>
+                     <Button onClick={handleCheckAnswer} disabled={!currentExerciseState.userAnswer.trim() || isAiLoading}>
                         {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
                         {t('checkAnswerButton')}
                     </Button>
@@ -359,3 +368,4 @@ export function WordPracticeClient() {
     </div>
   );
 }
+
