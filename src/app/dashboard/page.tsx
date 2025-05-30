@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -12,8 +12,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, BarChart3, Award, Settings, Bot, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } from '@/lib/types';
+import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from '@/lib/types';
 import * as React from 'react';
+import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; // Import the new flow
 
 const learningModules = [
   { titleKey: "grammar", defaultTitle: "Grammar", descriptionKey: "grammarDescription", defaultDescription: "Master sentence structures.", href: "/learn/grammar", icon: BookOpen, disabled: false },
@@ -33,7 +34,8 @@ const baseEnTranslations: Record<string, string> = {
     achievements: "Achievements",
     quickSettings: "Quick Settings",
     aiTutorTipsTitle: "AI Tutor Tips",
-    aiTutorTip: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
+    aiTutorTipStatic: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
+    aiTutorTipLoading: "Generating a fresh tip for you...",
     xp: "XP",
     streak: "Streak",
     days: "days",
@@ -86,7 +88,8 @@ const baseRuTranslations: Record<string, string> = {
     achievements: "Достижения",
     quickSettings: "Быстрые настройки",
     aiTutorTipsTitle: "Советы от AI-Репетитора",
-    aiTutorTip: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
+    aiTutorTipStatic: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
+    aiTutorTipLoading: "Генерирую свежий совет для вас...",
     xp: "ОП",
     streak: "Серия",
     days: "дней",
@@ -146,6 +149,14 @@ const pageTranslations = generateTranslations();
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
+  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
+  const [isTipLoading, setIsTipLoading] = useState(false);
+
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const t = (key: string, defaultText?: string): string => {
+    const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
+    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
+  };
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -153,11 +164,26 @@ export default function DashboardPage() {
     }
   }, [userData, isUserDataLoading, router]);
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
-    const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
-    return langTranslations?.[key] || pageTranslations['en']?.[key] || defaultText || key;
-  };
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings) {
+      setIsTipLoading(true);
+      generateTutorTip({
+        interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
+        targetLanguage: userData.settings.targetLanguage as TargetLanguage,
+        proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
+      })
+      .then(response => {
+        setAiTutorTip(response.tip);
+      })
+      .catch(error => {
+        console.error("Failed to generate tutor tip:", error);
+        setAiTutorTip(t('aiTutorTipStatic')); // Fallback to static tip on error
+      })
+      .finally(() => {
+        setIsTipLoading(false);
+      });
+    }
+  }, [isUserDataLoading, userData.settings, currentLang]); // Added currentLang to dependencies to refetch tip if interface lang changes
   
   if (isUserDataLoading) {
     return (
@@ -227,7 +253,13 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">{t('aiTutorTip')}</p>
+                {isTipLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -293,5 +325,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-    
