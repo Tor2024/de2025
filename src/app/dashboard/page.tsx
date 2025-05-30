@@ -48,6 +48,8 @@ const baseEnTranslations: Record<string, string> = {
     noneYet: "None yet",
     interface: "Interface",
     learning: "Learning",
+    proficiencyLabel: "Proficiency:",
+    currentGoalLabel: "Current Goal:",
     goToSettings: "Go to Settings",
     viewFullProgress: "View Full Progress",
     viewAllAchievements: "View All Achievements",
@@ -105,6 +107,8 @@ const baseRuTranslations: Record<string, string> = {
     noneYet: "Пока нет",
     interface: "Интерфейс",
     learning: "Изучение",
+    proficiencyLabel: "Уровень:",
+    currentGoalLabel: "Текущая цель:",
     goToSettings: "Перейти к настройкам",
     viewFullProgress: "Посмотреть весь прогресс",
     viewAllAchievements: "Посмотреть все достижения",
@@ -175,6 +179,16 @@ export default function DashboardPage() {
     return defaultText || key; 
   };
 
+  const getLoadingMessage = (lang: InterfaceLanguage | undefined): string => {
+    if (lang === 'ru') return baseRuTranslations.loadingUserData;
+    return baseEnTranslations.loadingUserData;
+  };
+
+  const getRedirectingMessage = (lang: InterfaceLanguage | undefined): string => {
+    if (lang === 'ru') return baseRuTranslations.redirecting;
+    return baseEnTranslations.redirecting;
+  };
+
   const fetchTutorTip = React.useCallback(async () => {
     if (!userData.settings) return;
     setIsTipLoading(true);
@@ -209,14 +223,14 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings) {
       fetchTutorTip();
     }
-  }, [isUserDataLoading, userData.settings, fetchTutorTip, currentLang]); // Added currentLang to dependencies to refetch tip if language changes
+  }, [isUserDataLoading, userData.settings, fetchTutorTip, currentLang]); 
   
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{getLoadingMessage(userData.settings?.interfaceLanguage)}</p>
         </div>
       </AppShell>
     );
@@ -227,7 +241,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-screen items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{getRedirectingMessage(userData.settings?.interfaceLanguage)}</p>
         </div>
       </AppShell>
     );
@@ -279,7 +293,7 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {isTipLoading && !aiTutorTip ? ( // Show loading only if there's no tip yet
+                {isTipLoading && !aiTutorTip ? ( 
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
                   </div>
@@ -350,6 +364,8 @@ export default function DashboardPage() {
               <CardContent className="space-y-2">
                 <p className="text-sm text-muted-foreground">{t('interface')}: {getLanguageDisplayName(userData.settings.interfaceLanguage, 'interface')}</p>
                 <p className="text-sm text-muted-foreground">{t('learning')}: {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
+                <p className="text-sm text-muted-foreground">{t('proficiencyLabel')}: {userData.settings.proficiencyLevel}</p>
+                <p className="text-sm text-muted-foreground">{t('currentGoalLabel')}: {userData.settings.goal || t('noGoalSet')}</p>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
                   {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -361,3 +377,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
