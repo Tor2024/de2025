@@ -15,7 +15,7 @@ import { generateSpeakingTopic } from "@/ai/flows/generate-speaking-topic-flow";
 import type { GenerateSpeakingTopicInput, GenerateSpeakingTopicOutput } from "@/ai/flows/generate-speaking-topic-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle } from "lucide-react";
+import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const speakingSchema = z.object({
@@ -32,6 +32,8 @@ const baseEnTranslations: Record<string, string> = {
   getTopicButton: "Get Speaking Topic",
   resultsTitlePrefix: "Speaking Topic Suggestion",
   speakingTopicHeader: "Your Topic",
+  guidingQuestionsHeader: "Guiding Questions",
+  noGuidingQuestions: "No specific guiding questions were generated for this topic.",
   tipsHeader: "Quick Tips",
   noTipsGenerated: "No specific tips were generated for this topic.",
   toastSuccessTitle: "Speaking Topic Generated!",
@@ -51,6 +53,8 @@ const baseRuTranslations: Record<string, string> = {
   getTopicButton: "Получить тему для говорения",
   resultsTitlePrefix: "Предложение темы для говорения",
   speakingTopicHeader: "Ваша тема",
+  guidingQuestionsHeader: "Наводящие вопросы",
+  noGuidingQuestions: "Для этой темы не было сгенерировано наводящих вопросов.",
   tipsHeader: "Краткие советы",
   noTipsGenerated: "Для этой темы не было сгенерировано конкретных советов.",
   toastSuccessTitle: "Тема для говорения сгенерирована!",
@@ -186,7 +190,33 @@ export function SpeakingModuleClient() {
                 <p className="whitespace-pre-wrap text-base leading-relaxed">{speakingResult.speakingTopic}</p>
               </ScrollArea>
             </div>
-
+            
+            {speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0 && (
+                 <div>
+                    <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
+                        <HelpCircle className="h-5 w-5 text-primary/80" />
+                        {t('guidingQuestionsHeader')}
+                    </h3>
+                    <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
+                        <ul className="list-disc pl-5 space-y-1">
+                        {speakingResult.guidingQuestions.map((question, index) => (
+                            <li key={index} className="text-sm">{question}</li>
+                        ))}
+                        </ul>
+                    </ScrollArea>
+                 </div>
+            )}
+            {(!speakingResult.guidingQuestions || speakingResult.guidingQuestions.length === 0) && !isAiLoading && (
+                <div className="mt-4">
+                    <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                        <HelpCircle className="h-5 w-5 text-primary/80" />
+                        {t('guidingQuestionsHeader')}
+                    </h3>
+                    <div className="h-auto min-h-[50px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
+                      <p className="text-sm text-muted-foreground italic">{t('noGuidingQuestions')}</p>
+                    </div>
+                </div>
+            )}
             
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">

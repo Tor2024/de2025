@@ -24,6 +24,7 @@ export type GenerateSpeakingTopicInput = z.infer<typeof GenerateSpeakingTopicInp
 const GenerateSpeakingTopicOutputSchema = z.object({
   speakingTopic: z.string().describe('The generated speaking topic, suitable for the targetLanguage and proficiencyLevel.'),
   tips: z.array(z.string()).optional().describe('Optional short tips (2-3) on how to approach speaking on this topic, in the interfaceLanguage.'),
+  guidingQuestions: z.array(z.string()).optional().describe('Optional short guiding questions or sub-topics (2-3) to help the user structure their speech, in the interfaceLanguage.'),
 });
 export type GenerateSpeakingTopicOutput = z.infer<typeof GenerateSpeakingTopicOutputSchema>;
 
@@ -38,10 +39,10 @@ const generateSpeakingTopicPrompt = ai.definePrompt({
   output: {schema: GenerateSpeakingTopicOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging speaking practice topics.
 
-Task: Generate a speaking topic and 2-3 optional short tips for the user.
+Task: Generate a speaking topic, 2-3 optional short tips for the user, and 2-3 optional guiding questions or sub-topics to help structure the speech.
 
 User Preferences:
-- Interface Language (for tips): {{{interfaceLanguage}}}
+- Interface Language (for tips and guiding questions): {{{interfaceLanguage}}}
 - Target Language (for the context of the speaking topic): {{{targetLanguage}}}
 - Proficiency Level (for topic complexity): {{{proficiencyLevel}}}
 {{#if generalTopic}}
@@ -54,7 +55,11 @@ Instructions:
     *   The topic should be suitable for a learner of {{{targetLanguage}}} at the {{{proficiencyLevel}}}.
     *   {{#if generalTopic}}The speaking topic MUST be related to the user-defined General Topic: "{{{generalTopic}}}".{{/if}}
     *   The speaking topic itself should be phrased in a way that is natural for the {{{targetLanguage}}}, but the output string for 'speakingTopic' can be in {{{interfaceLanguage}}} if it makes more sense for the user to understand the task (e.g. "Describe your last holiday in German"). Or it can be directly in the target language, for example, "Erzähle über deinen letzten Urlaub." if the user is advanced. Use your best judgment.
-2.  **Tips (Optional, 2-3 short tips):**
+2.  **Guiding Questions (Optional, 2-3 short questions/sub-topics):**
+    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic. These should help structure their thoughts.
+    *   These guiding questions/sub-topics MUST be in the {{{interfaceLanguage}}}.
+    *   Examples of guiding questions (if topic is "Describe your last holiday"): "Where did you go?", "What did you do there?", "What was your favorite part?".
+3.  **Tips (Optional, 2-3 short tips):**
     *   Provide 2-3 brief, actionable tips on how the user might approach speaking on the generated topic.
     *   These tips MUST be in the {{{interfaceLanguage}}}.
     *   Examples of tips: "Try to use vocabulary related to...", "Think about specific examples.", "Don't be afraid to pause and think."
@@ -77,3 +82,4 @@ const generateSpeakingTopicFlow = ai.defineFlow(
     return output;
   }
 );
+
