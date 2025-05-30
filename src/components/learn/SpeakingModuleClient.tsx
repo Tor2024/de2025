@@ -152,13 +152,22 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
+  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  sanitizedText = sanitizedText.replace(/[()]/g, ''); // Remove parentheses
-  sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); 
-  sanitizedText = sanitizedText.replace(/'/g, ''); 
-  sanitizedText = sanitizedText.replace(/`/g, ''); 
-  sanitizedText = sanitizedText.replace(/^-\s+/gm, ''); 
-  sanitizedText = sanitizedText.replace(/\s\s+/g, ' '); 
+  // 2. Remove various types of quotes
+  sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
+  // 3. Remove apostrophes/single quotes
+  sanitizedText = sanitizedText.replace(/'/g, '');
+  // 4. Remove backticks (Markdown code)
+  sanitizedText = sanitizedText.replace(/`/g, '');
+  // 5. Remove hyphens used as list item markers at the beginning of a line
+  sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
+  // 6. Remove parentheses
+  sanitizedText = sanitizedText.replace(/[()]/g, '');
+  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
+  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+  // 8. Normalize multiple spaces to a single space
+  sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
 
@@ -249,10 +258,10 @@ export function SpeakingModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]); 
+  }, [userData.settings, t, toast]); // Added toast
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
-    if (typeof window !== 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
       toast({
         title: t('ttsNotSupportedTitle'),
         description: t('ttsNotSupportedDescription'),
@@ -305,14 +314,14 @@ export function SpeakingModuleClient() {
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings, setCurrentlySpeakingTTSId, utteranceQueueRef, currentUtteranceIndexRef]);
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]); // Added toast and userData.settings
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
+  }, []);
 
 
   if (isUserDataLoading) {
@@ -518,3 +527,4 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+

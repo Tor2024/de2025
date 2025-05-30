@@ -88,13 +88,22 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
-  sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2'); // Remove Markdown bold/italic
-  sanitizedText = sanitizedText.replace(/[()]/g, ''); // Remove parentheses
-  sanitizedText = sanitizedText.replace(/["«»„“]/g, ''); // Remove various quotes
-  sanitizedText = sanitizedText.replace(/'/g, ''); // Remove single quotes/apostrophes
-  sanitizedText = sanitizedText.replace(/`/g, ''); // Remove backticks
-  sanitizedText = sanitizedText.replace(/^-\s+/gm, ''); // Remove list item hyphens
-  sanitizedText = sanitizedText.replace(/\s\s+/g, ' '); // Normalize spaces
+  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
+  sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
+  // 2. Remove various types of quotes
+  sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
+  // 3. Remove apostrophes/single quotes
+  sanitizedText = sanitizedText.replace(/'/g, '');
+  // 4. Remove backticks (Markdown code)
+  sanitizedText = sanitizedText.replace(/`/g, '');
+  // 5. Remove hyphens used as list item markers at the beginning of a line
+  sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
+  // 6. Remove parentheses
+  sanitizedText = sanitizedText.replace(/[()]/g, '');
+  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
+  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+  // 8. Normalize multiple spaces to a single space
+  sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
 
@@ -132,7 +141,6 @@ export function RoadmapDisplay({
   
 
   const t = useCallback((key: string, defaultText?: string): string => {
-    // Simplified t function for brevity, assuming props handle translations
     if (key === 'ttsUtteranceErrorTitle') return ttsUtteranceErrorTitle;
     if (key === 'ttsUtteranceErrorDescription') return ttsUtteranceErrorDescription;
     if (key === 'ttsNotSupportedTitle') return ttsNotSupportedTitle;
@@ -150,8 +158,8 @@ export function RoadmapDisplay({
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices(); // Initial load
-      window.speechSynthesis.onvoiceschanged = updateVoices; // Event listener
+      updateVoices(); 
+      window.speechSynthesis.onvoiceschanged = updateVoices; 
     }
     
     return () => {
@@ -186,8 +194,7 @@ export function RoadmapDisplay({
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      // All text segments are spoken
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") { // Check if start cue was played
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Дзынь") { 
          const lastUtteranceText = utteranceQueueRef.current[utteranceQueueRef.current.length -1]?.text;
          if (lastUtteranceText !== "Дзынь" || utteranceQueueRef.current.length > 1) { 
             const endCueUtterance = new SpeechSynthesisUtterance("Дзынь");
@@ -203,7 +210,7 @@ export function RoadmapDisplay({
       }
       setCurrentlySpeakingLessonId(null);
     }
-  }, [userData.settings, t, toast, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]); 
+  }, [userData.settings, t, toast, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]); // Added dependencies
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -234,7 +241,6 @@ export function RoadmapDisplay({
     
     utteranceQueueRef.current = [];
     
-    // Start Cue
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings){
         startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
@@ -244,7 +250,7 @@ export function RoadmapDisplay({
     utteranceQueueRef.current.push(startCueUtterance);
 
     const sentences = textToActuallySpeak.split(/[.!?\n]+/).filter(s => s.trim().length > 0);
-    if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak);
+    if (sentences.length === 0 && textToActuallySpeak) sentences.push(textToActuallySpeak); // Handle single segment text
 
     const selectedVoice = selectPreferredVoice(langCode, voicesRef.current || []);
 
@@ -261,7 +267,7 @@ export function RoadmapDisplay({
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
 
-  }, [currentlySpeakingLessonId, speakNext, t, toast, userData.settings, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]);
+  }, [currentlySpeakingLessonId, speakNext, t, toast, userData.settings, setCurrentlySpeakingLessonId, utteranceQueueRef, currentUtteranceIndexRef]); // Added dependencies
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -408,3 +414,4 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
