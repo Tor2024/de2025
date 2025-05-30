@@ -15,7 +15,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, Eye, EyeOff } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes } from "@/lib/types";
 
@@ -43,6 +43,8 @@ const baseEnTranslations: Record<string, string> = {
   onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
   loading: "Loading...",
   noExampleSentence: "No example sentence provided.",
+  showDetailsButton: "Show Details",
+  hideDetailsButton: "Hide Details",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -63,6 +65,8 @@ const baseRuTranslations: Record<string, string> = {
   onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
   loading: "Загрузка...",
   noExampleSentence: "Пример предложения не предоставлен.",
+  showDetailsButton: "Показать детали",
+  hideDetailsButton: "Скрыть детали",
 };
 
 const generateTranslations = () => {
@@ -85,6 +89,7 @@ export function VocabularyModuleClient() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
   const [currentTopic, setCurrentTopic] = useState<string>("");
+  const [revealedStates, setRevealedStates] = useState<Record<number, boolean>>({});
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
@@ -94,6 +99,10 @@ export function VocabularyModuleClient() {
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
+  };
+
+  const toggleReveal = (index: number) => {
+    setRevealedStates(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
   if (isUserDataLoading) {
@@ -108,6 +117,7 @@ export function VocabularyModuleClient() {
     setIsAiLoading(true);
     setVocabularyResult(null);
     setCurrentTopic(data.topic);
+    setRevealedStates({}); // Reset revealed states for new list
     try {
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage,
@@ -180,18 +190,32 @@ export function VocabularyModuleClient() {
                       <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
                         {item.word} <span className="text-sm font-normal text-muted-foreground">({userData.settings?.targetLanguage})</span>
                       </h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                        <Languages className="h-4 w-4" />
-                        <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
-                      </p>
-                      <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">
-                        <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
-                        {item.exampleSentence ? (
-                          <span><strong>{t('exampleSentenceHeader')}:</strong> {item.exampleSentence}</span>
-                        ) : (
-                          <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
-                        )}
-                      </div>
+                      
+                      {revealedStates[index] && (
+                        <>
+                          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2">
+                            <Languages className="h-4 w-4" />
+                            <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
+                          </p>
+                          <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">
+                            <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
+                            {item.exampleSentence ? (
+                              <span><strong>{t('exampleSentenceHeader')}:</strong> {item.exampleSentence}</span>
+                            ) : (
+                              <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => toggleReveal(index)} 
+                        className="mt-3"
+                      >
+                        {revealedStates[index] ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                        {revealedStates[index] ? t('hideDetailsButton') : t('showDetailsButton')}
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -205,3 +229,4 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
+
