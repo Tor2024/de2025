@@ -19,7 +19,7 @@ import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const speakingSchema = z.object({
-  generalTopic: z.string().min(3).optional(),
+  generalTopic: z.string().min(3).optional().or(z.literal('')), // Allow empty string or min 3 chars
 });
 
 type SpeakingFormData = z.infer<typeof speakingSchema>;
@@ -117,7 +117,7 @@ export function SpeakingModuleClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset();
+      reset(); // Clear the form fields
     } catch (error) {
       console.error("Speaking topic generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -211,5 +211,3 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
-
-    
