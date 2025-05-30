@@ -10,11 +10,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
-import { interfaceLanguageCodes, targetLanguageNames, proficiencyLevels } from '@/lib/types';
+import type { TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
 
 const GenerateVocabularyInputSchema = z.object({
-  interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for translations (e.g., en, ru).'),
+  interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for translations (e.g., en, ru).'),
   targetLanguage: z.enum(targetLanguageNames).describe('The target language for the vocabulary words (e.g., German, English).'),
   proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2) to tailor word complexity.'),
   topic: z.string().min(3).describe('The topic for the vocabulary list (e.g., "Travel", "Food").'),

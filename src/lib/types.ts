@@ -1,4 +1,6 @@
 
+import { z } from 'zod';
+
 export type InterfaceLanguage =
   | 'en' | 'ru' | 'de' | 'es' | 'fr' | 'it' | 'nl' | 'fi' | 'zh' | 'hi'
   | 'no' | 'hu' | 'da' | 'ko' | 'bg' | 'sl' | 'uk' | 'be' | 'pl' | 'ro' | 'ja' | 'ar';
@@ -93,6 +95,8 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
 ];
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
+export const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
+
 export const targetLanguageNames = supportedLanguages.map(lang => lang.name) as [TargetLanguage, ...TargetLanguage[]];
 
 export const germanWritingTaskTypes = [

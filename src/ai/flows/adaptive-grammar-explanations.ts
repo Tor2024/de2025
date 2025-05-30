@@ -15,14 +15,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
-import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } from '@/lib/types';
+import type { ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+import { proficiencyLevels as appProficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
 
-
-const InterfaceLanguageSchema = z.enum(interfaceLanguageCodes);
-// This local type alias is fine if only used here, but AppInterfaceLanguage from @/lib/types is the canonical one.
-// For schema definition, z.enum(interfaceLanguageCodes) is correct.
-// export type InterfaceLanguage = z.infer<typeof InterfaceLanguageSchema>; // Not exported if not needed externally from this file
 
 const AdaptiveGrammarExplanationsInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de).'),

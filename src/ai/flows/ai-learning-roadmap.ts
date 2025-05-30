@@ -15,12 +15,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { interfaceLanguageCodes, targetLanguageNames, proficiencyLevels } from '@/lib/types';
+import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
 import type { Lesson } from '@/lib/types'; // Ensure Lesson type is imported if its structure is complex
 
 const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
-  interfaceLanguage: z
-    .enum(interfaceLanguageCodes)
+  interfaceLanguage: InterfaceLanguageSchema
     .describe('The ISO 639-1 code of the interface language for the user (e.g., en, ru, de). This language should be used for all instructions, titles, and descriptive text within the roadmap itself (introduction, lesson titles/descriptions, lesson topics, conclusion).'),
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user wants to study (e.g., German, English). The actual learning content and concepts in the roadmap (e.g., grammar rules, vocabulary themes) should be for this language.'),
   proficiencyLevel: z
