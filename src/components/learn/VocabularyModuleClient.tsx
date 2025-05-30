@@ -172,7 +172,7 @@ export function VocabularyModuleClient() {
       const result = await generateVocabulary(flowInput);
       setVocabularyResult(result);
       if (result && result.words && result.words.length > 0) {
-        setPracticeWords(result.words); // Initialize words for practice
+        setPracticeWords([...result.words]); // Initialize words for practice, ensure new array
         setPracticeScore(prev => ({ ...prev, total: result.words.length }));
       }
       toast({
@@ -351,7 +351,7 @@ export function VocabularyModuleClient() {
                             {currentWordData.exampleSentence ? (
                                 <p className="text-base italic">{currentWordData.exampleSentence}</p>
                             ) : (
-                                <p className="text-base italic">{t('noExampleSentence')}</p>
+                                <p className="text-base italic text-muted-foreground">{t('noExampleSentence')}</p>
                             )}
                         </div>
                       </div>
@@ -359,22 +359,24 @@ export function VocabularyModuleClient() {
                   )}
                 </Card>
 
-                <div className="flex justify-between items-center mt-4">
-                  <Button 
-                    onClick={handlePrevCard} 
-                    variant="outline" 
-                    disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" /> {t('previousButton')}
-                  </Button>
-                  <Button 
-                    onClick={handleNextCard} 
-                    variant="outline" 
-                    disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
-                  >
-                    {t('nextButton')} <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
+                {vocabularyResult.words && vocabularyResult.words.length > 0 && (
+                  <div className="flex justify-between items-center mt-4">
+                    <Button 
+                      onClick={handlePrevCard} 
+                      variant="outline" 
+                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" /> {t('previousButton')}
+                    </Button>
+                    <Button 
+                      onClick={handleNextCard} 
+                      variant="outline" 
+                      disabled={!vocabularyResult.words || vocabularyResult.words.length <= 1}
+                    >
+                      {t('nextButton')} <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-muted-foreground">{isAiLoading ? t('loading') : t('noWordsForFlashcards')}</p>
@@ -402,7 +404,10 @@ export function VocabularyModuleClient() {
                       value={userPracticeAnswer}
                       onChange={handleUserPracticeAnswerChange}
                       disabled={isPracticeSubmitted}
-                      className={isPracticeSubmitted && practiceFeedback === t('feedbackCorrect') ? 'border-green-500 focus-visible:ring-green-500' : (isPracticeSubmitted ? 'border-red-500 focus-visible:ring-red-500' : '')}
+                      className={cn(
+                        isPracticeSubmitted && practiceFeedback === t('feedbackCorrect') && 'border-green-500 focus-visible:ring-green-500 bg-green-50/50 text-green-700',
+                        isPracticeSubmitted && practiceFeedback !== t('feedbackCorrect') && 'border-red-500 focus-visible:ring-red-500 bg-red-50/50 text-red-700'
+                      )}
                     />
                   </div>
                   {!isPracticeSubmitted ? (
@@ -430,3 +435,6 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
+
+
+    
