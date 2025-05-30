@@ -86,7 +86,8 @@ export function RoadmapDisplay({
 
   const playText = React.useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      // toast is not available here directly, but this case should ideally be handled by disabling the button
+      // Toast is handled by the caller or a global handler, if TTS is critical.
+      // For now, just log and prevent further action.
       console.warn(ttsNotSupportedDescription);
       setCurrentlySpeakingLessonId(null);
       return;
@@ -123,7 +124,7 @@ export function RoadmapDisplay({
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingLessonId(lessonId);
     speakNext();
-  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]);
+  }, [currentlySpeakingLessonId, speakNext, ttsNotSupportedDescription]); // Removed interfaceLanguage as it's passed via langCode
 
   const stopSpeech = React.useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -166,7 +167,7 @@ export function RoadmapDisplay({
           <Accordion type="multiple" className="w-full">
             {roadmap.lessons.map((lesson: Lesson, index: number) => {
               const lessonSpeechId = lesson.id || `lesson-speech-${index}`;
-              const hasDescription = lesson.description && lesson.description.trim().length > 0;
+              const hasDescription = !!(lesson.description && lesson.description.trim().length > 0);
               const isCompleted = completedLessonIds.includes(lesson.id);
 
               return (
@@ -198,8 +199,14 @@ export function RoadmapDisplay({
                           <p>{isCompleted ? markIncompleteTooltip : markCompleteTooltip}</p>
                         </TooltipContent>
                       </Tooltip>
-                      <span className={cn("bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm", isCompleted && "line-through text-muted-foreground bg-muted/40")}>{lesson.level}</span>
-                      <span className={cn("font-medium text-left flex-1", isCompleted && "line-through text-muted-foreground")}>{lesson.title}</span>
+                      <span className={cn(
+                        "bg-primary/15 text-primary font-semibold px-2.5 py-1 rounded-md text-sm", 
+                        isCompleted && "line-through text-muted-foreground bg-muted/40"
+                      )}>{lesson.level}</span>
+                      <span className={cn(
+                        "font-medium text-left flex-1", 
+                        isCompleted && "line-through text-muted-foreground"
+                      )}>{lesson.title}</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="p-4 pt-0">
@@ -263,3 +270,4 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
