@@ -201,7 +201,7 @@ export function ListeningModuleClient() {
         return specificGermanVoice;
       }
     }
-
+    
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
     if (googleVoice) {
       console.log('TTS: ListeningModuleClient - Selected Google voice:', googleVoice.name);
@@ -244,7 +244,13 @@ export function ListeningModuleClient() {
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) return;
+    if (playTextInternalIdRef.current !== currentPlayId) {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        setCurrentlySpeakingTTSId(null);
+        return;
+    }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -254,7 +260,7 @@ export function ListeningModuleClient() {
       };
       utterance.onerror = (event) => {
         if (event.error === "interrupted") {
-          console.info('TTS: ListeningModuleClient - Speech synthesis interrupted.');
+          console.info('TTS: ListeningModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: ListeningModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
@@ -263,7 +269,7 @@ export function ListeningModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
         const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
@@ -320,7 +326,7 @@ export function ListeningModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -654,3 +660,5 @@ export function ListeningModuleClient() {
     </div>
   );
 }
+
+    

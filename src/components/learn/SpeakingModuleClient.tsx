@@ -174,7 +174,7 @@ export function SpeakingModuleClient() {
         return specificGermanVoice;
       }
     }
-
+    
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
     if (googleVoice) {
       console.log('TTS: SpeakingModuleClient - Selected Google voice:', googleVoice.name);
@@ -217,7 +217,13 @@ export function SpeakingModuleClient() {
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) return;
+    if (playTextInternalIdRef.current !== currentPlayId) {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        setCurrentlySpeakingTTSId(null);
+        return;
+    }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -227,7 +233,7 @@ export function SpeakingModuleClient() {
       };
       utterance.onerror = (event) => {
         if (event.error === "interrupted") {
-          console.info('TTS: SpeakingModuleClient - Speech synthesis interrupted.');
+          console.info('TTS: SpeakingModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: SpeakingModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
@@ -236,7 +242,7 @@ export function SpeakingModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-       if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
+       if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
         const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
@@ -293,7 +299,7 @@ export function SpeakingModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -352,8 +358,8 @@ export function SpeakingModuleClient() {
   };
 
   const hasPracticeScript = !!(speakingResult && speakingResult.practiceScript && speakingResult.practiceScript.trim().length > 0);
-  const ttsPlayButtonId = `tts-speaking-${speakingResult?.speakingTopic?.substring(0,10).replace(/\s+/g, '-') || 'practice'}`;
-  const isCurrentlySpeakingThisScript = currentlySpeakingTTSId === ttsPlayButtonId;
+  const practiceScriptTTSId = `tts-speaking-${speakingResult?.speakingTopic?.substring(0,10).replace(/\s+/g, '-') || 'practiceScript'}`;
+  const isCurrentlySpeakingThisScript = currentlySpeakingTTSId === practiceScriptTTSId;
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -456,7 +462,7 @@ export function SpeakingModuleClient() {
                                 } else {
                                   if(userData.settings?.targetLanguage){
                                       const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage);
-                                      playText(ttsPlayButtonId, speakingResult.practiceScript, langCode);
+                                      playText(practiceScriptTTSId, speakingResult.practiceScript, langCode);
                                   }
                                 }
                               }}
@@ -524,3 +530,5 @@ export function SpeakingModuleClient() {
     </div>
   );
 }
+
+    

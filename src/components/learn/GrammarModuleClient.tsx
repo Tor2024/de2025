@@ -12,14 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
-import { adaptiveGrammarExplanations} from "@/ai/flows/adaptive-grammar-explanations";
+import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
 import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
 import type { ExplainGrammarTaskErrorInput } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles, XCircle, CheckCircle2, Volume2, Ban } from "lucide-react";
+import { Sparkles, XCircle, CheckCircle2, Volume2, Ban, BookOpen } from "lucide-react";
 import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -231,7 +231,7 @@ export function GrammarModuleClient() {
         return specificGermanVoice;
       }
     }
-
+    
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
     if (googleVoice) {
       console.log('TTS: GrammarModuleClient - Selected Google voice:', googleVoice.name);
@@ -274,7 +274,13 @@ export function GrammarModuleClient() {
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) return;
+    if (playTextInternalIdRef.current !== currentPlayId) {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        setCurrentlySpeakingTTSId(null);
+        return;
+    }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -283,8 +289,8 @@ export function GrammarModuleClient() {
         speakNext(currentPlayId);
       };
       utterance.onerror = (event) => {
-         if (event.error === "interrupted") {
-          console.info('TTS: GrammarModuleClient - Speech synthesis interrupted.');
+        if (event.error === "interrupted") {
+          console.info('TTS: GrammarModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
@@ -293,7 +299,7 @@ export function GrammarModuleClient() {
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
+      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { // Check the first signal
         const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
         const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
         endSignalUtterance.lang = interfaceLangBcp47;
@@ -350,7 +356,7 @@ export function GrammarModuleClient() {
     });
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -426,7 +432,7 @@ export function GrammarModuleClient() {
     const isCorrect = userAnswer === actualCorrectAnswer;
     setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: true, isCorrect } }));
 
-    if (!isCorrect && userData.settings && currentTopic) {
+    if (!isCorrect && userData.settings && currentTopic && task) {
       setIsFetchingExplanation(prev => ({ ...prev, [taskId]: true }));
       try {
         const errorInput: ExplainGrammarTaskErrorInput = {
@@ -616,3 +622,5 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+
+    
