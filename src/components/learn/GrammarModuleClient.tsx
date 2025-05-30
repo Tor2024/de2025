@@ -13,13 +13,14 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput } from "@/ai/flows/adaptive-grammar-explanations";
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles, XCircle, Volume2, Ban } from "lucide-react";
+import { Sparkles, XCircle, Volume2, Ban, CheckCircle2 } from "lucide-react";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const grammarSchema = z.object({
   grammarTopic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -54,6 +55,10 @@ const baseEnTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   ttsUtteranceErrorTitle: "Speech Error",
   ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+  checkAnswerButton: "Check Answer",
+  yourAnswerLabel: "Your Answer:",
+  feedbackCorrect: "Correct!",
+  feedbackIncorrectPrefix: "Incorrect. Correct answer:",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -83,6 +88,10 @@ const baseRuTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   ttsUtteranceErrorTitle: "Ошибка синтеза речи",
   ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+  checkAnswerButton: "Проверить ответ",
+  yourAnswerLabel: "Ваш ответ:",
+  feedbackCorrect: "Правильно!",
+  feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
 };
 
 const generateTranslations = () => {
@@ -193,21 +202,21 @@ const selectPreferredVoice = (langCode: string, availableVoices: SpeechSynthesis
 const sanitizeTextForTTS = (text: string | undefined): string => {
   if (!text) return "";
   let sanitizedText = text;
-  // 1. Remove Markdown emphasis (*italic*, **bold**, _italic_, __bold__)
+  // 1. Удаление Markdown выделения (*italic*, **bold**, _italic_, __bold__)
   sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-  // 2. Remove various types of quotes
+  // 2. Удаление различных типов кавычек
   sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-  // 3. Remove apostrophes/single quotes
+  // 3. Удаление апострофов/одиночных кавычек
   sanitizedText = sanitizedText.replace(/'/g, '');
-  // 4. Remove backticks (Markdown code)
+  // 4. Удаление обратных кавычек (Markdown code)
   sanitizedText = sanitizedText.replace(/`/g, '');
-  // 5. Remove hyphens used as list item markers at the beginning of a line
+  // 5. Удаление дефисов, используемых как маркеры списка в начале строки
   sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-  // 6. Remove parentheses
+  // 6. Удаление круглых скобок
   sanitizedText = sanitizedText.replace(/[()]/g, '');
-  // 7. Replace hyphens used as separators (e.g., "word - word") with a comma and a space
-  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
-  // 8. Normalize multiple spaces to a single space
+  // 7. Замена дефисов, используемых как разделители (тире), на запятую и пробел
+  sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
+  // 8. Замена множественных пробелов на один
   sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
   return sanitizedText.trim();
 };
@@ -223,6 +232,10 @@ export function GrammarModuleClient() {
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
+
+  const [taskAnswers, setTaskAnswers] = useState<Record<string, string>>({});
+  const [taskFeedback, setTaskFeedback] = useState<Record<string, { isCorrect: boolean; submitted: boolean }>>({});
+
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
@@ -301,7 +314,7 @@ export function GrammarModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [userData.settings, t, toast]); // Added toast
+  }, [userData.settings, t, toast]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -331,7 +344,7 @@ export function GrammarModuleClient() {
     }
     
     utteranceQueueRef.current = [];
-
+    
     const startCueUtterance = new SpeechSynthesisUtterance("Дзынь");
     if(userData.settings) {
       startCueUtterance.lang = userData.settings.interfaceLanguage as AppInterfaceLanguage;
@@ -357,7 +370,7 @@ export function GrammarModuleClient() {
     currentUtteranceIndexRef.current = 0;
     setCurrentlySpeakingTTSId(textId);
     speakNext();
-  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]); // Added toast and userData.settings
+  }, [currentlySpeakingTTSId, speakNext, t, toast, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -379,6 +392,8 @@ export function GrammarModuleClient() {
     setIsAiLoading(true);
     setExplanationResult(null);
     setCurrentTopic(data.grammarTopic);
+    setTaskAnswers({});
+    setTaskFeedback({});
     stopSpeech();
     try {
       if (!userData.settings || !userData.progress) { 
@@ -417,7 +432,24 @@ export function GrammarModuleClient() {
   const handleClearResults = () => {
     setExplanationResult(null);
     setCurrentTopic("");
+    setTaskAnswers({});
+    setTaskFeedback({});
     stopSpeech();
+  };
+
+  const handleTaskAnswerChange = (taskId: string, answer: string) => {
+    setTaskAnswers(prev => ({ ...prev, [taskId]: answer }));
+    // Reset feedback if user changes answer after submission
+    if (taskFeedback[taskId]?.submitted) {
+      setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: false, isCorrect: false } }));
+    }
+  };
+
+  const handleCheckTaskAnswer = (taskId: string, correctAnswer: string) => {
+    const userAnswer = taskAnswers[taskId]?.trim().toLowerCase() || "";
+    const actualCorrectAnswer = correctAnswer.trim().toLowerCase();
+    const isCorrect = userAnswer === actualCorrectAnswer;
+    setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: true, isCorrect } }));
   };
 
   const explanationTTSId = `grammar-explanation-${currentTopic.replace(/\s+/g, '-') || Date.now()}`;
@@ -517,13 +549,52 @@ export function GrammarModuleClient() {
 
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
-              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 {explanationResult.practiceTasks && explanationResult.practiceTasks.length > 0 ? (
-                  <ul className="list-disc pl-5 space-y-2 whitespace-pre-wrap text-sm leading-relaxed">
+                  <div className="space-y-4">
                     {explanationResult.practiceTasks.map((task, index) => (
-                      <li key={index}>{task}</li>
+                      <div key={task.id || index} className="p-3 rounded-md bg-card border border-border/70 shadow-sm">
+                        <p className="text-sm font-medium mb-1.5">{task.taskDescription}</p>
+                        {task.type === 'fill-in-the-blank' && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                id={`task-${task.id}-answer`}
+                                placeholder={t('yourAnswerLabel')}
+                                value={taskAnswers[task.id] || ""}
+                                onChange={(e) => handleTaskAnswerChange(task.id, e.target.value)}
+                                disabled={taskFeedback[task.id]?.submitted}
+                                className={cn(
+                                  taskFeedback[task.id]?.submitted &&
+                                  (taskFeedback[task.id]?.isCorrect 
+                                    ? 'border-green-500 focus-visible:ring-green-500 bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                                    : 'border-red-500 focus-visible:ring-red-500 bg-red-100/50 dark:bg-red-900/30 text-red-700 dark:text-red-400')
+                                )}
+                              />
+                              {!taskFeedback[task.id]?.submitted && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleCheckTaskAnswer(task.id, task.correctAnswer)}
+                                  disabled={!(taskAnswers[task.id]?.trim())}
+                                >
+                                  {t('checkAnswerButton')}
+                                </Button>
+                              )}
+                            </div>
+                            {taskFeedback[task.id]?.submitted && (
+                              <div className={cn(
+                                "text-sm flex items-center gap-1",
+                                taskFeedback[task.id]?.isCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                              )}>
+                                {taskFeedback[task.id]?.isCorrect ? <CheckCircle2 className="h-4 w-4"/> : <XCircle className="h-4 w-4"/>}
+                                {taskFeedback[task.id]?.isCorrect ? t('feedbackCorrect') : `${t('feedbackIncorrectPrefix')} ${task.correctAnswer}`}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">{t('noPracticeTasks')}</p>
                 )}

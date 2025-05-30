@@ -28,9 +28,17 @@ const AdaptiveGrammarExplanationsInputSchema = z.object({
 });
 export type AdaptiveGrammarExplanationsInput = z.infer<typeof AdaptiveGrammarExplanationsInputSchema>;
 
+const PracticeTaskSchema = z.object({
+  id: z.string().describe('A unique ID for the task, e.g., "task_1", "task_2".'),
+  type: z.enum(['fill-in-the-blank']).describe('The type of the task. For now, only "fill-in-the-blank" is supported.'),
+  taskDescription: z.string().describe('The task itself, e.g., "The cat ____ on the mat." The blank should be indicated by "____". This description must be in the {{{interfaceLanguage}}}.'),
+  correctAnswer: z.string().describe('The correct word(s) for the blank. This should be in the target language the user is learning.'),
+});
+export type PracticeTask = z.infer<typeof PracticeTaskSchema>;
+
 const AdaptiveGrammarExplanationsOutputSchema = z.object({
-  explanation: z.string().describe('A clear and concise explanation of the grammar topic. Ensure the text is well-suited for text-to-speech conversion (clear, concise, avoids complex sentence structures if possible). ABSOLUTELY NO MARKDOWN-LIKE FORMATTING. Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in your response. Present all text plainly.'),
-  practiceTasks: z.array(z.string()).describe('A list of practice tasks tailored to the user. These tasks must be in the interfaceLanguage.'),
+  explanation: z.string().describe('A clear and concise explanation of the grammar topic. Ensure the text is well-suited for text-to-speech conversion (clear, concise, avoids complex sentence structures if possible). ABSOLUTELY NO MARKDOWN-LIKE FORMATTING. Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in your response. Present all text plainly. This explanation must be in the {{{interfaceLanguage}}}.'),
+  practiceTasks: z.array(PracticeTaskSchema).describe('A list of practice tasks tailored to the user. These tasks must be in the {{{interfaceLanguage}}}.'),
 });
 export type AdaptiveGrammarExplanationsOutput = z.infer<typeof AdaptiveGrammarExplanationsOutputSchema>;
 
@@ -44,12 +52,15 @@ const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
   output: {schema: AdaptiveGrammarExplanationsOutputSchema},
   prompt: `You are an expert language tutor, specializing in grammar explanations.
 
-You will generate a grammar explanation and practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, easy to understand, and TTS-friendly.
+You will generate a grammar explanation and structured practice tasks tailored to the user's proficiency level, learning goal, and interface language. Ensure the explanation is clear, concise, easy to understand, and TTS-friendly.
 
 CRITICAL INSTRUCTIONS:
-1.  **Interface Language ({{{interfaceLanguage}}})**: ALL textual content of your response, including the main 'explanation' and each string in the 'practiceTasks' array, MUST be in this language.
+1.  **Interface Language ({{{interfaceLanguage}}})**: 
+    *   ALL textual content of your 'explanation' field MUST be in this language.
+    *   For EACH task in the 'practiceTasks' array, the 'taskDescription' field MUST be in this language.
 2.  **Target Language Examples**: When explaining the '{{{grammarTopic}}}' for the target language the user is learning, all example sentences demonstrating the grammar rule MUST be IN THE TARGET LANGUAGE. If you provide translations for these example sentences to help the user understand, these translations MUST be into the '{{{interfaceLanguage}}}'. The primary examples illustrating the target language grammar must be in the target language itself.
-3.  **ABSOLUTELY NO MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, practice tasks). Present all text plainly.
+3.  **ABSOLUTELY NO MARKDOWN-LIKE FORMATTING**: Do NOT use asterisks (*), underscores (_), or any other special characters for emphasis or formatting in any part of your response (explanation, task descriptions). Present all text plainly.
+4.  **Practice Task Structure**: Each task in the 'practiceTasks' array MUST be an object with 'id' (e.g., "task_1"), 'type' (currently only "fill-in-the-blank"), 'taskDescription' (sentence with "____" for the blank, in {{{interfaceLanguage}}}), and 'correctAnswer' (the word for the blank, in the target language).
 
 User Details:
 Grammar Topic: {{{grammarTopic}}}
@@ -61,8 +72,10 @@ User's Past Errors (if any, pay attention to those relevant to the current Gramm
 Your task:
 1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}. This explanation must be in the {{{interfaceLanguage}}}. Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
 2.  If the {{{userPastErrors}}} are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Do not explicitly say "because you made this error before". Instead, provide more examples (in the target language, with translations to interface language if needed) or a slightly different angle on the parts of the topic the user struggled with.
-3.  Generate a list of **Practice Tasks**. These tasks should:
-    *   Be in the {{{interfaceLanguage}}}.
+3.  Generate a list of **Practice Tasks** (usually 2-5 tasks). These tasks should:
+    *   Follow the structured format: \`{ id: "task_N", type: "fill-in-the-blank", taskDescription: "Sentence with ____ in {{{interfaceLanguage}}}.", correctAnswer: "answerInTargetLanguage" }\`.
+    *   The 'taskDescription' MUST be in the {{{interfaceLanguage}}}.
+    *   The 'correctAnswer' MUST be in the target language.
     *   Be suitable for the user's {{{proficiencyLevel}}}.
     *   Help achieve the {{{learningGoal}}}.
     *   If relevant past errors were noted, some tasks should specifically target re-learning or reinforcing those concepts related to the current {{{grammarTopic}}}.
@@ -86,3 +99,4 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output;
   }
 );
+
