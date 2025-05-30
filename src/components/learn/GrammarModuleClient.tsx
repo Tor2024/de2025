@@ -16,8 +16,8 @@ import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutpu
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles } from "lucide-react";
-import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types"; // Renamed to avoid conflict
-import { interfaceLanguageCodes, proficiencyLevels as appProficiencyLevels } from "@/lib/types";
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { interfaceLanguageCodes } from "@/lib/types";
 
 
 const grammarSchema = z.object({
@@ -26,7 +26,7 @@ const grammarSchema = z.object({
 
 type GrammarFormData = z.infer<typeof grammarSchema>;
 
-const baseEnTranslations = {
+const baseEnTranslations: Record<string, string> = {
   title: "Adaptive Grammar Explanations",
   description: "Enter a grammar topic you want to understand better. Our AI tutor will provide a clear explanation and practice tasks tailored to your level and goals.",
   grammarTopicLabel: "Grammar Topic",
@@ -40,9 +40,10 @@ const baseEnTranslations = {
   toastErrorTitle: "Error",
   toastErrorDescription: "Failed to generate grammar explanation. Please try again.",
   onboardingMissing: "Please complete onboarding first.",
+  loading: "Loading...",
 };
 
-const baseRuTranslations = {
+const baseRuTranslations: Record<string, string> = {
   title: "Адаптивные объяснения грамматики",
   description: "Введите грамматическую тему, которую вы хотите лучше понять. Наш AI-репетитор предоставит четкое объяснение и практические задания, адаптированные к вашему уровню и целям.",
   grammarTopicLabel: "Грамматическая тема",
@@ -56,16 +57,16 @@ const baseRuTranslations = {
   toastErrorTitle: "Ошибка",
   toastErrorDescription: "Не удалось создать объяснение грамматики. Пожалуйста, попробуйте снова.",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+  loading: "Загрузка...",
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') { // Ensure only 'en' and 'ru' are explicitly set if others fallback
-      translations[code] = { ...baseEnTranslations }; // Fallback to English for other languages
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
     }
   });
   return translations;
@@ -97,7 +98,7 @@ export function GrammarModuleClient() {
   };
 
 
-  if (isUserDataLoading && !userData.settings) {
+  if (isUserDataLoading) {
      return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading', 'Loading...')}</p></div>;
   }
   
@@ -112,26 +113,24 @@ export function GrammarModuleClient() {
       const grammarInput: AdaptiveGrammarExplanationsInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage as AiInterfaceLanguage,
         grammarTopic: data.grammarTopic,
-        proficiencyLevel: userData.settings!.proficiencyLevel as AiProficiencyLevel,
+        proficiencyLevel: userData.settings!.proficiencyLevel as AppProficiencyLevel,
         learningGoal: userData.settings!.goal,
         userPastErrors: userData.progress!.errorArchive.map(e => `${e.topic}: ${e.error}`).join('\n') || "No past errors recorded.",
       };
       
       const result = await adaptiveGrammarExplanations(grammarInput);
-      if (!result) {
-        throw new Error("AI failed to generate grammar explanation. Output was null.");
-      }
       setExplanationResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.grammarTopic),
       });
-      reset(); // Clear form on success
+      reset(); 
     } catch (error) {
       console.error("Grammar explanation error:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: t('toastErrorDescription'),
+        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {

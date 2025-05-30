@@ -30,7 +30,7 @@ const writingSchema = z.object({
 
 type WritingFormData = z.infer<typeof writingSchema>;
 
-const baseEnTranslations = {
+const baseEnTranslations: Record<string, string> = {
   title: "AI-Powered Writing Assistant",
   description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback. Feedback will be tailored to your proficiency level.",
   writingPromptLabel: "Writing Prompt",
@@ -57,7 +57,7 @@ const baseEnTranslations = {
   essayArgumentative: "Essay/Argumentative Text",
 };
 
-const baseRuTranslations = {
+const baseRuTranslations: Record<string, string> = {
   title: "Помощник по письму с ИИ",
   description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи. Обратная связь будет адаптирована к вашему уровню владения языком.",
   writingPromptLabel: "Тема для письма",
@@ -85,12 +85,11 @@ const baseRuTranslations = {
 };
 
 const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {
-    en: baseEnTranslations,
-    ru: baseRuTranslations,
-  };
+  const translations: Record<string, Record<string, string>> = {};
   interfaceLanguageCodes.forEach(code => {
-    if (code !== 'en' && code !== 'ru') { 
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
       translations[code] = { ...baseEnTranslations };
     }
   });
@@ -122,7 +121,7 @@ export function WritingAssistantClient() {
     return defaultText || key; 
   };
 
-  if (isUserDataLoading && !userData.settings) {
+  if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
 
@@ -143,20 +142,18 @@ export function WritingAssistantClient() {
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
-      if (!result) {
-        throw new Error("AI failed to generate writing assistance. Output was null.");
-      }
       setAssistanceResult(result);
       toast({
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      reset(); // Clear form on success
+      reset(); 
     } catch (error) {
       console.error("Writing assistance error:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('toastErrorTitle'),
-        description: t('toastErrorDescription'),
+        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
