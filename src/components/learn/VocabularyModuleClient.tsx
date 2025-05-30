@@ -117,7 +117,7 @@ export function VocabularyModuleClient() {
     setIsAiLoading(true);
     setVocabularyResult(null);
     setCurrentTopic(data.topic);
-    setRevealedStates({}); // Reset revealed states for new list
+    setRevealedStates({}); 
     try {
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: userData.settings!.interfaceLanguage,
@@ -186,18 +186,24 @@ export function VocabularyModuleClient() {
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                 <div className="space-y-4">
                   {vocabularyResult.words.map((item: VocabularyWord, index: number) => (
-                    <div key={index} className="p-4 rounded-md bg-card shadow border border-border/50">
-                      <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
-                        {item.word} <span className="text-sm font-normal text-muted-foreground">({userData.settings?.targetLanguage})</span>
-                      </h3>
-                      
+                    <div key={index} className="p-4 rounded-md bg-card shadow border border-border/50 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-semibold text-lg text-primary flex items-center gap-2">
+                          {item.word}
+                          <span className="text-sm font-normal text-muted-foreground">({userData.settings?.targetLanguage})</span>
+                        </h3>
+                        <Button variant="ghost" size="sm" onClick={() => toggleReveal(index)} className="px-2">
+                          {revealedStates[index] ? <EyeOff className="mr-1 h-4 w-4" /> : <Eye className="mr-1 h-4 w-4" />}
+                          {revealedStates[index] ? t('hideDetailsButton') : t('showDetailsButton')}
+                        </Button>
+                      </div>
                       {revealedStates[index] && (
-                        <>
-                          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2">
+                        <div className="pl-1 space-y-1 border-l-2 border-primary/20 ml-1 pt-1">
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
                             <Languages className="h-4 w-4" />
                             <strong>{t('translationHeader')}:</strong> {item.translation} ({userData.settings?.interfaceLanguage})
                           </p>
-                          <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2 mt-2">
+                          <div className="text-sm italic text-muted-foreground/80 flex items-start gap-2">
                             <MessageSquareText className="h-4 w-4 mt-0.5 shrink-0" />
                             {item.exampleSentence ? (
                               <span><strong>{t('exampleSentenceHeader')}:</strong> {item.exampleSentence}</span>
@@ -205,17 +211,8 @@ export function VocabularyModuleClient() {
                               <span className="text-muted-foreground"><em>{t('noExampleSentence')}</em></span>
                             )}
                           </div>
-                        </>
+                        </div>
                       )}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => toggleReveal(index)} 
-                        className="mt-3"
-                      >
-                        {revealedStates[index] ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-                        {revealedStates[index] ? t('hideDetailsButton') : t('showDetailsButton')}
-                      </Button>
                     </div>
                   ))}
                 </div>
