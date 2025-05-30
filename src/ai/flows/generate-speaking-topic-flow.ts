@@ -55,20 +55,18 @@ Instructions:
     *   Generate a clear and engaging speaking topic. This topic should be something the user can talk about for a minute or two.
     *   The topic should be suitable for a learner of {{{targetLanguage}}} at the {{{proficiencyLevel}}}.
     *   {{#if generalTopic}}The speaking topic MUST be related to the user-defined General Topic: "{{{generalTopic}}}".{{/if}}
-    *   The speaking topic itself should be phrased in a way that is natural for the {{{targetLanguage}}}, but the output string for 'speakingTopic' can be in {{{interfaceLanguage}}} if it makes more sense for the user to understand the task (e.g. "Describe your last holiday in German"). Or it can be directly in the target language, for example, "Erzähle über deinen letzten Urlaub." if the user is advanced. Use your best judgment.
+    *   The speaking topic itself should be phrased to directly invite a spoken response from the user (e.g., as a question like 'What are your plans for the weekend?' or a scenario to describe like 'Describe your favorite hobby.'). It can be in the {{{interfaceLanguage}}}, clearly stating the task (e.g., 'Tell us about your last vacation in {{{targetLanguage}}}'), or directly in the {{{targetLanguage}}} if the user is advanced (e.g., 'Erzähle von deinem letzten Urlaub.'). Use your best judgment for clarity and engagement.
 2.  **Guiding Questions (Optional, 2-3 short questions/sub-topics):**
-    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic. These should help structure their thoughts.
-    *   These guiding questions/sub-topics MUST be in the {{{interfaceLanguage}}}.
-    *   Examples of guiding questions (if topic is "Describe your last holiday"): "Where did you go?", "What did you do there?", "What was your favorite part?".
+    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic.
+    *   These guiding questions/sub-topics MUST be in the {{{interfaceLanguage}}} and should be phrased as if a conversational partner is asking them to encourage a natural spoken response (e.g., if the topic is 'Your last holiday', questions could be 'So, where did you go on your last holiday?', 'What was the most interesting thing you did there?').
 3.  **Tips (Optional, 2-3 short tips):**
     *   Provide 2-3 brief, actionable tips on how the user might approach speaking on the generated topic.
     *   These tips MUST be in the {{{interfaceLanguage}}}.
     *   Examples of tips: "Try to use vocabulary related to...", "Think about specific examples.", "Don't be afraid to pause and think."
 4.  **Practice Script (Optional):**
-    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script. This could be a few example sentences a user might say, or a very short dialogue related to the topic.
-    *   The script MUST be in the {{{targetLanguage}}}.
-    *   The complexity of the script should be appropriate for the {{{proficiencyLevel}}}.
-    *   This script is intended to give the user a starting point or some phrases they could use for their own speech practice. Ensure it's useful and directly related to the main speaking topic.
+    *   If appropriate for the speaking topic and proficiency level, generate a short, relevant practice script.
+    *   This script MUST be in the {{{targetLanguage}}}, be very short (e.g., 1-3 lines for a monologue starter, or a 2-line mini-dialogue starter like 'A: Did you hear about...? B: No, what happened?'), and appropriate for the {{{proficiencyLevel}}}.
+    *   It should give the user an immediate example or starting point for their speech. Ensure it's useful and directly related to the main speaking topic.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 `,
