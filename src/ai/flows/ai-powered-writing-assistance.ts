@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { interfaceLanguageCodes, germanWritingTaskTypes, proficiencyLevels } from '@/lib/types';
-import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel } from '@/lib/types';
+import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel, GermanWritingTaskType } from '@/lib/types';
 
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -21,7 +21,7 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   prompt: z.string().describe('The writing prompt or topic.'),
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: z.enum(interfaceLanguageCodes).describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru).'),
-  writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should consider the conventions of this type.'),
+  writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
   proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
@@ -37,7 +37,8 @@ export async function aiPoweredWritingAssistance(input: AIPoweredWritingAssistan
     const typedInput: AIPoweredWritingAssistanceInput = {
         ...input,
         interfaceLanguage: input.interfaceLanguage as AppInterfaceLanguage,
-        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, // Use AppProficiencyLevel from @/lib/types
+        proficiencyLevel: input.proficiencyLevel as AppProficiencyLevel, 
+        writingTaskType: input.writingTaskType as GermanWritingTaskType | undefined,
     };
   return aiPoweredWritingAssistanceFlow(typedInput);
 }
@@ -50,7 +51,7 @@ const writingAssistantPrompt = ai.definePrompt({
 All explanations and feedback must be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
 The user's proficiency level in the target language is: {{{proficiencyLevel}}}.
-Tailor your feedback and corrections to this level.
+Tailor your feedback and corrections to this level:
 - For lower levels (e.g., A1-A2), focus on fundamental errors, use simpler language in your feedback, and suggest simpler corrections.
 - For intermediate levels (e.g., B1-B2), address more complex grammatical structures and vocabulary, and provide more detailed explanations.
 - For higher levels (e.g., C1-C2), provide nuanced feedback on style, advanced grammar, idiomatic expressions, and overall coherence. Corrected text can be more sophisticated.
@@ -63,10 +64,10 @@ Text: {{{text}}}
 
 {{#if writingTaskType}}
 The user has specified that this is a "{{{writingTaskType}}}" type of writing task.
-When providing feedback, pay close attention to the conventions of this specific task type regarding structure, tone, formality, and typical expressions, adapting to the user's {{{proficiencyLevel}}}.
-Here is a guide to common German writing task formats to help you contextualize your feedback if the target language is German or if the task type is similar to one of these:
+CRITICAL: When providing feedback, you MUST pay close attention to the conventions of this specific task type ({{{writingTaskType}}}). Use the guide below to inform your feedback regarding structure, tone, formality, typical expressions, and salutations/closings, adapting to the user's {{{proficiencyLevel}}}. Your feedback should explicitly comment on how well the user's text adheres to the norms of the specified task type.
+For example, if the task is a "Formal Letter/Email", assess if the user employed appropriate formal greetings, closings, and sentence structures. If it's an "Essay", check for logical structure, argumentation, etc.
 
---- BEGIN GERMAN WRITING TASK FORMATS GUIDE ---
+--- BEGIN GERMAN WRITING TASK FORMATS GUIDE (Use this if applicable, or adapt principles for other languages) ---
 Основные форматы письменных заданий в немецком языке
 Вот список основных типов письменных работ, которые встречаются в учебных курсах, экзаменах (Goethe, TELC, TestDaF) и на практике:
 
