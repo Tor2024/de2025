@@ -1,3 +1,4 @@
+*   Добавьте все файлы вашего проекта в репозиторий:
 # Firebase Studio
 
 This is a NextJS starter in Firebase Studio.
