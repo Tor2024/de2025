@@ -185,6 +185,43 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
+const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
+    { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+    { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+    { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+    { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+    { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+    { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing", topicExtractor: (line, keyword) => line.substring(keyword.length).replace(/на тему/i, "").replace(/["':]/g, "").trim() },
+    { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  ];
+
+const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
+  let href: string | null = null;
+  const displayText = topicLine; 
+
+  const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
+
+  const topicLower = topicLine.toLowerCase();
+
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      if (topicLower.startsWith(keyword)) {
+        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme) {
+          href = `${mod.path}?topic=${theme}`;
+          if (mod.needsLevel && lessonLevel) {
+            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`;
+          }
+        }
+        break;
+      }
+    }
+    if (href) break;
+  }
+  return { href, displayText };
+};
+
 
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -198,7 +235,6 @@ export default function DashboardPage() {
 
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
-  // const [activeRecommendedLessonId, setActiveRecommendedLessonId] = useState<string | null>(null); // For future use
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = useCallback((key: string, defaultText?: string): string => {
@@ -214,15 +250,10 @@ export default function DashboardPage() {
   }, [currentLang]);
 
   const fetchTutorTip = useCallback(async () => {
-    if (!userData.settings) {
-      // Set static tip if settings are not available (e.g. during initial load before settings are fetched)
-      // setAiTutorTip(t('aiTutorTipStatic')); // This might be too early if t() itself depends on settings
-      return;
-    }
+    if (!userData.settings) return;
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
       return;
     }
-
     setIsTipLoading(true);
     try {
       const response = await generateTutorTip({
@@ -265,30 +296,30 @@ export default function DashboardPage() {
     userData.settings?.targetLanguage,
     userData.settings?.proficiencyLevel,
     userData.settings?.goal,
-    t, // t depends on currentLang, which depends on userData.settings
+    t, 
     toast
   ]);
 
-  useEffect(() => {
-    // Automatic tip fetching on load and when relevant settings change
-    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-      // fetchTutorTip(); // Temporarily commented out to reduce API calls if rate limits are an issue
-    }
-  }, [
-      isUserDataLoading,
-      userData.settings?.interfaceLanguage, 
-      userData.settings?.targetLanguage,
-      userData.settings?.proficiencyLevel,
-      userData.settings?.goal,
-      tipCooldownEndTime,
-      // fetchTutorTip, // Temporarily commented out
-  ]);
+  // useEffect(() => {
+  //   // Temporarily disabled automatic tip fetching on load to reduce API calls
+  //   // if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+  //   //   fetchTutorTip();
+  //   // }
+  // }, [
+  //     isUserDataLoading,
+  //     userData.settings?.interfaceLanguage, 
+  //     userData.settings?.targetLanguage,
+  //     userData.settings?.proficiencyLevel,
+  //     userData.settings?.goal,
+  //     tipCooldownEndTime,
+  //     // fetchTutorTip, // Temporarily disabled
+  // ]);
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData.settings, isUserDataLoading, router]); // userData.settings instead of whole userData
+  }, [userData, isUserDataLoading, router]); 
 
   useEffect(() => {
     return () => {
@@ -310,7 +341,6 @@ export default function DashboardPage() {
 
     setIsRecommendationLoading(true);
     setLastRecommendation(null);
-    // setActiveRecommendedLessonId(null); // Reset for future use
 
     try {
         let pastErrorsSummary = "No specific past errors noted for recommendation.";
@@ -332,22 +362,40 @@ export default function DashboardPage() {
         const recommendation = await getLessonRecommendation(input);
         setLastRecommendation(recommendation);
 
-        if (recommendation.recommendedLessonId && userData.progress.learningRoadmap) {
+        if (recommendation.recommendedLessonId && userData.progress.learningRoadmap?.lessons) {
             const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === recommendation.recommendedLessonId);
             const lessonTitle = lesson ? lesson.title : "a recommended lesson";
             
-            toast({
-                title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
-                description: recommendation.reasoning || "",
-            });
-            // setActiveRecommendedLessonId(recommendation.recommendedLessonId); // For future use with RoadmapDisplay
-            
-            // Scroll to roadmap view
-            if (roadmapDisplayRef.current) {
-                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (lesson && lesson.topics && lesson.topics.length > 0) {
+                const firstTopicString = lesson.topics[0];
+                const { href } = parseTopicAndGetLink(firstTopicString, lesson.level);
 
-        } else {
+                if (href) {
+                    toast({
+                        title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                        description: recommendation.reasoning || "",
+                    });
+                    router.push(href);
+                } else {
+                    // If no link could be generated, still show recommendation and scroll to roadmap
+                    toast({
+                        title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                        description: (recommendation.reasoning || "") + " (Could not auto-navigate, please find the lesson in your roadmap).",
+                    });
+                    if (roadmapDisplayRef.current) {
+                        roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            } else {
+                 toast({ // Lesson found but no topics
+                    title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                    description: (recommendation.reasoning || "") + " (This lesson has no topics defined yet).",
+                });
+                 if (roadmapDisplayRef.current) {
+                    roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        } else { // No recommendedLessonId or no lessons in roadmap
             toast({
                 title: t('aiRecommendationInfoTitle'),
                 description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
@@ -406,7 +454,7 @@ export default function DashboardPage() {
 
         <Button
           onClick={handleRecommendLessonClick}
-          disabled={isRecommendationLoading || !userData.progress?.learningRoadmap}
+          disabled={isRecommendationLoading || !userData.progress?.learningRoadmap?.lessons || userData.progress.learningRoadmap.lessons.length === 0}
           className="w-full md:w-auto mb-6 py-6 text-lg"
           variant="default"
         >
@@ -418,7 +466,6 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3" ref={roadmapDisplayRef}>
             <RoadmapDisplay
-              // activeRecommendedLessonId={activeRecommendedLessonId} // For future use
               titleText={t('roadmapTitle')}
               descriptionText={t('roadmapDescription')}
               loadingTitleText={t('roadmapLoadingTitle')}
@@ -572,5 +619,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-    
