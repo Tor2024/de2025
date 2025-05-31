@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Added useRouter
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel, type ErrorRecord } from "@/lib/types";
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import type { GetLessonRecommendationInput, GetLessonRecommendationOutput, Lesson as AiLessonType } from '@/ai/flows/get-lesson-recommendation-flow';
+import type { GetLessonRecommendationInput, GetLessonRecommendationOutput } from '@/ai/flows/get-lesson-recommendation-flow';
 import { useToast } from "@/hooks/use-toast";
 import { appModulesConfig } from "@/lib/modulesConfig";
 
@@ -185,6 +185,44 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
+// Helper logic for parsing topic links, similar to RoadmapDisplay
+const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
+    { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+    { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+    { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+    { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+    { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+    { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing", topicExtractor: (line, keyword) => line.substring(keyword.length).replace(/на тему/i, "").replace(/["':]/g, "").trim() },
+    { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+];
+
+const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
+
+const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
+  let href: string | null = null;
+  const displayText = topicLine; 
+
+  const topicLower = topicLine.toLowerCase();
+
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      if (topicLower.startsWith(keyword)) {
+        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme) {
+          href = `${mod.path}?topic=${theme}`;
+          if (mod.needsLevel) {
+            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`; 
+          }
+        }
+        break;
+      }
+    }
+    if (href) break;
+  }
+  return { href, displayText };
+};
+
 
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -267,22 +305,23 @@ export default function DashboardPage() {
     toast
   ]);
 
-  // useEffect(() => {
-  //   if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-  //     fetchTutorTip();
-  //   }
-  // }, [
-  //     isUserDataLoading,
-  //     userData.settings?.interfaceLanguage, 
-  //     userData.settings?.targetLanguage,
-  //     userData.settings?.proficiencyLevel,
-  //     userData.settings?.goal,
-  //     fetchTutorTip, 
-  //     tipCooldownEndTime 
-  // ]);
+  useEffect(() => {
+    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+       // Automatic tip fetching is commented out to reduce API calls
+       // fetchTutorTip();
+    }
+  }, [
+      isUserDataLoading,
+      userData.settings?.interfaceLanguage, 
+      userData.settings?.targetLanguage,
+      userData.settings?.proficiencyLevel,
+      userData.settings?.goal,
+      // fetchTutorTip, // Commented out
+      tipCooldownEndTime 
+  ]);
 
   useEffect(() => {
-    if (!isUserDataLoading && !userData.settings) {
+    if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
   }, [userData, isUserDataLoading, router]); 
@@ -323,20 +362,35 @@ export default function DashboardPage() {
             completedLessonIds: userData.progress.completedLessonIds || [],
             userGoal: userData.settings.goal,
             currentProficiencyLevel: userData.settings.proficiencyLevel,
-            userPastErrors: pastErrorsSummary,
+            // @ts-ignore - userPastErrors might not be in GetLessonRecommendationInput in some flow versions
+            userPastErrors: pastErrorsSummary, 
         };
         const recommendation = await getLessonRecommendation(input);
         setLastRecommendation(recommendation);
 
-        if (recommendation.recommendedLessonId) {
+        if (recommendation.recommendedLessonId && userData.progress.learningRoadmap) {
             const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === recommendation.recommendedLessonId);
             const lessonTitle = lesson ? lesson.title : "a recommended lesson";
+            
             toast({
                 title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
                 description: recommendation.reasoning || "",
             });
-            if (roadmapDisplayRef.current) {
-                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            if (lesson && lesson.topics && lesson.topics.length > 0) {
+                const firstTopicString = lesson.topics[0];
+                const { href } = parseTopicAndGetLink(firstTopicString, lesson.level);
+                if (href) {
+                    router.push(href);
+                } else {
+                     if (roadmapDisplayRef.current) {
+                        roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            } else {
+                if (roadmapDisplayRef.current) {
+                    roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
 
         } else {
@@ -376,18 +430,18 @@ export default function DashboardPage() {
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getLoadingMessage()}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
   }
 
-  if (!userData.settings) {
+  if (userData.settings === null) {
     return (
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getRedirectingMessage()}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -578,3 +632,5 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+    
