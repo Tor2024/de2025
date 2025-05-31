@@ -14,15 +14,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { adaptiveGrammarExplanations } from "@/ai/flows/adaptive-grammar-explanations";
 import { explainGrammarTaskError } from "@/ai/flows/explain-grammar-task-error-flow";
-import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask, ExplainGrammarTaskErrorInput, ExplainGrammarTaskErrorOutput } from "@/ai/flows/adaptive-grammar-explanations";
-
+import type { AdaptiveGrammarExplanationsInput, AdaptiveGrammarExplanationsOutput, PracticeTask } from "@/ai/flows/adaptive-grammar-explanations";
+import type { ExplainGrammarTaskErrorInput, ExplainGrammarTaskErrorOutput } from "@/ai/flows/explain-grammar-task-error-flow";
 import type { InterfaceLanguage as AppInterfaceLanguage, ProficiencyLevel as AppProficiencyLevel, TargetLanguage as AppTargetLanguage } from "@/lib/types";
 import { interfaceLanguageCodes, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles, XCircle, CheckCircle2, Volume2, Ban, BookOpen } from "lucide-react";
+import { Sparkles, XCircle, CheckCircle2, Volume2, Ban, BookOpen, Archive } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from 'next/navigation';
 
 const grammarSchema = z.object({
   grammarTopic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -63,6 +64,9 @@ const baseEnTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   ttsUtteranceErrorTitle: "Speech Error",
   ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+  archiveMistakeButton: "Archive this mistake",
+  mistakeArchivedToastTitle: "Mistake Archived",
+  mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -98,6 +102,9 @@ const baseRuTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   ttsUtteranceErrorTitle: "Ошибка синтеза речи",
   ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+  archiveMistakeButton: "Добавить ошибку в архив",
+  mistakeArchivedToastTitle: "Ошибка добавлена в архив",
+  mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
 };
 
 const generateTranslations = () => {
@@ -163,10 +170,9 @@ const HighlightedTextRenderer: React.FC<{ text: string | undefined; highlights: 
   const filteredSegments = segments.filter(segment => segment.text.trim() !== "");
 
   return (
-    <>
+    <div className="whitespace-pre-wrap text-sm leading-relaxed">
       {filteredSegments.map((segment, segmentIndex) => {
         const highlightKeys = Object.keys(highlights);
-        // Highlight only if the segment is in the target language (e.g., German)
         const shouldHighlight = segment.langCode.startsWith(targetLangBcp47.substring(0,2)) && highlightKeys.length > 0;
 
         if (!shouldHighlight) {
@@ -200,7 +206,7 @@ const HighlightedTextRenderer: React.FC<{ text: string | undefined; highlights: 
           </React.Fragment>
         );
       })}
-    </>
+    </div>
   );
 };
 
@@ -222,38 +228,19 @@ export function GrammarModuleClient() {
   const [taskFeedback, setTaskFeedback] = useState<Record<string, { isCorrect: boolean; submitted: boolean }>>({});
   const [taskErrorExplanations, setTaskErrorExplanations] = useState<Record<string, string | null>>({});
   const [isFetchingExplanation, setIsFetchingExplanation] = useState<Record<string, boolean>>({});
+  const [archivedGrammarMistakes, setArchivedGrammarMistakes] = useState<Record<string, boolean>>({});
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<GrammarFormData>({
+
+  const searchParams = useSearchParams();
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<GrammarFormData>({
     resolver: zodResolver(grammarSchema),
   });
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const currentLang = isUserDataLoading || !userData.settings ? 'en' : (userData.settings.interfaceLanguage);
   const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   }, [currentLang]);
-
-  useEffect(() => {
-    const updateVoices = () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: GrammarModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
-      }
-    };
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices();
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
-    return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-        }
-      }
-      setCurrentlySpeakingTTSId(null);
-    };
-  }, []);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
@@ -323,7 +310,7 @@ export function GrammarModuleClient() {
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
     sanitizedText = sanitizedText.replace(/[()]/g, '');
     sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
-    sanitizedText = sanitizedText.replace(/#+/g, ''); 
+    sanitizedText = sanitizedText.replace(/#+/g, '');
     sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
     return sanitizedText.trim();
   }, []);
@@ -340,6 +327,7 @@ export function GrammarModuleClient() {
       'gs'
     );
     let match;
+    console.log(`TTS: GrammarModuleClient - Parsing text for TTS. Interface: ${interfaceLangBcp47}, Target: ${targetLangBcp47}`);
   
     while ((match = regex.exec(text)) !== null) {
       if (match.index > lastIndex) {
@@ -349,7 +337,7 @@ export function GrammarModuleClient() {
         });
       }
       segments.push({
-        text: match[1],
+        text: match[1], // Текст между маркерами
         langCode: targetLangBcp47,
       });
       lastIndex = regex.lastIndex;
@@ -361,9 +349,10 @@ export function GrammarModuleClient() {
         langCode: interfaceLangBcp47,
       });
     }
-    return segments.filter(segment => segment.text.trim() !== "");
+    const filteredSegments = segments.filter(segment => segment.text.trim() !== "");
+    console.log(`TTS: GrammarModuleClient - Parsed Segments:`, filteredSegments.map(s => ({text: s.text.substring(0,30) + '...', lang: s.langCode})));
+    return filteredSegments;
   }, []);
-
 
   const speakNext = useCallback((currentPlayId: number) => {
     if (playTextInternalIdRef.current !== currentPlayId) {
@@ -384,7 +373,7 @@ export function GrammarModuleClient() {
         if (event.error === "interrupted") {
           console.info('TTS: GrammarModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
-          console.error('SpeechSynthesisUtterance.onerror - Error type:', event.error);
+          console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
            toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
@@ -394,7 +383,7 @@ export function GrammarModuleClient() {
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [toast, t, setCurrentlySpeakingTTSId]);
+  }, [toast, t, setCurrentlySpeakingTTSId]); // Removed ttsUtteranceErrorTitle and Description
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined) => {
     playTextInternalIdRef.current += 1;
@@ -419,14 +408,15 @@ export function GrammarModuleClient() {
     const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
     const targetLangBcp47 = mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage);
     
-    const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    startSignalUtterance.lang = interfaceLangBcp47;
-    const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (startVoice) startSignalUtterance.voice = startVoice;
-    startSignalUtterance.rate = 0.95;
-    startSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(startSignalUtterance);
-
+    // Add start cue
+    const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
+    startCueUtterance.lang = interfaceLangBcp47;
+    const startCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (startCueVoice) startCueUtterance.voice = startCueVoice;
+    startCueUtterance.rate = 0.95;
+    startCueUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(startCueUtterance);
+    
     const textSegments = parseMultiLanguageText(fullText, interfaceLangBcp47, targetLangBcp47);
 
     textSegments.forEach(segment => {
@@ -447,33 +437,57 @@ export function GrammarModuleClient() {
       }
     });
     
-    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    endSignalUtterance.lang = interfaceLangBcp47;
-    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (endVoice) endSignalUtterance.voice = endVoice;
-    endSignalUtterance.rate = 0.95;
-    endSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(endSignalUtterance);
-    
+    // Add end cue
+    const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
+    endCueUtterance.lang = interfaceLangBcp47;
+    const endCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endCueVoice) endCueUtterance.voice = endCueVoice;
+    endCueUtterance.rate = 0.95;
+    endCueUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endCueUtterance);
+
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText, voicesRef]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText, voicesRef]); // Removed ttsNotSupportedTitle and Description
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
+  }, [setCurrentlySpeakingTTSId]);
+
+  useEffect(() => {
+    const updateVoices = () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        voicesRef.current = window.speechSynthesis.getVoices();
+      }
+    };
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      updateVoices(); // Initial load
+      window.speechSynthesis.onvoiceschanged = updateVoices; // Subsequent changes
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel(); // Cancel any ongoing speech
+        }
+      }
+      setCurrentlySpeakingTTSId(null); // Reset speaking ID on unmount
+    };
   }, []);
 
-  const onSubmit: SubmitHandler<GrammarFormData> = async (data) => {
+  const fetchAndSetGrammarExplanation = useCallback(async (formData: GrammarFormData) => {
     setIsAiLoading(true);
     setExplanationResult(null);
-    setCurrentTopic(data.grammarTopic);
+    setCurrentTopic(formData.grammarTopic);
     setTaskAnswers({});
     setTaskFeedback({});
     setTaskErrorExplanations({});
     setIsFetchingExplanation({});
+    setArchivedGrammarMistakes({});
     stopSpeech();
     try {
       if (!userData.settings || !userData.progress) { 
@@ -483,7 +497,7 @@ export function GrammarModuleClient() {
       }
       const grammarInput: AdaptiveGrammarExplanationsInput = {
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
-        grammarTopic: data.grammarTopic,
+        grammarTopic: formData.grammarTopic,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         learningGoal: userData.settings.goal,
         userPastErrors: userData.progress.errorArchive.map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`).join('\n') || "No past errors recorded.",
@@ -492,9 +506,8 @@ export function GrammarModuleClient() {
       setExplanationResult(result);
       toast({
         title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.grammarTopic),
+        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.grammarTopic),
       });
-      reset();
     } catch (error) {
       console.error("Grammar explanation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -506,7 +519,20 @@ export function GrammarModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
+  }, [userData, toast, t, stopSpeech, reset]);
+
+  const onSubmitHandler: SubmitHandler<GrammarFormData> = async (data) => {
+    await fetchAndSetGrammarExplanation(data);
+    reset(); 
   };
+
+  useEffect(() => {
+    const initialTopic = searchParams.get('topic');
+    if (initialTopic && !explanationResult && !isAiLoading) { 
+      setValue('grammarTopic', initialTopic);
+      fetchAndSetGrammarExplanation({ grammarTopic: initialTopic });
+    }
+  }, [searchParams, setValue, fetchAndSetGrammarExplanation, explanationResult, isAiLoading]);
 
   const handleClearResults = () => {
     setExplanationResult(null);
@@ -515,6 +541,7 @@ export function GrammarModuleClient() {
     setTaskFeedback({});
     setTaskErrorExplanations({});
     setIsFetchingExplanation({});
+    setArchivedGrammarMistakes({});
     stopSpeech();
     reset();
   };
@@ -525,6 +552,7 @@ export function GrammarModuleClient() {
       setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: false, isCorrect: false } }));
       setTaskErrorExplanations(prev => ({ ...prev, [taskId]: null }));
       setIsFetchingExplanation(prev => ({ ...prev, [taskId]: false }));
+      setArchivedGrammarMistakes(prev => ({...prev, [taskId]: false}));
     }
   };
 
@@ -533,6 +561,9 @@ export function GrammarModuleClient() {
     const actualCorrectAnswer = task.correctAnswer.trim().toLowerCase();
     const isCorrect = userAnswer === actualCorrectAnswer;
     setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: true, isCorrect } }));
+    // Reset archived status for this task as it's being re-checked
+    setArchivedGrammarMistakes(prev => ({...prev, [taskId]: false}));
+
 
     if (!isCorrect && userData.settings && currentTopic && task) {
       setIsFetchingExplanation(prev => ({ ...prev, [taskId]: true }));
@@ -560,6 +591,22 @@ export function GrammarModuleClient() {
       }
     }
   };
+  
+  const handleArchiveGrammarMistake = (taskId: string, task: PracticeTask) => {
+    if (!userData.settings || !currentTopic || !task) return;
+    addErrorToArchive({
+      module: "Grammar Practice",
+      context: task.taskDescription,
+      userAttempt: taskAnswers[taskId] || "",
+      correctAnswer: task.correctAnswer,
+    });
+    setArchivedGrammarMistakes(prev => ({ ...prev, [taskId]: true }));
+    toast({
+      title: t('mistakeArchivedToastTitle'),
+      description: t('mistakeArchivedToastDescription'),
+    });
+  };
+
 
   const hasExplanationText = !!(explanationResult && explanationResult.explanation && explanationResult.explanation.trim().length > 0);
   const ttsPlayButtonId = `tts-grammar-${currentTopic.replace(/\s+/g, '-') || 'explanation'}`;
@@ -580,7 +627,7 @@ export function GrammarModuleClient() {
             )}
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmitHandler)}>
           <CardContent className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="grammarTopic">{t('grammarTopicLabel')}</Label>
@@ -621,7 +668,7 @@ export function GrammarModuleClient() {
           <CardContent className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-lg">{t('explanationHeader')}</h3>
+                <h3 className="font-semibold text-lg flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary/80"/>{t('explanationHeader')}</h3>
                 {typeof window !== 'undefined' && window.speechSynthesis && hasExplanationText && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -647,7 +694,6 @@ export function GrammarModuleClient() {
                 )}
               </div>
               <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">
                    {userData.settings && (
                      <HighlightedTextRenderer 
                         text={explanationResult.explanation} 
@@ -657,7 +703,6 @@ export function GrammarModuleClient() {
                         targetLangBcp47={mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage)}
                      />
                    )}
-                </div>
               </ScrollArea>
             </div>
 
@@ -665,9 +710,9 @@ export function GrammarModuleClient() {
               <h3 className="font-semibold text-lg mt-4 mb-2">{t('practiceTasksHeader')}</h3>
               <ScrollArea className="h-[350px] rounded-md border p-3 bg-muted/30">
                 {explanationResult.practiceTasks && explanationResult.practiceTasks.length > 0 ? (
-                  <div className="space-y-4">
+                  <ul className="space-y-4">
                     {explanationResult.practiceTasks.map((task, index) => (
-                      <div key={task.id || index} className="p-3 rounded-md bg-card border border-border/70 shadow-sm">
+                      <li key={task.id || index} className="p-3 rounded-md bg-card border border-border/70 shadow-sm">
                         <p className="text-sm font-medium mb-1.5">{task.taskDescription}</p>
                         {task.type === 'fill-in-the-blank' && (
                           <div className="space-y-2">
@@ -716,11 +761,23 @@ export function GrammarModuleClient() {
                                     <p className="text-xs text-foreground/80 dark:text-foreground/70 whitespace-pre-wrap">{taskErrorExplanations[task.id]}</p>
                                 </div>
                             )}
+                            {taskFeedback[task.id]?.submitted && !taskFeedback[task.id]?.isCorrect && !archivedGrammarMistakes[task.id] && !isFetchingExplanation[task.id] && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 text-xs"
+                                onClick={() => handleArchiveGrammarMistake(task.id, task)}
+                                disabled={isAiLoading}
+                              >
+                                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                                {t('archiveMistakeButton')}
+                              </Button>
+                            )}
                           </div>
                         )}
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground italic p-3">{t('noPracticeTasks')}</p>
                 )}
@@ -732,3 +789,4 @@ export function GrammarModuleClient() {
     </div>
   );
 }
+
