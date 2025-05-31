@@ -43,7 +43,6 @@ const onboardingSchema = z.object({
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
-
 const baseEnTranslations: Record<string, string> = {
   step1Title: "Welcome to LinguaLab!",
   step2Title: "Your Learning Focus",
@@ -114,9 +113,9 @@ const pageTranslations = generateTranslations();
 
 
 export function OnboardingFlow() {
-  const { setUserData } = useUserData(); 
+  const { userData, setUserData, checkAndAwardBadges } = useUserData(); 
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false); 
+  const [isLoadingAi, setIsLoadingAi] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
   
   const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
@@ -125,6 +124,9 @@ export function OnboardingFlow() {
     defaultValues: {
       interfaceLanguage: 'en', 
       proficiencyLevel: 'A1-A2',
+      userName: '',
+      targetLanguage: undefined,
+      goal: ''
     },
   });
   
@@ -150,7 +152,7 @@ export function OnboardingFlow() {
   };
 
   const onSubmit: SubmitHandler<OnboardingFormData> = async (data) => {
-    setIsLoading(true);
+    setIsLoadingAi(true);
     try {
       const settingsData: UserSettings = {
         userName: data.userName,
@@ -169,14 +171,19 @@ export function OnboardingFlow() {
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
       
-      const newProgress: UserProgress = {
-        ...initialUserProgress, 
-        learningRoadmap: roadmapOutput as LearningRoadmap,
-      };
-
-      setUserData({
-          settings: settingsData,
-          progress: newProgress,
+      setUserData(prev => {
+        const existingProgress = prev.progress || initialUserProgress;
+        
+        const newProgressData: UserProgress = {
+          ...existingProgress,
+          learningRoadmap: roadmapOutput as LearningRoadmap,
+          completedLessonIds: [], // Reset completed lessons for the new plan
+        };
+        // No need to call checkAndAwardBadges here as no XP/streak changes directly from plan generation
+        return { 
+          settings: settingsData, 
+          progress: newProgressData 
+        };
       });
 
       const toastTitle = (currentTranslations.setupCompleteTitle || baseEnTranslations.setupCompleteTitle)
@@ -196,7 +203,7 @@ export function OnboardingFlow() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingAi(false);
     }
   };
 
@@ -287,12 +294,12 @@ export function OnboardingFlow() {
               placeholder={currentTranslations.goalPlaceholder}
               {...register("goal")}
               className="min-h-[100px]"
-              disabled={isLoading && isLastStep}
+              disabled={isLoadingAi && isLastStep}
             />
             {errors.goal && <p className="text-sm text-destructive">{errors.goal.message}</p>}
           </div>
         )}
-        {isLastStep && isLoading && (
+        {isLastStep && isLoadingAi && (
           <div className="mt-4 p-3 text-center bg-muted/50 rounded-md">
             <LoadingSpinner size={24} className="mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
@@ -329,18 +336,18 @@ export function OnboardingFlow() {
           </CardContent>
           <CardFooter className="flex justify-between gap-2">
             {currentStep > 0 && (
-              <Button type="button" variant="outline" onClick={handlePrev} disabled={isLoading}>
+              <Button type="button" variant="outline" onClick={handlePrev} disabled={isLoadingAi}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> {currentTranslations.previousButton}
               </Button>
             )}
             {currentStep < steps.length - 1 && (
-              <Button type="button" onClick={handleNext} disabled={isLoading} className="ml-auto">
+              <Button type="button" onClick={handleNext} disabled={isLoadingAi} className="ml-auto">
                 {currentTranslations.nextButton} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
             {currentStep === steps.length - 1 && (
-              <Button type="submit" disabled={isLoading || !isValid} className="ml-auto w-full md:w-auto">
-                {isLoading ? (
+              <Button type="submit" disabled={isLoadingAi || !isValid} className="ml-auto w-full md:w-auto">
+                {isLoadingAi ? (
                   <>
                     <LoadingSpinner size={16} className="mr-2" />
                     {currentTranslations.generatingPlanButton}
@@ -356,4 +363,6 @@ export function OnboardingFlow() {
     </div>
   );
 }
+    
+
     
