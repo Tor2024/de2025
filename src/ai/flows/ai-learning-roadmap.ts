@@ -36,22 +36,21 @@ const LessonSchema = z.object({
   id: z.string().describe("A unique identifier for this lesson (e.g., 'module_a1_lesson_1', 'german_b2_topic_3'). This ID should be concise and stable."),
   level: z.string().describe("CEFR level for this lesson/module (e.g., A1, A2, B1). The text itself (e.g., 'Level A1', 'Уровень A1') MUST be in the specified `interfaceLanguage`."),
   title: z.string().describe("Title of the lesson/module. MUST be in the specified `interfaceLanguage`."),
-  description: z.string().describe("A detailed, user-friendly description of what this lesson/module covers, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Do NOT use asterisks or other Markdown-like characters for emphasis in the description. MUST be in the specified `interfaceLanguage`."),
-  topics: z.array(z.string()).describe("Specific topics covered, providing a clear breakdown of lesson content. Each topic string ITSELF MUST be in the specified `interfaceLanguage`. These strings should be descriptive and may include very brief examples or clarifications to aid understanding (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения'). Aim for a balance of grammar, vocabulary, and practical application within each module, covering reading, writing, listening, and speaking aspects appropriate to the level."),
+  description: z.string().describe("A detailed, user-friendly description of what this lesson/module covers, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate. Ensure the text is clear, concise, and well-suited for text-to-speech conversion. Do NOT use asterisks or other Markdown-like characters for emphasis in the description. MUST be in the specified `interfaceLanguage`."),
+  topics: z.array(z.string()).describe("Specific topics covered, providing a clear breakdown of lesson content. Each topic string ITSELF MUST be in the specified `interfaceLanguage`. These strings should be descriptive, action-oriented (e.g., 'Грамматика: Изучение немецкого алфавита...', 'Лексика: Практика слов по теме...'), and may include very brief examples or clarifications to aid understanding (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения'). Aim for a balance of grammar, vocabulary, and practical application within each module, covering reading, writing, listening, and speaking aspects appropriate to the level."),
   estimatedDuration: z.string().optional().describe("Estimated time to complete this lesson/module (e.g., '2 weeks', '10 hours', '2 недели', '10 часов'). MUST be in the specified `interfaceLanguage`.")
 });
 
 const GeneratePersonalizedLearningRoadmapOutputSchema = z.object({
-  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. MUST be in the specified `interfaceLanguage`. If the user provided a `proficiencyLevel`, acknowledge it as their starting point but emphasize the plan covers A0-C2. Do NOT use asterisks or other Markdown-like characters for emphasis."),
+  introduction: z.string().describe("A general introduction to the learning plan, explaining its structure and how to use it effectively. Ensure the text is clear, concise, and well-suited for text-to-speech conversion. MUST be in the specified `interfaceLanguage`. If the user provided a `proficiencyLevel`, acknowledge it as their starting point but emphasize the plan covers A0-C2. Do NOT use asterisks or other Markdown-like characters for emphasis."),
   lessons: z.array(LessonSchema).describe("An array of lessons, structured sequentially from A0/A1 to C2. Ensure comprehensive coverage for the `targetLanguage` across all CEFR levels. Each lesson should aim to integrate various skills (grammar, vocabulary, listening, reading, writing, speaking) in a thematic or functional context where possible."),
-  conclusion: z.string().optional().describe("A concluding remark or encouragement. MUST be in the specified `interfaceLanguage`. Do NOT use asterisks or other Markdown-like characters for emphasis.")
+  conclusion: z.string().optional().describe("A concluding remark or encouragement. Ensure the text is clear, concise, and well-suited for text-to-speech conversion. MUST be in the specified `interfaceLanguage`. Do NOT use asterisks or other Markdown-like characters for emphasis.")
 });
 
 export type GeneratePersonalizedLearningRoadmapOutput = z.infer<
   typeof GeneratePersonalizedLearningRoadmapOutputSchema
 >;
 
-// Exported wrapper function
 export async function generatePersonalizedLearningRoadmap(
   input: GeneratePersonalizedLearningRoadmapInput
 ): Promise<GeneratePersonalizedLearningRoadmapOutput> {
@@ -77,15 +76,22 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
           *   The 'title' of the lesson (make it engaging and clear). MUST be in the {{{interfaceLanguage}}}.
           *   The 'description' of the lesson (make this detailed and user-friendly, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate). MUST be in the {{{interfaceLanguage}}}.
           *   The 'estimatedDuration' text (e.g., '2 недели', '2 weeks'). MUST be in the {{{interfaceLanguage}}}.
-          *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. These topic strings should be descriptive and may include very brief examples or clarifications to aid understanding. (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения').
+          *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. These topic strings should be descriptive, ACTION-ORIENTED (e.g., "Грамматика: Изучение немецкого алфавита...", "Лексика: Практика слов по теме..."), and may include very brief examples or clarifications to aid understanding. (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения').
   2.  **Target Language ({{{targetLanguage}}})**: The actual linguistic concepts, grammar rules, vocabulary themes, etc., that the roadmap teaches should pertain to this language.
   3.  **NO ASTERISKS/MARKDOWN FOR EMPHASIS**: Do NOT use asterisks (*, **) or underscores (_, __) or any other Markdown-like characters for text emphasis (like bolding or italicizing) in any of the generated text fields (introduction, lesson descriptions, lesson topics, conclusion). Present information clearly without such special formatting characters.
+  4.  **TTS-FRIENDLY TEXT**: All generated text for 'introduction', 'lessons[].description', and 'conclusion' should be clear, concise, and well-suited for text-to-speech conversion (e.g., avoid overly complex sentence structures where possible, use common vocabulary for explanations in the {{{interfaceLanguage}}}).
 
   CONTENT AND STRUCTURE OF LESSONS:
   *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided {{{proficiencyLevel}}} indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
-  *   **Balanced Skills**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill (e.g., only grammar). Strive to incorporate practical application exercises for each skill within a lesson. For example, a lesson on "Travel" for A2 German could include: Vocabulary (words for booking, transport), Grammar (Perfekt for past trips), Listening (dialogue at a train station), Reading (a short travel blog post), Writing (email to a hotel), Speaking (role-play buying a ticket).
+  *   **Balanced Skills & Action-Oriented Topics**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill. Strive to incorporate practical application exercises for each skill within a lesson. For example, a lesson on "Travel" for A2 German could include:
+      - "Лексика: Изучение слов для бронирования, транспорта ({{{interfaceLanguage}}})"
+      - "Грамматика: Освоение Perfekt для описания прошлых поездок ({{{interfaceLanguage}}})"
+      - "Аудирование: Прослушивание диалога на вокзале ({{{interfaceLanguage}}})"
+      - "Чтение: Короткий блог о путешествиях ({{{interfaceLanguage}}})"
+      - "Письмо: Написание электронного письма в отель ({{{interfaceLanguage}}})"
+      - "Говорение: Ролевая игра 'Покупка билета' ({{{interfaceLanguage}}})"
+    Each topic string should clearly indicate what aspect of the target language it covers and imply an action (e.g., "Лексика: Изучение...", "Грамматика: Практика...", "Аудирование: Прослушивание...", "Чтение: Анализ текста...").
   *   **Thematic/Functional Context**: Whenever possible, frame lessons or modules within a thematic (e.g., "Travel", "Work", "Hobbies") or functional (e.g., "Making appointments", "Expressing opinions") context. This makes learning more engaging.
-  *   **Detailed Topics**: The 'topics' array for each lesson should provide a clear breakdown of its content. For example, instead of just "Verbs", specify "Глаголы: Спряжение сильных глаголов в настоящем времени (Präsens), примеры употребления" (if interface language is Russian for German target). Each topic string should clearly indicate what aspect of the target language it covers (e.g., "Лексика:", "Грамматика:", "Аудирование:", "Практика говорения:", "Культурная заметка:").
   *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
 
   EXAMPLE (if interfaceLanguage='ru', targetLanguage='German', proficiencyLevel='A1-A2'):
@@ -98,15 +104,15 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
       "title": "Основы немецкого: Алфавит и приветствия", // In Russian
       "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. Важно запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'. Мы начнем с самых азов, чтобы заложить прочный фундамент.", // In Russian, detailed, NO asterisks for emphasis
       "topics": [
-          "Лексика: Немецкий алфавит (Das deutsche Alphabet) и его особенности",
-          "Фонетика: Основные правила произношения, звуки ä, ö, ü, ß, буквосочетания ei, eu, ch, sch",
+          "Лексика: Изучение немецкого алфавита (Das deutsche Alphabet) и его особенностей",
+          "Фонетика: Освоение основных правил произношения, звуков ä, ö, ü, ß, буквосочетаний ei, eu, ch, sch",
           "Практика: Чтение простых слов и имен, упражнения на слух для различения звуков",
-          "Коммуникация: Приветствия (Hallo, Guten Tag, Guten Morgen) и прощания (Tschüss, Auf Wiedersehen)",
-          "Коммуникация: Как представиться (Ich heiße...), спросить имя (Wie heißen Sie?)",
-          "Числа: От 1 до 10 (eins, zwei... zehn) и их употребление",
-          "Навыки: Упражнения на аудирование для распознавания приветствий и чисел",
-          "Навыки: Письменное упражнение - написать свое имя и возраст"
-      ], // CRITICAL: These topic strings are in Russian, describing German concepts, and are more detailed.
+          "Коммуникация: Заучивание приветствий (Hallo, Guten Tag, Guten Morgen) и прощаний (Tschüss, Auf Wiedersehen)",
+          "Коммуникация: Тренировка представления себя (Ich heiße...), и как спросить имя (Wie heißen Sie?)",
+          "Числа: Изучение чисел от 1 до 10 (eins, zwei... zehn) и их употребления",
+          "Аудирование: Упражнения на распознавание приветствий и чисел",
+          "Письмо: Упражнение - написать свое имя и возраст"
+      ], // CRITICAL: These topic strings are in Russian, describing German concepts, and are more detailed and action-oriented.
       "estimatedDuration": "1 неделя" // In Russian
     }
 
@@ -272,10 +278,11 @@ TestDaF-4 = уровень C1
   User's STARTING proficiency level (for context, but plan must be A0-C2): {{{proficiencyLevel}}}
   User's personal goal: {{{personalGoal}}}
 
-  Generate the structured learning roadmap now according to ALL the instructions above. Ensure lesson descriptions are detailed and topics are broken down clearly.
+  Generate the structured learning roadmap now according to ALL the instructions above. Ensure lesson descriptions are detailed and topics are broken down clearly and are action-oriented.
   `,
 });
 
+// Define the flow using the AI prompt
 const generatePersonalizedLearningRoadmapFlow = ai.defineFlow(
   {
     name: 'generatePersonalizedLearningRoadmapFlow',

@@ -3,12 +3,13 @@
 
 import * as React from "react";
 import { useCallback, useRef } from "react";
+import Link from "next/link"; // Added Link
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useUserData } from "@/contexts/UserDataContext";
 import { BookMarked, ListChecks, Clock, Info, Square, CheckSquare, Volume2, Ban } from "lucide-react";
-import type { Lesson, InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types";
+import type { Lesson, InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,46 @@ interface RoadmapDisplayProps {
   ttsUtteranceErrorDescription: string;
 }
 
+// Helper function to parse topic line and generate link
+const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
+  let href: string | null = null;
+  const displayText = topicLine; // Display the full topic line
+
+  const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
+
+  const topicLower = topicLine.toLowerCase();
+
+  const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
+    { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+    { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+    { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+    { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+    { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+    { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing", topicExtractor: (line, keyword) => line.substring(keyword.length).replace(/на тему/i, "").replace(/["':]/g, "").trim() },
+    { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  ];
+
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      if (topicLower.startsWith(keyword)) {
+        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme) {
+          href = `${mod.path}?topic=${theme}`;
+          if (mod.needsLevel) {
+            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`; // Use only level code like A1, B2
+          }
+        }
+        break;
+      }
+    }
+    if (href) break;
+  }
+
+  return { href, displayText };
+};
+
+
 export function RoadmapDisplay({
   titleText,
   descriptionText,
@@ -60,14 +101,14 @@ export function RoadmapDisplay({
   const roadmap = userData.progress?.learningRoadmap;
   const completedLessonIds = userData.progress?.completedLessonIds || [];
 
-  const [currentlySpeakingLessonId, setCurrentlySpeakingLessonId] = React.useState<string | null>(null);
+  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = React.useState<string | null>(null);
   const utteranceQueueRef = React.useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = React.useRef<number>(0);
   const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
   const playTextInternalIdRef = React.useRef<number>(0);
 
   const currentLang = userData.settings?.interfaceLanguage || 'en';
-  const t = (key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string): string => {
     const translations: Record<string, Record<string,string>> = {
         // Dummy translations, actual ones are passed via props
         ttsPlayText: ttsPlayText,
@@ -78,21 +119,23 @@ export function RoadmapDisplay({
         ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
         ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
     };
+    // This is a simplified t function for internal use if needed,
+    // but props should provide ready translations.
     return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
-  };
+  }, [currentLang, ttsPlayText, ttsStopText, ttsExperimentalText, ttsNotSupportedTitle, ttsNotSupportedDescription, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
 
 
   React.useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: RoadmapDisplay - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+         console.log(`TTS: RoadmapDisplay - Voices loaded/changed for ${currentLang}:`, voicesRef.current.filter(v => v.lang.startsWith(mapInterfaceLanguageToBcp47(currentLang))).map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices();
-      window.speechSynthesis.onvoiceschanged = updateVoices;
+      updateVoices(); // Initial load
+      window.speechSynthesis.onvoiceschanged = updateVoices; // Subsequent changes
     }
 
     return () => {
@@ -102,16 +145,16 @@ export function RoadmapDisplay({
           window.speechSynthesis.cancel();
         }
       }
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
     };
-  }, []);
+  }, [currentLang]);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
       console.warn('TTS: RoadmapDisplay - Voices not available or synthesis not supported.');
       return undefined;
     }
-    console.log(`TTS: RoadmapDisplay - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+     console.log(`TTS: RoadmapDisplay - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
 
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
@@ -174,13 +217,20 @@ export function RoadmapDisplay({
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
     sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
+    sanitizedText = sanitizedText.replace(/#+/g, '');
     sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
     return sanitizedText.trim();
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) return;
+    if (playTextInternalIdRef.current !== currentPlayId) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        setCurrentlySpeakingTTSId(null);
+        return;
+    }
 
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
@@ -195,23 +245,13 @@ export function RoadmapDisplay({
           console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
-        setCurrentlySpeakingLessonId(null);
+        setCurrentlySpeakingTTSId(null);
       };
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") {
-        const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-        endSignalUtterance.lang = interfaceLangBcp47;
-        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-        if (voice) endSignalUtterance.voice = voice;
-        endSignalUtterance.rate = 0.95;
-        endSignalUtterance.pitch = 1.1;
-        window.speechSynthesis.speak(endSignalUtterance);
-      }
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingLessonId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
+  }, [toast, t, setCurrentlySpeakingTTSId, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
 
 
   const playText = useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
@@ -230,11 +270,12 @@ export function RoadmapDisplay({
 
     const sanitizedText = sanitizeTextForTTS(textToSpeak);
     if (!sanitizedText) {
-      setCurrentlySpeakingLessonId(null);
+      setCurrentlySpeakingTTSId(null);
       return;
     }
 
     const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -247,7 +288,7 @@ export function RoadmapDisplay({
     sentences.forEach(sentence => {
       if (sentence.trim()) {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode;
+        utterance.lang = langCode; // Use the provided langCode for the main content
         const voice = selectPreferredVoice(langCode, voicesRef.current || []);
         if (voice) utterance.voice = voice;
         utterance.rate = 0.95;
@@ -256,7 +297,15 @@ export function RoadmapDisplay({
       }
     });
 
-    setCurrentlySpeakingLessonId(lessonId);
+    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
+    endSignalUtterance.lang = interfaceLangBcp47;
+    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endVoice) endSignalUtterance.voice = endVoice;
+    endSignalUtterance.rate = 0.95;
+    endSignalUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endSignalUtterance);
+    
+    setCurrentlySpeakingTTSId(lessonId);
     speakNext(currentPlayId);
   }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
@@ -264,8 +313,8 @@ export function RoadmapDisplay({
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
-    setCurrentlySpeakingLessonId(null);
-  }, [setCurrentlySpeakingLessonId]);
+    setCurrentlySpeakingTTSId(null);
+  }, []);
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
     return (
@@ -300,8 +349,10 @@ export function RoadmapDisplay({
             {roadmap.lessons.map((lesson: Lesson, index: number) => {
               const isCompleted = completedLessonIds.includes(lesson.id);
               const hasDescription = lesson.description && lesson.description.trim().length > 0;
-              const isCurrentlySpeakingThis = currentlySpeakingLessonId === lesson.id;
-              const ttsButtonId = `tts-lesson-${lesson.id || index}`;
+              const isCurrentlySpeakingThis = currentlySpeakingTTSId === lesson.id;
+              // Ensure ttsPlayButtonId is unique if lesson.id might not be (though it should be)
+              const ttsPlayButtonId = `tts-lesson-${lesson.id || index}`;
+
 
               return (
                 <AccordionItem
@@ -358,6 +409,7 @@ export function RoadmapDisplay({
                               }}
                               aria-label={isCurrentlySpeakingThis ? ttsStopText : ttsPlayText}
                               className="ml-2 p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 shrink-0"
+                              disabled={!hasDescription}
                             >
                               {isCurrentlySpeakingThis ? <Ban className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                             </button>
@@ -368,7 +420,7 @@ export function RoadmapDisplay({
                         </Tooltip>
                       )}
                     </div>
-                     {hasDescription && typeof window !== 'undefined' && window.speechSynthesis && (
+                     {typeof window !== 'undefined' && window.speechSynthesis && hasDescription && (
                         <p className="text-xs text-muted-foreground mb-2 italic">{ttsExperimentalText}</p>
                     )}
 
@@ -376,9 +428,20 @@ export function RoadmapDisplay({
                       <div className="mb-3">
                         <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
                         <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
-                          {lesson.topics.map((topic, topicIndex) => (
-                            <li key={topicIndex} className="ml-2 whitespace-pre-wrap">{topic}</li>
-                          ))}
+                          {lesson.topics.map((topic, topicIndex) => {
+                            const { href, displayText } = parseTopicAndGetLink(topic, lesson.level);
+                            return (
+                              <li key={topicIndex} className="ml-2 whitespace-pre-wrap">
+                                {href ? (
+                                  <Link href={href} className="text-primary hover:underline hover:text-accent transition-colors">
+                                    {displayText}
+                                  </Link>
+                                ) : (
+                                  displayText
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
@@ -403,3 +466,4 @@ export function RoadmapDisplay({
     </Card>
   );
 }
+
