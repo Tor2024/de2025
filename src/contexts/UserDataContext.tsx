@@ -133,7 +133,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         newStreak += 1; 
       }
 
-      let updatedProgress = {
+      let updatedProgress: UserProgress = {
         ...currentProgress,
         completedLessonIds: newCompletedLessonIds,
         xp: newXp,
@@ -182,7 +182,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const processWordRepetition = useCallback(
     (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => {
       setUserData(prev => {
-        if (!prev.settings) return prev; // Should not happen if user is in this module
+        if (!prev.settings) return prev; 
 
         const wordId = `${targetLanguage.toLowerCase()}_${wordData.word.toLowerCase()}`;
         const learnedWords = prev.progress.learnedWords || [];
@@ -191,7 +191,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         const now = new Date();
 
         let currentStage: number;
-        if (existingWordIndex !== -1) { // Word exists, update it
+        if (existingWordIndex !== -1) { 
           const oldStage = newLearnedWords[existingWordIndex].learningStage;
           currentStage = knewIt ? Math.min(oldStage + 1, MAX_LEARNING_STAGE) : 0;
           const intervalDays = learningStageIntervals[currentStage];
@@ -203,7 +203,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             lastReviewed: now.toISOString(),
             nextReviewDate: nextReview.toISOString(),
           };
-        } else { // New word
+        } else { 
           currentStage = knewIt ? 1 : 0;
           const intervalDays = learningStageIntervals[currentStage];
           const nextReview = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
@@ -237,9 +237,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     setUserData(prev => {
       const currentProgress = prev.progress;
       const newPracticeSetsCompleted = (currentProgress.practiceSetsCompleted || 0) + 1;
-      const newXp = (currentProgress.xp || 0) + 10; // Award 10 XP for completing a practice set
+      const newXp = (currentProgress.xp || 0) + 10; 
       
-      let updatedProgress = {
+      let updatedProgress: UserProgress = {
         ...currentProgress,
         practiceSetsCompleted: newPracticeSetsCompleted,
         xp: newXp,
