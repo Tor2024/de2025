@@ -37,10 +37,10 @@ const BADGE_STREAK_7_DAYS = "7-Day Learning Habit";
 const BADGE_LESSONS_5_COMPLETED = "5 Lessons Conquered";
 const BADGE_XP_1000 = "1000 XP Power Up!";
 const BADGE_STREAK_14_DAYS = "14-Day Dedication!";
-const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
-const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
 const BADGE_XP_2000 = "2000 XP Grandmaster!";
 const BADGE_STREAK_30_DAYS = "30-Day Consistency King/Queen!";
+const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
+const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
 
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
