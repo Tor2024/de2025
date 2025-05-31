@@ -15,14 +15,14 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, RefreshCw } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, RefreshCw, Info } from "lucide-react"; // Added Info
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel, UserLearnedWord } from "@/lib/types";
 import { interfaceLanguageCodes, learningStageIntervals, MAX_LEARNING_STAGE } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 import { enUS, ru as ruLocale } from 'date-fns/locale';
-import { useSearchParams } from 'next/navigation'; // Added
+import { useSearchParams } from 'next/navigation';
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -176,7 +176,7 @@ const generateTranslations = () => {
 const componentTranslations = generateTranslations();
 
 export function VocabularyModuleClient() {
-  const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion, processWordRepetition } = useUserData();
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive, processWordRepetition, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [vocabularyResult, setVocabularyResult] = useState<GenerateVocabularyOutput | null>(null);
@@ -205,8 +205,8 @@ export function VocabularyModuleClient() {
   const [mcPracticeScore, setMcPracticeScore] = useState({ correct: 0, total: 0 });
   const [isCurrentMcPracticeMistakeArchived, setIsCurrentMcPracticeMistakeArchived] = useState(false);
 
-  const searchParams = useSearchParams(); // Added
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<VocabularyFormData>({ // Added setValue
+  const searchParams = useSearchParams();
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
   });
 
@@ -259,16 +259,14 @@ export function VocabularyModuleClient() {
     }
   }, [currentMcPracticeIndex, practiceWords, setupMcPracticeExercise]);
 
-
-  const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => { // Extracted AI call logic
+  const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => {
     if (!userData.settings) {
       toast({ title: t('onboardingMissing'), variant: "destructive" });
       return;
     }
     setIsAiLoading(true);
-    setVocabularyResult(null); // Clear previous results immediately
+    setVocabularyResult(null);
     setCurrentTopic(formData.topic);
-    // Reset all states related to flashcards and practice modes
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
     setCurrentWordSrsData(null);
@@ -305,7 +303,6 @@ export function VocabularyModuleClient() {
         setPracticeWords(shuffledWords);
         setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
         setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
-        // setupMcPracticeExercise will be called by useEffect when practiceWords changes
       }
       toast({
         title: t('toastSuccessTitle'),
@@ -322,24 +319,20 @@ export function VocabularyModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
-  }, [userData.settings, toast, t]); // Removed reset from here
-
+  }, [userData.settings, toast, t]);
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
     await fetchVocabularyList(data);
-    reset(); // Reset form only after manual submission
+    reset();
   };
 
-  useEffect(() => { // Effect for handling URL query parameters
+  useEffect(() => {
     const initialTopic = searchParams.get('topic');
-    // Only auto-fetch if topic is from URL and no results/loading in progress
     if (initialTopic && !vocabularyResult && !isAiLoading) { 
       setValue('topic', initialTopic);
       fetchVocabularyList({ topic: initialTopic });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [searchParams, setValue, fetchVocabularyList]); // Dependencies: searchParams, setValue, fetchVocabularyList
-  // vocabularyResult and isAiLoading are intentionally omitted from deps here for initial load only logic.
+  }, [searchParams, setValue, fetchVocabularyList, vocabularyResult, isAiLoading]);
 
 
   const handleClearResults = () => {
@@ -482,7 +475,6 @@ export function VocabularyModuleClient() {
   const handleNextMcPracticeExercise = () => {
     if (currentMcPracticeIndex < practiceWords.length - 1) {
       setCurrentMcPracticeIndex(prev => prev + 1);
-      // setupMcPracticeExercise will be called by useEffect
     } else {
       setMcPracticeFeedback(t('mcPracticeComplete'));
       recordPracticeSetCompletion();
@@ -490,7 +482,7 @@ export function VocabularyModuleClient() {
   };
 
   const handleRestartMcPractice = () => {
-    setCurrentMcPracticeIndex(0); // This will trigger useEffect to setup first exercise
+    setCurrentMcPracticeIndex(0);
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
@@ -581,7 +573,7 @@ export function VocabularyModuleClient() {
           </CardHeader>
           <CardContent>
             {currentWordData ? (
-              <div className="space-y-4">
+               <div className="space-y-4">
                 <Card
                   className="min-h-[250px] flex flex-col items-center justify-center p-6 text-center shadow-lg border border-border/70 hover:shadow-primary/20 transition-shadow duration-300 cursor-pointer"
                   onClick={() => setIsCardRevealed(prev => !prev)}
@@ -597,7 +589,7 @@ export function VocabularyModuleClient() {
                     </>
                   ) : (
                     <div className="w-full text-left space-y-3">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-center">
                         <h3 className="text-2xl md:text-3xl font-semibold text-primary break-all">
                           {currentWordData.word}
                           <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
@@ -813,7 +805,7 @@ export function VocabularyModuleClient() {
                       let buttonClassName = "justify-start text-left h-auto py-2 transition-colors duration-200 whitespace-normal";
 
                       if (isMcPracticeSubmitted) {
-                         buttonClassName = cn(buttonClassName, "disabled:opacity-100"); // Keep opacity for submitted buttons
+                         buttonClassName = cn(buttonClassName, "disabled:opacity-100");
                         if (isActualCorrectAnswer) {
                           buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30 dark:bg-green-700/30 dark:text-green-400 dark:border-green-600");
                         } else if (isSelected && !isActualCorrectAnswer) {
@@ -920,5 +912,3 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
-
-    
