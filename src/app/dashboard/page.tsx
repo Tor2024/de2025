@@ -91,9 +91,10 @@ const baseEnTranslations: Record<string, string> = {
     recommendLessonButton: "AI Recommended Lesson",
     recommendLessonErrorTitle: "Recommendation Error",
     recommendLessonErrorDescription: "Could not get a lesson recommendation at this time.",
-    aiRecommendationTitle: "AI Recommends: {lessonTitle}",
+    aiRecommendationTitle: "AI Recommendation: {lessonTitle}",
     aiRecommendationInfoTitle: "Lesson Recommendation",
     aiRecommendationNoLessonReasoning: "AI could not find a specific lesson to recommend right now.",
+    aiRecommendationNavFailed: "(Could not auto-navigate, please find the lesson in your roadmap).",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -169,6 +170,7 @@ const baseRuTranslations: Record<string, string> = {
     aiRecommendationTitle: "AI Рекомендует: {lessonTitle}",
     aiRecommendationInfoTitle: "Рекомендация урока",
     aiRecommendationNoLessonReasoning: "ИИ не смог найти конкретный урок для рекомендации в данный момент.",
+    aiRecommendationNavFailed: "(Автоматический переход не удался, пожалуйста, найдите урок в вашем плане).",
 };
 
 const generateTranslations = () => {
@@ -185,6 +187,8 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
+// Helper function to parse topic line and generate link
+// This needs to be kept in sync with the one in RoadmapDisplay.tsx or moved to a shared util
 const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
     { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
     { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
@@ -195,12 +199,11 @@ const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean
     { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
   ];
 
-const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
+const parseTopicAndGetLink = (topicLine: string, lessonContext?: { lessonId: string; lessonLevel: string }): { href: string | null; displayText: string } => {
   let href: string | null = null;
   const displayText = topicLine; 
 
   const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
-
   const topicLower = topicLine.toLowerCase();
 
   for (const mod of keywordsToModules) {
@@ -210,8 +213,11 @@ const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: s
         theme = cleanAndEncodeTopic(theme);
         if (theme) {
           href = `${mod.path}?topic=${theme}`;
-          if (mod.needsLevel && lessonLevel) {
-            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`;
+          if (lessonContext) {
+            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
+            if (mod.needsLevel) {
+              href += `&baseLevel=${encodeURIComponent(lessonContext.lessonLevel.split(' ')[0] || lessonContext.lessonLevel)}`;
+            }
           }
         }
         break;
@@ -250,7 +256,11 @@ export default function DashboardPage() {
   }, [currentLang]);
 
   const fetchTutorTip = useCallback(async () => {
-    if (!userData.settings) return;
+    if (!userData.settings) { // Added check for userData.settings
+        console.warn("fetchTutorTip: User settings not available.");
+        setAiTutorTip(t('aiTutorTipStatic'));
+        return;
+    }
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
       return;
     }
@@ -302,9 +312,10 @@ export default function DashboardPage() {
 
   // useEffect(() => {
   //   // Temporarily disabled automatic tip fetching on load to reduce API calls
-  //   // if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-  //   //   fetchTutorTip();
-  //   // }
+  //   // Re-enabled automatic tip fetching
+  //   if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+  //     fetchTutorTip();
+  //   }
   // }, [
   //     isUserDataLoading,
   //     userData.settings?.interfaceLanguage, 
@@ -312,11 +323,11 @@ export default function DashboardPage() {
   //     userData.settings?.proficiencyLevel,
   //     userData.settings?.goal,
   //     tipCooldownEndTime,
-  //     // fetchTutorTip, // Temporarily disabled
+  //     fetchTutorTip, // Ensure fetchTutorTip is stable or correctly memoized if it's complex
   // ]);
 
   useEffect(() => {
-    if (!isUserDataLoading && userData.settings === null) {
+    if (userData.settings === null && !isUserDataLoading) {
       router.replace('/');
     }
   }, [userData, isUserDataLoading, router]); 
@@ -330,7 +341,7 @@ export default function DashboardPage() {
   }, []);
 
   const handleRecommendLessonClick = async () => {
-    if (!userData.settings || !userData.progress?.learningRoadmap) {
+    if (!userData.settings || !userData.progress?.learningRoadmap?.lessons || userData.progress.learningRoadmap.lessons.length === 0) {
         toast({
             title: t('recommendLessonErrorTitle'),
             description: "User data or learning roadmap not available.",
@@ -368,7 +379,8 @@ export default function DashboardPage() {
             
             if (lesson && lesson.topics && lesson.topics.length > 0) {
                 const firstTopicString = lesson.topics[0];
-                const { href } = parseTopicAndGetLink(firstTopicString, lesson.level);
+                const { href } = parseTopicAndGetLink(firstTopicString, { lessonId: lesson.id, lessonLevel: lesson.level });
+
 
                 if (href) {
                     toast({
@@ -377,25 +389,24 @@ export default function DashboardPage() {
                     });
                     router.push(href);
                 } else {
-                    // If no link could be generated, still show recommendation and scroll to roadmap
                     toast({
                         title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
-                        description: (recommendation.reasoning || "") + " (Could not auto-navigate, please find the lesson in your roadmap).",
+                        description: (recommendation.reasoning || "") + " " + t('aiRecommendationNavFailed'),
                     });
                     if (roadmapDisplayRef.current) {
                         roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 }
             } else {
-                 toast({ // Lesson found but no topics
+                 toast({ 
                     title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
-                    description: (recommendation.reasoning || "") + " (This lesson has no topics defined yet).",
+                    description: (recommendation.reasoning || "") + (lesson ? " (This lesson has no topics defined yet)." : ""),
                 });
                  if (roadmapDisplayRef.current) {
                     roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }
-        } else { // No recommendedLessonId or no lessons in roadmap
+        } else { 
             toast({
                 title: t('aiRecommendationInfoTitle'),
                 description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
@@ -421,18 +432,18 @@ export default function DashboardPage() {
       <AppShell>
         <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
+          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
         </div>
       </AppShell>
     );
   }
 
-  if (userData.settings === null) {
+  if (userData.settings === null) { // userData.settings может быть null если онбординг не пройден
     return (
        <AppShell>
         <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
+          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
         </div>
       </AppShell>
     );
@@ -447,6 +458,9 @@ export default function DashboardPage() {
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
   const userGoalText = userData.settings.goal || t('noGoalSet');
   const isRefreshButtonDisabled = isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime);
+
+  const completedLessons = userData.progress.completedLessonIds?.length || 0;
+  const totalLessons = userData.progress.learningRoadmap?.lessons?.length || 0;
 
   return (
     <AppShell>
@@ -493,6 +507,8 @@ export default function DashboardPage() {
               goalText={userGoalText}
               progressLabelText={t('progressLabel')}
               progressMessageTextTemplate={t('progressMessageTextTemplate')}
+              completedLessonsCount={completedLessons}
+              totalLessonsCount={totalLessons}
             />
             <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader>
@@ -619,3 +635,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
