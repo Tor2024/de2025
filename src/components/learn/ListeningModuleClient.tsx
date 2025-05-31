@@ -29,7 +29,7 @@ type ListeningFormData = z.infer<typeof listeningSchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Listening Practice",
-  description: "Enter a topic. Our AI will generate a short script (dialogue or monologue) in your target language, adapted to your proficiency level, along with optional comprehension questions.",
+  description: "Enter a topic. Our AI will generate a short script (dialogue or monologue) in your target language, adapted to your proficiency level, along with optional comprehension questions. Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
   topicLabel: "Topic for Listening Material",
   topicPlaceholder: "E.g., Weekend plans, Ordering at a cafe, A news report",
   getMaterialButton: "Get Listening Material",
@@ -69,7 +69,7 @@ const baseEnTranslations: Record<string, string> = {
 
 const baseRuTranslations: Record<string, string> = {
   title: "Практика аудирования",
-  description: "Введите тему. Наш ИИ сгенерирует короткий сценарий (диалог или монолог) на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание.",
+  description: "Введите тему. Наш ИИ сгенерирует короткий сценарий (диалог или монолог) на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание. Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
   topicLabel: "Тема для аудирования",
   topicPlaceholder: "Напр., Планы на выходные, Заказ в кафе, Новостной репортаж",
   getMaterialButton: "Получить материал",
@@ -139,7 +139,7 @@ export function ListeningModuleClient() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ListeningFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ListeningFormData>({
     resolver: zodResolver(listeningSchema),
   });
 
@@ -149,13 +149,15 @@ export function ListeningModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   }, [currentLang]);
 
-  useEffect(() => {
+  // TTS Logic
+   useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: ListeningModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log(`TTS: ListeningModuleClient - Voices loaded/changed for ${currentLang}:`, voicesRef.current.filter(v => v.lang.startsWith(mapInterfaceLanguageToBcp47(currentLang))).map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
+
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       updateVoices();
       window.speechSynthesis.onvoiceschanged = updateVoices;
@@ -169,7 +171,7 @@ export function ListeningModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     };
-  }, []);
+  }, [currentLang]);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
      if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
@@ -238,20 +240,20 @@ export function ListeningModuleClient() {
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
     sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
+    sanitizedText = sanitizedText.replace(/#+/g, '');
     sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
     return sanitizedText.trim();
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
     if (playTextInternalIdRef.current !== currentPlayId) {
-        if (window.speechSynthesis.speaking) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
         setCurrentlySpeakingTTSId(null);
         return;
     }
-
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
       utterance.onend = () => {
@@ -267,27 +269,18 @@ export function ListeningModuleClient() {
         }
         setCurrentlySpeakingTTSId(null);
       };
+      console.log(`TTS: ListeningModuleClient - Speaking segment: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice ? utterance.voice.name : 'Default'}`);
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
-        const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-        endSignalUtterance.lang = interfaceLangBcp47;
-        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-        if (voice) endSignalUtterance.voice = voice;
-        endSignalUtterance.rate = 0.95;
-        endSignalUtterance.pitch = 1.1;
-        window.speechSynthesis.speak(endSignalUtterance);
-      }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
 
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
       toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
       return;
     }
@@ -297,13 +290,13 @@ export function ListeningModuleClient() {
     utteranceQueueRef.current = [];
     currentUtteranceIndexRef.current = 0;
 
-    const sanitizedText = sanitizeTextForTTS(textToSpeak);
-    if (!sanitizedText) {
+    const fullText = textToSpeak || "";
+    if (!fullText.trim()) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
     
-    const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -312,10 +305,11 @@ export function ListeningModuleClient() {
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
 
-    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
-    sentences.forEach(sentence => {
-      if (sentence.trim()) {
-        const utterance = new SpeechSynthesisUtterance(sentence.trim());
+    const sanitizedText = sanitizeTextForTTS(fullText);
+    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [sanitizedText];
+    sentences.forEach(sentenceText => {
+      if (sentenceText.trim()) {
+        const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
         utterance.lang = langCode;
         const voice = selectPreferredVoice(langCode, voicesRef.current || []);
         if (voice) utterance.voice = voice;
@@ -324,9 +318,18 @@ export function ListeningModuleClient() {
         utteranceQueueRef.current.push(utterance);
       }
     });
+    
+    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
+    endSignalUtterance.lang = interfaceLangBcp47;
+    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endVoice) endSignalUtterance.voice = endVoice;
+    endSignalUtterance.rate = 0.95;
+    endSignalUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endSignalUtterance);
+    
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -334,8 +337,14 @@ export function ListeningModuleClient() {
     }
     setCurrentlySpeakingTTSId(null);
   }, [setCurrentlySpeakingTTSId]);
+  // End TTS Logic
 
-  const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
+
+  const fetchListeningMaterial = useCallback(async (formData: ListeningFormData) => {
+    if (!userData.settings) {
+      toast({ title: t('onboardingMissing'), variant: "destructive" });
+      return;
+    }
     setIsAiLoading(true);
     setListeningResult(null);
     setSelectedAnswers({});
@@ -343,26 +352,20 @@ export function ListeningModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
     stopSpeech();
-    setCurrentTopic(data.topic);
+    setCurrentTopic(formData.topic);
     try {
-      if (!userData.settings) {
-        toast({ title: t('onboardingMissing'), variant: "destructive" });
-        setIsAiLoading(false);
-        return;
-      }
       const flowInput: GenerateListeningMaterialInput = {
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
-        topic: data.topic,
+        topic: formData.topic,
       };
       const result = await generateListeningMaterial(flowInput);
       setListeningResult(result);
       toast({
         title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
+        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.topic),
       });
-      reset(); 
     } catch (error) {
       console.error("Listening material generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -374,6 +377,11 @@ export function ListeningModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
+  }, [userData.settings, toast, t, stopSpeech]);
+
+  const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
+    await fetchListeningMaterial(data);
+    reset();
   };
 
   const handleClearResults = () => {
@@ -430,10 +438,10 @@ export function ListeningModuleClient() {
   };
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const hasScriptText = !!(listeningResult && listeningResult.script && listeningResult.script.trim().length > 0);
@@ -466,9 +474,6 @@ export function ListeningModuleClient() {
           </CardTitle>
           <CardDescription>
             {t('description')}
-            {typeof window !== 'undefined' && window.speechSynthesis && (
-                <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
-            )}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -504,10 +509,12 @@ export function ListeningModuleClient() {
                 {t('resultsTitlePrefix')} {currentTopic}
                 {listeningResult.title && <span className="block text-lg text-muted-foreground mt-1">({listeningResult.title})</span>}
               </CardTitle>
-               <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
-                <ClearIcon className="mr-2 h-4 w-4" />
-                {t('clearResultsButton')}
-              </Button>
+               {listeningResult && (
+                <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                    <ClearIcon className="mr-2 h-4 w-4" />
+                    {t('clearResultsButton')}
+                </Button>
+               )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -518,7 +525,9 @@ export function ListeningModuleClient() {
               </div>
             )}
              {!listeningResult.scenario && !isAiLoading && (
-                 <p className="text-sm text-muted-foreground italic p-3 bg-muted/30 rounded-md">{t('noScenario')}</p>
+                 <div className="p-3 bg-muted/30 rounded-md">
+                    <p className="text-sm text-muted-foreground italic">{t('noScenario')}</p>
+                 </div>
             )}
 
             <div>
@@ -652,7 +661,9 @@ export function ListeningModuleClient() {
               </div>
             )}
             {listeningResult && (!listeningResult.comprehensionQuestions || listeningResult.comprehensionQuestions.length === 0) && !isAiLoading && (
-                <p className="text-sm text-muted-foreground italic mt-4 p-3 bg-muted/30 rounded-md">{t('noQuestions')}</p>
+                 <div className="p-3 bg-muted/30 rounded-md mt-4">
+                    <p className="text-sm text-muted-foreground italic">{t('noQuestions')}</p>
+                 </div>
             )}
           </CardContent>
         </Card>

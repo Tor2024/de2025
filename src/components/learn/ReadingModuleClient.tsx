@@ -34,7 +34,7 @@ type ReadingFormData = z.infer<typeof readingSchema>;
 
 const baseEnTranslations: Record<string, string> = {
   title: "Reading Practice",
-  description: "Enter a topic and select a proficiency level. Our AI will generate a text in your target language, along with optional comprehension questions.",
+  description: "Enter a topic and select a proficiency level. Our AI will generate a text in your target language, along with optional comprehension questions. Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
   topicLabel: "Topic for Reading",
   topicPlaceholder: "E.g., My Daily Routine, Space Exploration, German Food",
   proficiencyLevelLabel: "Proficiency Level for this task",
@@ -74,7 +74,7 @@ const baseEnTranslations: Record<string, string> = {
 
 const baseRuTranslations: Record<string, string> = {
   title: "Практика чтения",
-  description: "Введите тему и выберите уровень сложности. Наш ИИ сгенерирует текст на изучаемом вами языке, а также опциональные вопросы на понимание.",
+  description: "Введите тему и выберите уровень сложности. Наш ИИ сгенерирует текст на изучаемом вами языке, а также опциональные вопросы на понимание. Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
   topicLabel: "Тема для чтения",
   topicPlaceholder: "Напр., Мой распорядок дня, Освоение космоса, Немецкая кухня",
   proficiencyLevelLabel: "Уровень для этого задания",
@@ -144,7 +144,8 @@ export function ReadingModuleClient() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
 
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<ReadingFormData>({
+
+  const { register, handleSubmit, control, formState: { errors }, reset, setValue } = useForm<ReadingFormData>({
     resolver: zodResolver(readingSchema),
     defaultValues: {
       topic: "",
@@ -158,11 +159,12 @@ export function ReadingModuleClient() {
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   }, [currentLang]);
 
+  // TTS Logic
   useEffect(() => {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: ReadingModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log(`TTS: ReadingModuleClient - Voices loaded/changed for ${currentLang}:`, voicesRef.current.filter(v => v.lang.startsWith(mapInterfaceLanguageToBcp47(currentLang))).map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
 
@@ -179,7 +181,7 @@ export function ReadingModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     };
-  }, []);
+  }, [currentLang]);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
@@ -248,20 +250,20 @@ export function ReadingModuleClient() {
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
     sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', ');
+    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
+    sanitizedText = sanitizedText.replace(/#+/g, '');
     sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
     return sanitizedText.trim();
   }, []);
 
   const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) {
-        if (window.speechSynthesis.speaking) {
+     if (playTextInternalIdRef.current !== currentPlayId) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
         setCurrentlySpeakingTTSId(null);
         return;
     }
-
     if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
       utterance.onend = () => {
@@ -277,27 +279,18 @@ export function ReadingModuleClient() {
         }
         setCurrentlySpeakingTTSId(null);
       };
+      console.log(`TTS: ReadingModuleClient - Speaking segment: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice ? utterance.voice.name : 'Default'}`);
       window.speechSynthesis.speak(utterance);
     } else {
-      if (utteranceQueueRef.current.length > 0 && utteranceQueueRef.current[0].text === "Пииип") { 
-        const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-        const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
-        endSignalUtterance.lang = interfaceLangBcp47;
-        const voice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-        if (voice) endSignalUtterance.voice = voice;
-        endSignalUtterance.rate = 0.95;
-        endSignalUtterance.pitch = 1.1;
-        window.speechSynthesis.speak(endSignalUtterance);
-      }
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage]);
+  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
 
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
       toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
       return;
     }
@@ -307,13 +300,13 @@ export function ReadingModuleClient() {
     utteranceQueueRef.current = [];
     currentUtteranceIndexRef.current = 0;
 
-    const sanitizedText = sanitizeTextForTTS(textToSpeak);
-    if (!sanitizedText) {
+    const fullText = textToSpeak || "";
+    if (!fullText.trim()) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
     
-    const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -322,11 +315,12 @@ export function ReadingModuleClient() {
     startSignalUtterance.pitch = 1.1;
     utteranceQueueRef.current.push(startSignalUtterance);
 
-    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
-    sentences.forEach(sentence => {
-      if (sentence.trim()) {
-        const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode;
+    const sanitizedText = sanitizeTextForTTS(fullText);
+    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [sanitizedText];
+    sentences.forEach(sentenceText => {
+      if (sentenceText.trim()) {
+        const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
+        utterance.lang = langCode; 
         const voice = selectPreferredVoice(langCode, voicesRef.current || []);
         if (voice) utterance.voice = voice;
         utterance.rate = 0.95;
@@ -334,9 +328,18 @@ export function ReadingModuleClient() {
         utteranceQueueRef.current.push(utterance);
       }
     });
+    
+    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
+    endSignalUtterance.lang = interfaceLangBcp47;
+    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endVoice) endSignalUtterance.voice = endVoice;
+    endSignalUtterance.rate = 0.95;
+    endSignalUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endSignalUtterance);
+    
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, setCurrentlySpeakingTTSId]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -344,33 +347,34 @@ export function ReadingModuleClient() {
     }
     setCurrentlySpeakingTTSId(null);
   }, [setCurrentlySpeakingTTSId]);
+  // End TTS Logic
 
-  const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
+
+  const fetchReadingMaterial = useCallback(async (formData: ReadingFormData) => {
+    if (!userData.settings) {
+      toast({ title: t('onboardingMissing'), variant: "destructive" });
+      return;
+    }
     setIsAiLoading(true);
     setReadingResult(null);
     setSelectedAnswers({});
     setIsAnswersSubmitted(false);
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
-    stopSpeech();
-    setCurrentTopic(data.topic);
+    stopSpeech(); 
+    setCurrentTopic(formData.topic);
     try {
-      if (!userData.settings) {
-        toast({ title: t('onboardingMissing'), variant: "destructive" });
-        setIsAiLoading(false);
-        return;
-      }
       const flowInput: GenerateReadingMaterialInput = {
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
-        proficiencyLevel: data.proficiencyLevel as AppProficiencyLevel,
-        topic: data.topic,
+        proficiencyLevel: formData.proficiencyLevel as AppProficiencyLevel,
+        topic: formData.topic,
       };
       const result = await generateReadingMaterial(flowInput);
       setReadingResult(result);
       toast({
         title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
+        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.topic),
       });
     } catch (error) {
       console.error("Reading material generation error:", error);
@@ -383,7 +387,20 @@ export function ReadingModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
+  }, [userData.settings, toast, t, stopSpeech]);
+
+  const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
+    await fetchReadingMaterial(data);
+    // Не сбрасываем форму здесь, чтобы пользователь мог легко изменить только тему или уровень
   };
+  
+  useEffect(() => {
+    // Initialize form with user's default proficiency or first available if not set
+    if (userData.settings) {
+      setValue('proficiencyLevel', userData.settings.proficiencyLevel);
+    }
+  }, [userData.settings, setValue]);
+
 
   const handleClearResults = () => {
     setReadingResult(null);
@@ -393,9 +410,9 @@ export function ReadingModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
     stopSpeech();
-    reset({
-      topic: "",
-      proficiencyLevel: userData.settings?.proficiencyLevel || proficiencyLevels[0],
+    reset({ 
+        topic: "", 
+        proficiencyLevel: userData.settings?.proficiencyLevel || proficiencyLevels[0] 
     });
   };
 
@@ -421,7 +438,7 @@ export function ReadingModuleClient() {
     setCorrectAnswersCount(0);
     setMistakeArchiveStatus({});
   };
-
+  
   const handleArchiveMistake = (questionIndex: number) => {
     if (!readingResult || !readingResult.comprehensionQuestions || !userData.settings) return;
     const question = readingResult.comprehensionQuestions[questionIndex];
@@ -441,11 +458,12 @@ export function ReadingModuleClient() {
     }
   };
 
+
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
   if (!userData.settings) {
-    return <p>{t('onboardingMissing')}</p>;
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
   const hasTextToRead = readingResult && readingResult.readingText && readingResult.readingText.trim().length > 0;
@@ -479,9 +497,6 @@ export function ReadingModuleClient() {
           </CardTitle>
           <CardDescription>
             {t('description')}
-            {typeof window !== 'undefined' && window.speechSynthesis && (
-                <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
-            )}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -542,10 +557,12 @@ export function ReadingModuleClient() {
                 {t('resultsTitlePrefix')} {currentTopic}
                 {readingResult.title && <span className="block text-lg text-muted-foreground mt-1">({readingResult.title})</span>}
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
-                <ClearIcon className="mr-2 h-4 w-4" />
-                {t('clearResultsButton')}
-              </Button>
+              {readingResult && (
+                <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
+                  <ClearIcon className="mr-2 h-4 w-4" />
+                  {t('clearResultsButton')}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -680,7 +697,9 @@ export function ReadingModuleClient() {
               </div>
             )}
             {readingResult && (!readingResult.comprehensionQuestions || readingResult.comprehensionQuestions.length === 0) && !isAiLoading && (
-                <p className="text-sm text-muted-foreground italic mt-4 p-3 bg-muted/30 rounded-md">{t('noQuestions')}</p>
+                 <div className="p-3 bg-muted/30 rounded-md mt-4">
+                    <p className="text-sm text-muted-foreground italic">{t('noQuestions')}</p>
+                 </div>
             )}
           </CardContent>
         </Card>
@@ -688,5 +707,4 @@ export function ReadingModuleClient() {
     </div>
   );
 }
-
     
