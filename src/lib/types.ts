@@ -26,26 +26,26 @@ export interface UserSettings {
 
 export interface Lesson {
   id: string;
-  level: string;
-  title: string;
-  description: string;
-  topics: string[];
-  estimatedDuration?: string;
+  level: string; // This text MUST be in the specified `interfaceLanguage`
+  title: string; // Must be in interfaceLanguage
+  description: string; // Must be in interfaceLanguage, TTS-friendly
+  topics: string[]; // Each topic string ITSELF MUST be in the interfaceLanguage
+  estimatedDuration?: string; // Must be in interfaceLanguage
 }
 
 export interface LearningRoadmap {
-  introduction: string;
+  introduction: string; // Must be in interfaceLanguage, TTS-friendly
   lessons: Lesson[];
-  conclusion?: string;
+  conclusion?: string; // Must be in interfaceLanguage, TTS-friendly
 }
 
 export interface ErrorRecord {
   id: string;
-  module: string; // e.g., "WordPractice", "WritingAssistant"
-  context?: string; // e.g., The sentence with blank, or the writing prompt
+  module: string;
+  context?: string;
   userAttempt: string;
-  correctAnswer?: string; // Or expected pattern
-  aiFeedback?: string; // If AI provided feedback on this error
+  correctAnswer?: string;
+  aiFeedback?: string;
   date: string; // ISO string
 }
 
@@ -104,7 +104,7 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
   { code: 'kk', name: 'Kazakh', nativeName: 'Қазақша' },
   { code: 'ka', name: 'Georgian', nativeName: 'ქართული' },
-  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' }, // Note: BCP-47 for Syriac can be complex, 'syc' is for Classical Syriac.
+  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' },
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو' },
   { code: 'prs', name: 'Dari', nativeName: 'دری' },
 ];
@@ -130,16 +130,16 @@ export type GermanWritingTaskType = typeof germanWritingTaskTypes[number]['value
 export const mapTargetLanguageToBcp47 = (targetLanguage: TargetLanguage): string => {
   const langMapping: Partial<Record<TargetLanguage, string>> = {
     'English': 'en-US',
-    'German': 'de-DE',
     'Russian': 'ru-RU',
+    'German': 'de-DE',
     'Spanish': 'es-ES',
     'French': 'fr-FR',
     'Italian': 'it-IT',
     'Dutch': 'nl-NL',
     'Finnish': 'fi-FI',
-    'Chinese': 'zh-CN',
+    'Chinese': 'zh-CN', // Simplified Chinese, Mainland
     'Hindi': 'hi-IN',
-    'Norwegian': 'no-NO',
+    'Norwegian': 'nb-NO', // Norwegian Bokmål
     'Hungarian': 'hu-HU',
     'Danish': 'da-DK',
     'Korean': 'ko-KR',
@@ -150,17 +150,17 @@ export const mapTargetLanguageToBcp47 = (targetLanguage: TargetLanguage): string
     'Polish': 'pl-PL',
     'Romanian': 'ro-RO',
     'Japanese': 'ja-JP',
-    'Arabic': 'ar-SA',
+    'Arabic': 'ar-SA', // Standard Arabic, Saudi Arabia - common choice
     'Turkish': 'tr-TR',
     'Latin': 'la',
     'Greek': 'el-GR',
     'Kazakh': 'kk-KZ',
     'Georgian': 'ka-GE',
-    'Syriac': 'syc',
+    'Syriac': 'syc', // Classical Syriac, might need specific voice support from TTS
     'Pashto': 'ps-AF',
-    'Dari': 'prs-AF',
+    'Dari': 'fa-AF', // Dari is often represented as fa-AF (Persian, Afghanistan)
   };
-  return langMapping[targetLanguage] || 'en-US'; // Fallback to English
+  return langMapping[targetLanguage] || 'en-US'; // Fallback to English US
 };
 
 // Function to map InterfaceLanguage (e.g., "en") to BCP-47 code (e.g., "en-US")
@@ -176,7 +176,7 @@ export const mapInterfaceLanguageToBcp47 = (interfaceLang: InterfaceLanguage): s
     'fi': 'fi-FI',
     'zh': 'zh-CN',
     'hi': 'hi-IN',
-    'no': 'no-NO',
+    'no': 'nb-NO',
     'hu': 'hu-HU',
     'da': 'da-DK',
     'ko': 'ko-KR',
@@ -195,7 +195,7 @@ export const mapInterfaceLanguageToBcp47 = (interfaceLang: InterfaceLanguage): s
     'ka': 'ka-GE',
     'syr': 'syc',
     'ps': 'ps-AF',
-    'prs': 'prs-AF',
+    'prs': 'fa-AF', // Dari (prs) often uses fa-AF for BCP-47
   };
-  return langMapping[interfaceLang] || 'en-US'; // Fallback to English
+  return langMapping[interfaceLang] || 'en-US'; // Fallback to English US
 };
