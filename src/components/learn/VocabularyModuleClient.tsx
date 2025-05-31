@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -73,7 +74,7 @@ const baseEnTranslations: Record<string, string> = {
   typeInPracticeScoreMessage: "Your Score: {correct} out of {total}.",
   showTypeInPracticeHintButton: "Show Hint (First Letter)",
   hideTypeInPracticeHintButton: "Hide Hint",
-  typeInHintLabel: "Hint:",
+  hintLabel: "Hint:",
   typeInPracticeAgainButton: "Practice This Set Again",
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
@@ -134,7 +135,7 @@ const baseRuTranslations: Record<string, string> = {
   typeInPracticeScoreMessage: "Ваш результат: {correct} из {total}.",
   showTypeInPracticeHintButton: "Показать подсказку (первая буква)",
   hideTypeInPracticeHintButton: "Скрыть подсказку",
-  typeInHintLabel: "Подсказка:",
+  hintLabel: "Подсказка:",
   typeInPracticeAgainButton: "Практиковать этот набор снова",
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
@@ -472,6 +473,14 @@ export function VocabularyModuleClient() {
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
+    // setupMcPracticeExercise(0, practiceWords); // Re-setup first exercise
+    // ^ This line can cause an infinite loop with useEffect. 
+    // currentMcPracticeIndex change triggers useEffect, which calls setup, which might change states.
+    // Let useEffect handle re-setup based on currentMcPracticeIndex change.
+     setSelectedMcOption(null);
+     setMcPracticeFeedback("");
+     setIsMcPracticeSubmitted(false);
+     setIsCurrentMcPracticeMistakeArchived(false);
   };
 
   const handleArchiveMcPracticeMistake = () => {
@@ -567,8 +576,8 @@ export function VocabularyModuleClient() {
                       <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
                         {currentWordData.word}
                       </h3>
-                       <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}} size="lg" variant="outline">
-                        <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
+                       <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}}>
+                        <Eye className="mr-2 h-4 w-4" /> {t('showDetailsButton')}
                       </Button>
                     </>
                   ) : (
@@ -578,9 +587,7 @@ export function VocabularyModuleClient() {
                           {currentWordData.word}
                           <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
                         </h3>
-                        <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(false);}} variant="ghost" size="sm" className="text-muted-foreground">
-                            <EyeOff className="mr-1 h-4 w-4" /> {t('hideDetailsButton')}
-                        </Button>
+                        {/* Button "Hide Details" is removed, click on card to hide */}
                       </div>
                       <div className="border-t pt-3 space-y-3">
                         <div>
@@ -692,7 +699,7 @@ export function VocabularyModuleClient() {
 
                   {showTypeInPracticeHint && !isTypeInPracticeSubmitted && currentTypeInPracticeWord && (
                     <p className="text-sm mt-1 text-muted-foreground bg-background p-2 rounded-md shadow-sm">
-                      {t('typeInHintLabel')}: <span className="font-semibold text-primary">{currentTypeInPracticeWord.translation.charAt(0)}...</span>
+                      {t('hintLabel')}: <span className="font-semibold text-primary">{currentTypeInPracticeWord.translation.charAt(0)}...</span>
                     </p>
                   )}
 
@@ -742,7 +749,7 @@ export function VocabularyModuleClient() {
                    {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
                       <div className="mt-4 flex flex-col sm:flex-row gap-2">
                         {typeInScorePercentage <= 70 && (
-                           <Button onClick={handleRestartTypeInPractice} variant="default">
+                           <Button onClick={handleRestartTypeInPractice} variant="default" className="w-full sm:w-auto">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {t('repeatLessonPartButton')}
                           </Button>
@@ -750,12 +757,13 @@ export function VocabularyModuleClient() {
                         <Button 
                           onClick={handleClearResults} 
                           variant={typeInScorePercentage > 70 ? "default" : "outline"}
+                          className="w-full sm:w-auto"
                         >
                           <ArrowRight className="mr-2 h-4 w-4" />
                           {t('nextPartButton')}
                         </Button>
                         {typeInScorePercentage > 70 && (
-                           <Button onClick={handleRestartTypeInPractice} variant="outline">
+                           <Button onClick={handleRestartTypeInPractice} variant="outline" className="w-full sm:w-auto">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {t('repeatLessonPartButton')}
                           </Button>
@@ -864,7 +872,7 @@ export function VocabularyModuleClient() {
                   {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
                      <div className="mt-4 flex flex-col sm:flex-row gap-2">
                         {mcScorePercentage <= 70 && (
-                           <Button onClick={handleRestartMcPractice} variant="default">
+                           <Button onClick={handleRestartMcPractice} variant="default" className="w-full sm:w-auto">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {t('repeatLessonPartButton')}
                           </Button>
@@ -872,12 +880,13 @@ export function VocabularyModuleClient() {
                         <Button 
                           onClick={handleClearResults} 
                           variant={mcScorePercentage > 70 ? "default" : "outline"}
+                          className="w-full sm:w-auto"
                         >
                           <ArrowRight className="mr-2 h-4 w-4" />
                           {t('nextPartButton')}
                         </Button>
                         {mcScorePercentage > 70 && (
-                           <Button onClick={handleRestartMcPractice} variant="outline">
+                           <Button onClick={handleRestartMcPractice} variant="outline" className="w-full sm:w-auto">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {t('repeatLessonPartButton')}
                           </Button>

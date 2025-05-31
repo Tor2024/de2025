@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -11,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateFillInTheBlankExercises } from "@/ai/flows/generate-fill-in-the-blank-flow";
-import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput } from "@/ai/flows/generate-fill-in-the-blank-flow";
-import type { FillBlankExercise as ExerciseType } from "@/ai/flows/generate-fill-in-the-blank-flow";
+import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput, Exercise as FillBlankExercise } from "@/ai/flows/generate-fill-in-the-blank-flow"; // Renamed Exercise to FillBlankExercise
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive, PartyPopper, ArrowRight, RefreshCw } from "lucide-react";
@@ -345,7 +345,7 @@ export function WordPracticeClient() {
                         </Button>
                       )}
                       <Button 
-                        onClick={handleClearResults} // This effectively generates a new set
+                        onClick={handleClearResults} 
                         variant={scorePercentage > 70 ? "default" : "outline"} 
                         className="w-full sm:w-auto"
                       >

@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -139,7 +140,7 @@ export function ReadingModuleClient() {
   const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
   const utteranceQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
   const currentUtteranceIndexRef = useRef<number>(0);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const voicesRef = React.useRef<SpeechSynthesisVoice[]>([]);
   const playTextInternalIdRef = React.useRef<number>(0);
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -241,7 +242,7 @@ export function ReadingModuleClient() {
         setCurrentlySpeakingTTSId(null);
         return;
     }
-    if (typeof window !== 'undefined' && window.speechSynthesis && currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
+    if (currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
       const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
       utterance.onend = () => {
         currentUtteranceIndexRef.current++;
@@ -260,7 +261,7 @@ export function ReadingModuleClient() {
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
+  }, [setCurrentlySpeakingTTSId, toast, t]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
@@ -316,7 +317,7 @@ export function ReadingModuleClient() {
     
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, mapInterfaceLanguageToBcp47]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -556,7 +557,7 @@ export function ReadingModuleClient() {
                                   stopSpeech();
                                 } else {
                                   if (userData.settings?.targetLanguage) {
-                                     const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage);
+                                     const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage);
                                      playText(ttsPlayButtonId, readingResult.readingText, langCode);
                                   }
                                 }
@@ -596,7 +597,7 @@ export function ReadingModuleClient() {
                        const hasSubmitted = isAnswersSubmitted;
 
                       return (
-                        <li key={index} className="text-sm p-3 rounded-md bg-card border">
+                        <li key={index} className="text-sm p-2 rounded-md bg-card border">
                           <p className="font-medium mb-2 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-primary/80" />{q.question}</p>
                           {q.options && q.options.length > 0 ? (
                              <RadioGroup
@@ -625,7 +626,7 @@ export function ReadingModuleClient() {
                                     </Label>
                                     {hasSubmitted && isSelectedOption && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600" />}
                                     {hasSubmitted && isSelectedOption && !isCorrect && <XCircle className="h-4 w-4 text-red-600" />}
-                                    {hasSubmitted && !isSelectedOption && isActualCorrectAnswer && <Target className="h-4 w-4 text-green-600 opacity-70" />}
+                                    {hasSubmitted && !isSelectedOption && isActualCorrectAnswer && <Target className={cn("h-4 w-4 text-green-600 dark:text-green-400 opacity-70", isSelectedOption && !isCorrect && "text-green-700 dark:text-green-500")} />}
                                   </div>
                                 );
                               })}
@@ -665,7 +666,7 @@ export function ReadingModuleClient() {
                     ) : (
                       <>
                         {scorePercentage <= 70 && (
-                          <Button onClick={handleTryAgain} variant="default" className="w-full sm:w-auto">
+                           <Button onClick={handleTryAgain} variant="default" className="w-full sm:w-auto">
                             <RefreshCw className="mr-2 h-4 w-4" />
                             {t('repeatLessonPartButton')}
                           </Button>
