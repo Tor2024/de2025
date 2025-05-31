@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react'; 
-import { useState, useEffect, useCallback } from 'react'; // Добавлен useCallback
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
@@ -10,12 +10,14 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag } from "lucide-react"; 
+import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag, Sparkles as SparklesIcon } from "lucide-react"; 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from "@/lib/types";
 import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import type { GetLessonRecommendationInput, GetLessonRecommendationOutput, Lesson as AiLessonType } from '@/ai/flows/get-lesson-recommendation-flow';
 import { useToast } from "@/hooks/use-toast";
 import { appModulesConfig } from "@/lib/modulesConfig"; 
 
@@ -68,8 +70,8 @@ const baseEnTranslations: Record<string, string> = {
     roadmapLoadingDescription: "Your personalized learning plan is being prepared, not yet available, or is empty.",
     roadmapLoadingContent: "If you've just completed onboarding, it might take a moment for the AI to generate your plan. Otherwise, please check your settings or try generating it again if an option is available.",
     roadmapIntroduction: "Introduction",
-    roadmapTopicsToCover: "Topics to Cover:",
-    roadmapEstimatedDuration: "Estimated duration:",
+    roadmapTopicsToCoverText: "Topics to Cover:",
+    roadmapEstimatedDurationText: "Estimated duration:",
     roadmapConclusion: "Conclusion",
     markCompleteTooltip: "Mark as complete",
     markIncompleteTooltip: "Mark as incomplete",
@@ -79,7 +81,19 @@ const baseEnTranslations: Record<string, string> = {
     tooltipTargetLanguage: "Target Language",
     tooltipProficiency: "Proficiency Level",
     tooltipGoal: "Current Goal",
-    // Ключи для TTS удалены из RoadmapDisplay
+    ttsPlayText: "Play description",
+    ttsStopText: "Stop speech",
+    ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
+    ttsNotSupportedTitle: "TTS Not Supported",
+    ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
+    ttsUtteranceErrorTitle: "Speech Error",
+    ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+    recommendLessonButton: "AI Recommended Lesson",
+    recommendLessonErrorTitle: "Recommendation Error",
+    recommendLessonErrorDescription: "Could not get a lesson recommendation at this time.",
+    aiRecommendationTitle: "AI Recommends: {lessonTitle}",
+    aiRecommendationInfoTitle: "Lesson Recommendation",
+    aiRecommendationNoLessonReasoning: "AI could not find a specific lesson to recommend right now.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -131,8 +145,8 @@ const baseRuTranslations: Record<string, string> = {
     roadmapLoadingDescription: "Ваш персональный учебный план готовится, еще не доступен или пуст.",
     roadmapLoadingContent: "Если вы только что завершили первоначальную настройку, ИИ может потребоваться некоторое время для генерации вашего плана. В противном случае, пожалуйста, проверьте настройки или попробуйте сгенерировать его снова, если такая опция доступна.",
     roadmapIntroduction: "Введение",
-    roadmapTopicsToCover: "Темы для изучения:",
-    roadmapEstimatedDuration: "Предполагаемая длительность:",
+    roadmapTopicsToCoverText: "Темы для изучения:",
+    roadmapEstimatedDurationText: "Предполагаемая длительность:",
     roadmapConclusion: "Заключение",
     markCompleteTooltip: "Отметить как пройденный",
     markIncompleteTooltip: "Отметить как не пройденный",
@@ -142,7 +156,19 @@ const baseRuTranslations: Record<string, string> = {
     tooltipTargetLanguage: "Изучаемый язык",
     tooltipProficiency: "Уровень владения",
     tooltipGoal: "Текущая цель",
-    // Ключи для TTS удалены из RoadmapDisplay
+    ttsPlayText: "Озвучить описание",
+    ttsStopText: "Остановить озвучку",
+    ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+    ttsNotSupportedTitle: "TTS не поддерживается",
+    ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
+    ttsUtteranceErrorTitle: "Ошибка синтеза речи",
+    ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+    recommendLessonButton: "Рекомендованный ИИ урок",
+    recommendLessonErrorTitle: "Ошибка рекомендации",
+    recommendLessonErrorDescription: "Не удалось получить рекомендацию урока в данный момент.",
+    aiRecommendationTitle: "AI Рекомендует: {lessonTitle}",
+    aiRecommendationInfoTitle: "Рекомендация урока",
+    aiRecommendationNoLessonReasoning: "ИИ не смог найти конкретный урок для рекомендации в данный момент.",
 };
 
 const generateTranslations = () => {
@@ -168,12 +194,17 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [tipCooldownEndTime, setTipCooldownEndTime] = useState<number | null>(null);
   const cooldownTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const roadmapDisplayRef = useRef<HTMLDivElement>(null);
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
+  const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
+
+
+  const currentLang = isUserDataLoading || !userData.settings ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
+      return langTranslations[key]; 
     }
     const enTranslations = pageTranslations['en'];
     if (enTranslations && enTranslations[key]) {
@@ -230,17 +261,19 @@ export default function DashboardPage() {
     isTipLoading, 
     tipCooldownEndTime, 
     userData.settings, 
-    t, 
+    t, // t is now stable due to currentLang logic
     toast
   ]); 
   
-  // useEffect для автоматической загрузки совета удален
+  useEffect(() => {
+    // Automatic tip fetching removed
+  }, []);
 
   useEffect(() => {
-    if (!isUserDataLoading && userData.settings === null) {
+    if (!isUserDataLoading && !userData.settings) {
       router.replace('/');
     }
-  }, [userData, isUserDataLoading, router]);
+  }, [userData.settings, isUserDataLoading, router]);
 
   useEffect(() => {
     return () => {
@@ -250,23 +283,82 @@ export default function DashboardPage() {
     };
   }, []);
   
+  const handleRecommendLessonClick = async () => {
+    if (!userData.settings || !userData.progress?.learningRoadmap) {
+        toast({
+            title: t('recommendLessonErrorTitle'),
+            description: "User data or learning roadmap not available.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    setIsRecommendationLoading(true);
+    setLastRecommendation(null);
+
+    try {
+        const input: GetLessonRecommendationInput = {
+            interfaceLanguage: userData.settings.interfaceLanguage,
+            currentLearningRoadmap: userData.progress.learningRoadmap,
+            completedLessonIds: userData.progress.completedLessonIds || [],
+            userGoal: userData.settings.goal,
+            currentProficiencyLevel: userData.settings.proficiencyLevel,
+        };
+        const recommendation = await getLessonRecommendation(input);
+        setLastRecommendation(recommendation);
+
+        if (recommendation.recommendedLessonId) {
+            const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === recommendation.recommendedLessonId);
+            const lessonTitle = lesson ? lesson.title : "a recommended lesson";
+            toast({
+                title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                description: recommendation.reasoning || "",
+            });
+            // Future: Scroll to and expand the lesson in RoadmapDisplay
+            // For now, just log it.
+            console.log("Recommended Lesson ID:", recommendation.recommendedLessonId);
+            if (roadmapDisplayRef.current) {
+                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+        } else {
+            toast({
+                title: t('aiRecommendationInfoTitle'),
+                description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
+                variant: "default", 
+            });
+        }
+
+    } catch (error) {
+        console.error("Failed to get lesson recommendation:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast({
+            title: t('recommendLessonErrorTitle'),
+            description: `${t('recommendLessonErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+            variant: "destructive",
+        });
+    } finally {
+        setIsRecommendationLoading(false);
+    }
+  };
+  
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
   }
 
-  if (userData.settings === null) {
+  if (!userData.settings) {
     return (
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -289,8 +381,20 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
+        
+        <Button 
+          onClick={handleRecommendLessonClick} 
+          disabled={isRecommendationLoading || !userData.progress?.learningRoadmap}
+          className="w-full md:w-auto mb-6 py-6 text-lg"
+          variant="default"
+        >
+          {isRecommendationLoading && <LoadingSpinner size={20} className="mr-2"/>}
+          <SparklesIcon className="mr-2 h-5 w-5"/>
+          {t('recommendLessonButton')}
+        </Button>
+
         <div className="flex flex-col md:flex-row gap-6">
-          <div className="md:w-2/3">
+          <div className="md:w-2/3" ref={roadmapDisplayRef}>
             <RoadmapDisplay
               titleText={t('roadmapTitle')}
               descriptionText={t('roadmapDescription')}
@@ -298,12 +402,18 @@ export default function DashboardPage() {
               loadingDescriptionText={t('roadmapLoadingDescription')}
               loadingContentText={t('roadmapLoadingContent')}
               introductionHeaderText={t('roadmapIntroduction')}
-              topicsToCoverText={t('topicsToCoverText')}
+              topicsToCoverText={t('roadmapTopicsToCoverText')}
               estimatedDurationText={t('roadmapEstimatedDuration')}
               conclusionHeaderText={t('roadmapConclusion')}
               markCompleteTooltip={t('markCompleteTooltip')}
               markIncompleteTooltip={t('markIncompleteTooltip')}
-              // TTS props удалены
+              ttsPlayText={t('ttsPlayText')}
+              ttsStopText={t('ttsStopText')}
+              ttsExperimentalText={t('ttsExperimentalText')}
+              ttsNotSupportedTitle={t('ttsNotSupportedTitle')}
+              ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
+              ttsUtteranceErrorTitle={t('ttsUtteranceErrorTitle')}
+              ttsUtteranceErrorDescription={t('ttsUtteranceErrorDescription')}
             />
           </div>
           <div className="md:w-1/3 space-y-6">
