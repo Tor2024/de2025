@@ -22,10 +22,10 @@ const GenerateSpeakingTopicInputSchema = z.object({
 export type GenerateSpeakingTopicInput = z.infer<typeof GenerateSpeakingTopicInputSchema>;
 
 const GenerateSpeakingTopicOutputSchema = z.object({
-  speakingTopic: z.string().describe('The generated speaking topic, suitable for the targetLanguage and proficiencyLevel.'),
+  speakingTopic: z.string().describe('The generated speaking topic, suitable for the targetLanguage and proficiencyLevel. This topic should be phrased to directly invite a spoken response (e.g., as a question like "What are your plans for the weekend?" or a scenario to describe like "Describe your favorite hobby."). It can be in the interfaceLanguage, clearly stating the task (e.g., "Tell us about your last vacation in {{{targetLanguage}}}"), or directly in the targetLanguage if the user is advanced.'),
   tips: z.array(z.string()).optional().describe('Optional short tips (2-3) on how to approach speaking on this topic, in the interfaceLanguage.'),
-  guidingQuestions: z.array(z.string()).optional().describe('Optional short guiding questions or sub-topics (2-3) to help the user structure their speech, in the interfaceLanguage.'),
-  practiceScript: z.string().optional().describe('An optional short script or text (e.g., a few sentences, a mini-dialogue) related to the speakingTopic, in the targetLanguage, that the user can use for practice.'),
+  guidingQuestions: z.array(z.string()).optional().describe('Optional short guiding questions (2-3) to help the user structure their speech or elaborate on aspects of the main topic. These questions should be phrased as if a conversational partner is asking them. MUST be in the interfaceLanguage.'),
+  practiceScript: z.string().optional().describe('An optional short script or text (e.g., a few sentences, a mini-dialogue starter) related to the speakingTopic, in the targetLanguage, that the user can use for practice. It should be very short and directly useful for the topic.'),
   followUpQuestions: z.array(z.string()).optional().describe('Optional short follow-up questions (2-3) directly related to the speakingTopic to simulate a conversation, in the interfaceLanguage.'),
 });
 export type GenerateSpeakingTopicOutput = z.infer<typeof GenerateSpeakingTopicOutputSchema>;
@@ -41,7 +41,7 @@ const generateSpeakingTopicPrompt = ai.definePrompt({
   output: {schema: GenerateSpeakingTopicOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging speaking practice topics and supporting materials.
 
-Task: Generate a speaking topic, 2-3 optional short tips for the user, 2-3 optional guiding questions or sub-topics to help structure the speech, an optional short practice script (a few sentences or a mini-dialogue), and 2-3 optional follow-up questions.
+Task: Generate a speaking topic, 2-3 optional short tips for the user, 2-3 optional guiding questions, an optional short practice script, and 2-3 optional follow-up questions.
 
 User Preferences:
 - Interface Language (for tips, guiding questions, and follow-up questions): {{{interfaceLanguage}}}
@@ -56,10 +56,11 @@ Instructions:
     *   Generate a clear and engaging speaking topic. This topic should be something the user can talk about for a minute or two.
     *   The topic should be suitable for a learner of {{{targetLanguage}}} at the {{{proficiencyLevel}}}.
     *   {{#if generalTopic}}The speaking topic MUST be related to the user-defined General Topic: "{{{generalTopic}}}".{{/if}}
-    *   The speaking topic itself should be phrased to directly invite a spoken response from the user (e.g., as a question like 'What are your plans for the weekend?' or a scenario to describe like 'Describe your favorite hobby.'). It can be in the {{{interfaceLanguage}}}, clearly stating the task (e.g., 'Tell us about your last vacation in {{{targetLanguage}}}'), or directly in the {{{targetLanguage}}} if the user is advanced (e.g., 'Erzähle von deinem letzten Urlaub.'). Use your best judgment for clarity and engagement.
-2.  **Guiding Questions (Optional, 2-3 short questions/sub-topics):**
-    *   Provide 2-3 brief, actionable guiding questions or sub-topics that the user might address when speaking on the generated topic. These are more like sub-points to cover.
-    *   These guiding questions/sub-topics MUST be in the {{{interfaceLanguage}}} and should be phrased as if a conversational partner is asking them to encourage a natural spoken response (e.g., if the topic is 'Your last holiday', questions could be 'So, where did you go on your last holiday?', 'What was the most interesting thing you did there?').
+    *   The speaking topic itself MUST be phrased to directly invite a spoken response from the user (e.g., as a question like 'What are your plans for the weekend?' or a scenario to describe like 'Describe your favorite hobby.'). It can be in the {{{interfaceLanguage}}}, clearly stating the task (e.g., 'Tell us about your last vacation in {{{targetLanguage}}}'), or directly in the {{{targetLanguage}}} if the user is advanced. Use your best judgment for clarity and engagement.
+2.  **Guiding Questions (Optional, 2-3 short questions):**
+    *   Provide 2-3 brief, actionable guiding questions that the user might address when speaking on the generated topic.
+    *   These guiding questions MUST be in the {{{interfaceLanguage}}} and should be phrased as if a conversational partner or tutor is asking them to encourage a natural spoken response or to help the user elaborate on different aspects of the main topic.
+    *   For example, if the main topic is "Your last holiday", guiding questions could be "So, where did you go on your last holiday?", "What was the most interesting thing you did there?", "Would you recommend this place to others?".
 3.  **Tips (Optional, 2-3 short tips):**
     *   Provide 2-3 brief, actionable tips on how the user might approach speaking on the generated topic.
     *   These tips MUST be in the {{{interfaceLanguage}}}.
