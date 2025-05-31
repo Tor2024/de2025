@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
@@ -185,44 +185,6 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
-// Helper logic for parsing topic links, similar to RoadmapDisplay
-const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
-    { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
-    { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
-    { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
-    { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
-    { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
-    { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing", topicExtractor: (line, keyword) => line.substring(keyword.length).replace(/на тему/i, "").replace(/["':]/g, "").trim() },
-    { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
-];
-
-const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
-
-const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
-  let href: string | null = null;
-  const displayText = topicLine; 
-
-  const topicLower = topicLine.toLowerCase();
-
-  for (const mod of keywordsToModules) {
-    for (const keyword of mod.keywords) {
-      if (topicLower.startsWith(keyword)) {
-        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
-        theme = cleanAndEncodeTopic(theme);
-        if (theme) {
-          href = `${mod.path}?topic=${theme}`;
-          if (mod.needsLevel) {
-            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`; 
-          }
-        }
-        break;
-      }
-    }
-    if (href) break;
-  }
-  return { href, displayText };
-};
-
 
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -236,6 +198,7 @@ export default function DashboardPage() {
 
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
+  // const [activeRecommendedLessonId, setActiveRecommendedLessonId] = useState<string | null>(null); // For future use
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = useCallback((key: string, defaultText?: string): string => {
@@ -252,7 +215,8 @@ export default function DashboardPage() {
 
   const fetchTutorTip = useCallback(async () => {
     if (!userData.settings) {
-      setAiTutorTip(t('aiTutorTipStatic'));
+      // Set static tip if settings are not available (e.g. during initial load before settings are fetched)
+      // setAiTutorTip(t('aiTutorTipStatic')); // This might be too early if t() itself depends on settings
       return;
     }
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
@@ -301,14 +265,14 @@ export default function DashboardPage() {
     userData.settings?.targetLanguage,
     userData.settings?.proficiencyLevel,
     userData.settings?.goal,
-    t,
+    t, // t depends on currentLang, which depends on userData.settings
     toast
   ]);
 
   useEffect(() => {
+    // Automatic tip fetching on load and when relevant settings change
     if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-       // Automatic tip fetching is commented out to reduce API calls
-       // fetchTutorTip();
+      // fetchTutorTip(); // Temporarily commented out to reduce API calls if rate limits are an issue
     }
   }, [
       isUserDataLoading,
@@ -316,15 +280,15 @@ export default function DashboardPage() {
       userData.settings?.targetLanguage,
       userData.settings?.proficiencyLevel,
       userData.settings?.goal,
-      // fetchTutorTip, // Commented out
-      tipCooldownEndTime 
+      tipCooldownEndTime,
+      // fetchTutorTip, // Temporarily commented out
   ]);
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
       router.replace('/');
     }
-  }, [userData, isUserDataLoading, router]); 
+  }, [userData.settings, isUserDataLoading, router]); // userData.settings instead of whole userData
 
   useEffect(() => {
     return () => {
@@ -346,6 +310,7 @@ export default function DashboardPage() {
 
     setIsRecommendationLoading(true);
     setLastRecommendation(null);
+    // setActiveRecommendedLessonId(null); // Reset for future use
 
     try {
         let pastErrorsSummary = "No specific past errors noted for recommendation.";
@@ -362,7 +327,6 @@ export default function DashboardPage() {
             completedLessonIds: userData.progress.completedLessonIds || [],
             userGoal: userData.settings.goal,
             currentProficiencyLevel: userData.settings.proficiencyLevel,
-            // @ts-ignore - userPastErrors might not be in GetLessonRecommendationInput in some flow versions
             userPastErrors: pastErrorsSummary, 
         };
         const recommendation = await getLessonRecommendation(input);
@@ -376,21 +340,11 @@ export default function DashboardPage() {
                 title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
                 description: recommendation.reasoning || "",
             });
-
-            if (lesson && lesson.topics && lesson.topics.length > 0) {
-                const firstTopicString = lesson.topics[0];
-                const { href } = parseTopicAndGetLink(firstTopicString, lesson.level);
-                if (href) {
-                    router.push(href);
-                } else {
-                     if (roadmapDisplayRef.current) {
-                        roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }
-            } else {
-                if (roadmapDisplayRef.current) {
-                    roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+            // setActiveRecommendedLessonId(recommendation.recommendedLessonId); // For future use with RoadmapDisplay
+            
+            // Scroll to roadmap view
+            if (roadmapDisplayRef.current) {
+                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
         } else {
@@ -414,23 +368,12 @@ export default function DashboardPage() {
     }
   };
 
-  const getLoadingMessage = () => {
-    if (currentLang === 'ru') return 'Загрузка данных пользователя...';
-    return 'Loading user data...';
-  };
-
-  const getRedirectingMessage = () => {
-    if (currentLang === 'ru') return 'Перенаправление на вашу панель управления...';
-    return 'Redirecting to your dashboard...';
-  };
-
-
   if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? 'Загрузка данных пользователя...' : 'Loading user data...'}</p>
         </div>
       </AppShell>
     );
@@ -439,9 +382,9 @@ export default function DashboardPage() {
   if (userData.settings === null) {
     return (
        <AppShell>
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{currentLang === 'ru' ? 'Перенаправление...' : 'Redirecting...'}</p>
         </div>
       </AppShell>
     );
@@ -449,12 +392,8 @@ export default function DashboardPage() {
 
   const getLanguageDisplayName = (codeOrName: string | undefined, type: 'interface' | 'target'): string => {
     if (!codeOrName) return 'N/A';
-    if (type === 'interface') {
-      const lang = supportedLanguages.find(l => l.code === codeOrName);
-      return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
-    }
-    const lang = supportedLanguages.find(l => l.name === codeOrName);
-    return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+    const langObj = supportedLanguages.find(l => (type === 'interface' ? l.code === codeOrName : l.name === codeOrName));
+    return langObj ? `${langObj.nativeName} (${langObj.name})` : codeOrName;
   };
 
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
@@ -479,6 +418,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3" ref={roadmapDisplayRef}>
             <RoadmapDisplay
+              // activeRecommendedLessonId={activeRecommendedLessonId} // For future use
               titleText={t('roadmapTitle')}
               descriptionText={t('roadmapDescription')}
               loadingTitleText={t('roadmapLoadingTitle')}
@@ -549,8 +489,8 @@ export default function DashboardPage() {
                 href={mod.href}
                 icon={mod.icon}
                 disabled={mod.disabled}
-                startLearningButtonText={t('startLearningButton', 'Start Learning')}
-                comingSoonButtonText={t('comingSoonButton', 'Coming Soon')}
+                startLearningButtonText={t('startLearningButton')}
+                comingSoonButtonText={t('comingSoonButton')}
               />
             ))}
           </div>
