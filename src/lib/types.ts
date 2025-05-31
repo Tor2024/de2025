@@ -49,15 +49,31 @@ export interface ErrorRecord {
   date: string; // ISO string
 }
 
+// For Vocabulary Module / SRS
+export interface VocabularyWord {
+    word: string;
+    translation: string;
+    exampleSentence?: string;
+}
+
+export interface UserLearnedWord extends VocabularyWord {
+  id: string; // Уникальный идентификатор, например, targetLanguage_word
+  targetLanguage: TargetLanguage;
+  lastReviewed: string; // Дата последнего повторения в ISO формате
+  nextReviewDate: string; // Предполагаемая дата следующего повторения в ISO формате
+  learningStage: number; // Стадия изучения (0-MAX_LEARNING_STAGE)
+}
+
 export interface UserProgress {
   learningRoadmap?: LearningRoadmap;
   xp: number;
   streak: number;
   badges: string[];
-  moduleCompletion: Record<string, number | boolean>;
+  moduleCompletion: Record<string, number | boolean>; // Potentially for tracking detailed module/lesson part completion
   errorArchive: ErrorRecord[];
-  completedLessonIds: string[];
-  practiceSetsCompleted: number;
+  completedLessonIds: string[]; // IDs of lessons from LearningRoadmap
+  learnedWords: UserLearnedWord[]; // For SRS
+  practiceSetsCompleted: number; // Counter for completed practice sets
 }
 
 export const initialUserProgress: UserProgress = {
@@ -68,6 +84,7 @@ export const initialUserProgress: UserProgress = {
   errorArchive: [],
   learningRoadmap: undefined,
   completedLessonIds: [],
+  learnedWords: [],
   practiceSetsCompleted: 0,
 };
 
@@ -104,9 +121,9 @@ export const supportedLanguages: Array<{ code: InterfaceLanguage; name: TargetLa
   { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
   { code: 'kk', name: 'Kazakh', nativeName: 'Қазақша' },
   { code: 'ka', name: 'Georgian', nativeName: 'ქართული' },
-  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' },
+  { code: 'syr', name: 'Syriac', nativeName: 'Syriac' }, // Note: Specific BCP-47 for Syriac might be 'syc' for classical, or others for modern dialects.
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو' },
-  { code: 'prs', name: 'Dari', nativeName: 'دری' },
+  { code: 'prs', name: 'Dari', nativeName: 'دری' }, // Dari is often considered a variety of Persian (Farsi)
 ];
 
 export const interfaceLanguageCodes = supportedLanguages.map(lang => lang.code) as [InterfaceLanguage, ...InterfaceLanguage[]];
@@ -129,36 +146,14 @@ export type GermanWritingTaskType = typeof germanWritingTaskTypes[number]['value
 // Function to map TargetLanguage (e.g., "German") to BCP-47 code (e.g., "de-DE")
 export const mapTargetLanguageToBcp47 = (targetLanguage: TargetLanguage): string => {
   const langMapping: Partial<Record<TargetLanguage, string>> = {
-    'English': 'en-US',
-    'Russian': 'ru-RU',
-    'German': 'de-DE',
-    'Spanish': 'es-ES',
-    'French': 'fr-FR',
-    'Italian': 'it-IT',
-    'Dutch': 'nl-NL',
-    'Finnish': 'fi-FI',
-    'Chinese': 'zh-CN', // Simplified Chinese, Mainland
-    'Hindi': 'hi-IN',
-    'Norwegian': 'nb-NO', // Norwegian Bokmål
-    'Hungarian': 'hu-HU',
-    'Danish': 'da-DK',
-    'Korean': 'ko-KR',
-    'Bulgarian': 'bg-BG',
-    'Slovenian': 'sl-SI',
-    'Ukrainian': 'uk-UA',
-    'Belarusian': 'be-BY',
-    'Polish': 'pl-PL',
-    'Romanian': 'ro-RO',
-    'Japanese': 'ja-JP',
-    'Arabic': 'ar-SA', // Standard Arabic, Saudi Arabia - common choice
-    'Turkish': 'tr-TR',
-    'Latin': 'la',
-    'Greek': 'el-GR',
-    'Kazakh': 'kk-KZ',
-    'Georgian': 'ka-GE',
-    'Syriac': 'syc', // Classical Syriac, might need specific voice support from TTS
-    'Pashto': 'ps-AF',
-    'Dari': 'fa-AF', // Dari is often represented as fa-AF (Persian, Afghanistan)
+    'English': 'en-US', 'Russian': 'ru-RU', 'German': 'de-DE', 'Spanish': 'es-ES',
+    'French': 'fr-FR', 'Italian': 'it-IT', 'Dutch': 'nl-NL', 'Finnish': 'fi-FI',
+    'Chinese': 'zh-CN', 'Hindi': 'hi-IN', 'Norwegian': 'nb-NO', 'Hungarian': 'hu-HU',
+    'Danish': 'da-DK', 'Korean': 'ko-KR', 'Bulgarian': 'bg-BG', 'Slovenian': 'sl-SI',
+    'Ukrainian': 'uk-UA', 'Belarusian': 'be-BY', 'Polish': 'pl-PL', 'Romanian': 'ro-RO',
+    'Japanese': 'ja-JP', 'Arabic': 'ar-SA', 'Turkish': 'tr-TR', 'Latin': 'la',
+    'Greek': 'el-GR', 'Kazakh': 'kk-KZ', 'Georgian': 'ka-GE', 'Syriac': 'syc',
+    'Pashto': 'ps-AF', 'Dari': 'fa-AF',
   };
   return langMapping[targetLanguage] || 'en-US'; // Fallback to English US
 };
@@ -166,36 +161,25 @@ export const mapTargetLanguageToBcp47 = (targetLanguage: TargetLanguage): string
 // Function to map InterfaceLanguage (e.g., "en") to BCP-47 code (e.g., "en-US")
 export const mapInterfaceLanguageToBcp47 = (interfaceLang: InterfaceLanguage): string => {
   const langMapping: Record<InterfaceLanguage, string> = {
-    'en': 'en-US',
-    'ru': 'ru-RU',
-    'de': 'de-DE',
-    'es': 'es-ES',
-    'fr': 'fr-FR',
-    'it': 'it-IT',
-    'nl': 'nl-NL',
-    'fi': 'fi-FI',
-    'zh': 'zh-CN',
-    'hi': 'hi-IN',
-    'no': 'nb-NO',
-    'hu': 'hu-HU',
-    'da': 'da-DK',
-    'ko': 'ko-KR',
-    'bg': 'bg-BG',
-    'sl': 'sl-SI',
-    'uk': 'uk-UA',
-    'be': 'be-BY',
-    'pl': 'pl-PL',
-    'ro': 'ro-RO',
-    'ja': 'ja-JP',
-    'ar': 'ar-SA',
-    'tr': 'tr-TR',
-    'la': 'la',
-    'el': 'el-GR',
-    'kk': 'kk-KZ',
-    'ka': 'ka-GE',
-    'syr': 'syc',
-    'ps': 'ps-AF',
-    'prs': 'fa-AF', // Dari (prs) often uses fa-AF for BCP-47
+    'en': 'en-US', 'ru': 'ru-RU', 'de': 'de-DE', 'es': 'es-ES',
+    'fr': 'fr-FR', 'it': 'it-IT', 'nl': 'nl-NL', 'fi': 'fi-FI',
+    'zh': 'zh-CN', 'hi': 'hi-IN', 'no': 'nb-NO', 'hu': 'hu-HU',
+    'da': 'da-DK', 'ko': 'ko-KR', 'bg': 'bg-BG', 'sl': 'sl-SI',
+    'uk': 'uk-UA', 'be': 'be-BY', 'pl': 'pl-PL', 'ro': 'ro-RO',
+    'ja': 'ja-JP', 'ar': 'ar-SA', 'tr': 'tr-TR', 'la': 'la',
+    'el': 'el-GR', 'kk': 'kk-KZ', 'ka': 'ka-GE', 'syr': 'syc',
+    'ps': 'ps-AF', 'prs': 'fa-AF',
   };
   return langMapping[interfaceLang] || 'en-US'; // Fallback to English US
 };
+
+// For Spaced Repetition System (SRS)
+export const learningStageIntervals: Record<number, number> = { // days
+  0: 1,  // After "Didn't Know" -> review in 1 day
+  1: 3,  // After "Knew It" (was stage 0) -> review in 3 days
+  2: 7,
+  3: 14,
+  4: 30,
+  5: 60, // Max interval for "know well"
+};
+export const MAX_LEARNING_STAGE = 5;

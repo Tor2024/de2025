@@ -4,8 +4,8 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord } from '@/lib/types';
-import { initialUserProgress } from '@/lib/types';
+import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord } from '@/lib/types';
+import { initialUserProgress, MAX_LEARNING_STAGE, learningStageIntervals } from '@/lib/types';
 
 interface UserDataContextType {
   userData: UserData;
@@ -17,6 +17,7 @@ interface UserDataContextType {
   toggleLessonCompletion: (lessonId: string) => void;
   addErrorToArchive: (errorData: Omit<ErrorRecord, 'id' | 'date'>) => void;
   clearErrorArchive: () => void;
+  processWordRepetition: (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => void;
   recordPracticeSetCompletion: () => void;
   isLoading: boolean;
 }
@@ -29,6 +30,7 @@ const initialUserData: UserData = {
   progress: { ...initialUserProgress },
 };
 
+// Badge Constants
 const BADGE_FIRST_LESSON_COMPLETED = "First Lesson Completed";
 const BADGE_XP_100 = "100 XP Earned";
 const BADGE_STREAK_3_DAYS = "3-Day Streak";
@@ -43,13 +45,48 @@ const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
 const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
 
 
+const checkAndAwardBadges = (currentProgress: UserProgress): UserProgress => {
+  let newBadges = [...(currentProgress.badges || [])];
+  const { xp, streak, completedLessonIds, practiceSetsCompleted } = currentProgress;
+
+  // Lesson Badges
+  if (completedLessonIds && completedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
+    newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
+  }
+  if (completedLessonIds && completedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
+    newBadges.push(BADGE_LESSONS_5_COMPLETED);
+  }
+
+  // XP Badges
+  if (xp >= 100 && !newBadges.includes(BADGE_XP_100)) newBadges.push(BADGE_XP_100);
+  if (xp >= 500 && !newBadges.includes(BADGE_XP_500)) newBadges.push(BADGE_XP_500);
+  if (xp >= 1000 && !newBadges.includes(BADGE_XP_1000)) newBadges.push(BADGE_XP_1000);
+  if (xp >= 2000 && !newBadges.includes(BADGE_XP_2000)) newBadges.push(BADGE_XP_2000);
+
+  // Streak Badges
+  if (streak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) newBadges.push(BADGE_STREAK_3_DAYS);
+  if (streak >= 7 && !newBadges.includes(BADGE_STREAK_7_DAYS)) newBadges.push(BADGE_STREAK_7_DAYS);
+  if (streak >= 14 && !newBadges.includes(BADGE_STREAK_14_DAYS)) newBadges.push(BADGE_STREAK_14_DAYS);
+  if (streak >= 30 && !newBadges.includes(BADGE_STREAK_30_DAYS)) newBadges.push(BADGE_STREAK_30_DAYS);
+
+  // Practice Set Badges
+  if (practiceSetsCompleted >= 1 && !newBadges.includes(BADGE_FIRST_PRACTICE_SET_COMPLETED)) {
+    newBadges.push(BADGE_FIRST_PRACTICE_SET_COMPLETED);
+  }
+  if (practiceSetsCompleted >= 5 && !newBadges.includes(BADGE_PRACTICE_SETS_5_COMPLETED)) {
+    newBadges.push(BADGE_PRACTICE_SETS_5_COMPLETED);
+  }
+  
+  return { ...currentProgress, badges: newBadges };
+};
+
+
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const [userData, setUserDataFromLocalStorage, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
+  const [userDataState, setUserDataState, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
   const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
-    setUserDataFromLocalStorage(dataOrFn);
-  }, [setUserDataFromLocalStorage]);
-
+    setUserDataState(dataOrFn);
+  }, [setUserDataState]);
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
@@ -59,10 +96,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [setUserData]);
 
   const updateProgress = useCallback((newProgress: Partial<UserProgress>) => {
-    setUserData(prev => ({
-      ...prev,
-      progress: { ...initialUserProgress, ...(prev.progress || {}), ...newProgress } as UserProgress,
-    }));
+    setUserData(prev => {
+      const updatedProgress = { 
+        ...initialUserProgress, 
+        ...(prev.progress || {}), 
+        ...newProgress 
+      } as UserProgress;
+      return {
+        ...prev,
+        progress: checkAndAwardBadges(updatedProgress),
+      };
+    });
   }, [setUserData]);
   
   const setLearningRoadmap = useCallback((roadmap: LearningRoadmap) => {
@@ -76,61 +120,31 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const isCompleted = currentCompletedIds.includes(lessonId);
       
       let newCompletedLessonIds: string[];
-      let newXp = currentProgress.xp;
-      let newStreak = currentProgress.streak;
-      let newBadges = [...(currentProgress.badges || [])];
-
+      let newXp = currentProgress.xp || 0;
+      let newStreak = currentProgress.streak || 0;
+      
       if (isCompleted) {
         newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
         newXp = Math.max(0, newXp - 25); 
-        // Streak and badges are not removed when un-completing a lesson
+        // Streak is not removed when un-completing a lesson
       } else {
         newCompletedLessonIds = [...currentCompletedIds, lessonId];
         newXp += 25; 
         newStreak += 1; 
-
-        // Award badges
-        if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
-          newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
-        }
-        if (newCompletedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
-          newBadges.push(BADGE_LESSONS_5_COMPLETED);
-        }
-        if (newXp >= 100 && !newBadges.includes(BADGE_XP_100)) {
-          newBadges.push(BADGE_XP_100);
-        }
-        if (newXp >= 500 && !newBadges.includes(BADGE_XP_500)) {
-          newBadges.push(BADGE_XP_500);
-        }
-        if (newXp >= 1000 && !newBadges.includes(BADGE_XP_1000)) {
-          newBadges.push(BADGE_XP_1000);
-        }
-        if (newXp >= 2000 && !newBadges.includes(BADGE_XP_2000)) {
-          newBadges.push(BADGE_XP_2000);
-        }
-        if (newStreak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) {
-          newBadges.push(BADGE_STREAK_3_DAYS);
-        }
-        if (newStreak >= 7 && !newBadges.includes(BADGE_STREAK_7_DAYS)) {
-          newBadges.push(BADGE_STREAK_7_DAYS);
-        }
-        if (newStreak >= 14 && !newBadges.includes(BADGE_STREAK_14_DAYS)) {
-          newBadges.push(BADGE_STREAK_14_DAYS);
-        }
-        if (newStreak >= 30 && !newBadges.includes(BADGE_STREAK_30_DAYS)) {
-          newBadges.push(BADGE_STREAK_30_DAYS);
-        }
       }
+
+      let updatedProgress = {
+        ...currentProgress,
+        completedLessonIds: newCompletedLessonIds,
+        xp: newXp,
+        streak: newStreak,
+      };
+
+      updatedProgress = checkAndAwardBadges(updatedProgress);
 
       return {
         ...prev,
-        progress: {
-          ...currentProgress,
-          completedLessonIds: newCompletedLessonIds,
-          xp: newXp,
-          streak: newStreak,
-          badges: newBadges,
-        },
+        progress: updatedProgress,
       };
     });
   }, [setUserData]);
@@ -165,36 +179,88 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [setUserData]);
 
+  const processWordRepetition = useCallback(
+    (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => {
+      setUserData(prev => {
+        if (!prev.settings) return prev; // Should not happen if user is in this module
+
+        const wordId = `${targetLanguage.toLowerCase()}_${wordData.word.toLowerCase()}`;
+        const learnedWords = prev.progress.learnedWords || [];
+        const existingWordIndex = learnedWords.findIndex(lw => lw.id === wordId);
+        let newLearnedWords = [...learnedWords];
+        const now = new Date();
+
+        let currentStage: number;
+        if (existingWordIndex !== -1) { // Word exists, update it
+          const oldStage = newLearnedWords[existingWordIndex].learningStage;
+          currentStage = knewIt ? Math.min(oldStage + 1, MAX_LEARNING_STAGE) : 0;
+          const intervalDays = learningStageIntervals[currentStage];
+          const nextReview = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+          
+          newLearnedWords[existingWordIndex] = {
+            ...newLearnedWords[existingWordIndex],
+            learningStage: currentStage,
+            lastReviewed: now.toISOString(),
+            nextReviewDate: nextReview.toISOString(),
+          };
+        } else { // New word
+          currentStage = knewIt ? 1 : 0;
+          const intervalDays = learningStageIntervals[currentStage];
+          const nextReview = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+          const newWordEntry: UserLearnedWord = {
+            id: wordId,
+            word: wordData.word,
+            translation: wordData.translation,
+            targetLanguage: targetLanguage,
+            exampleSentence: wordData.exampleSentence,
+            lastReviewed: now.toISOString(),
+            nextReviewDate: nextReview.toISOString(),
+            learningStage: currentStage,
+          };
+          newLearnedWords.push(newWordEntry);
+        }
+        
+        return {
+          ...prev,
+          progress: {
+            ...prev.progress,
+            learnedWords: newLearnedWords,
+          },
+        };
+      });
+    },
+    [setUserData]
+  );
+
   const recordPracticeSetCompletion = useCallback(() => {
     setUserData(prev => {
       const currentProgress = prev.progress;
       const newPracticeSetsCompleted = (currentProgress.practiceSetsCompleted || 0) + 1;
-      let newBadges = [...(currentProgress.badges || [])];
+      const newXp = (currentProgress.xp || 0) + 10; // Award 10 XP for completing a practice set
+      
+      let updatedProgress = {
+        ...currentProgress,
+        practiceSetsCompleted: newPracticeSetsCompleted,
+        xp: newXp,
+      };
 
-      if (newPracticeSetsCompleted === 1 && !newBadges.includes(BADGE_FIRST_PRACTICE_SET_COMPLETED)) {
-        newBadges.push(BADGE_FIRST_PRACTICE_SET_COMPLETED);
-      }
-      if (newPracticeSetsCompleted === 5 && !newBadges.includes(BADGE_PRACTICE_SETS_5_COMPLETED)) {
-        newBadges.push(BADGE_PRACTICE_SETS_5_COMPLETED);
-      }
+      updatedProgress = checkAndAwardBadges(updatedProgress);
       
       return {
         ...prev,
-        progress: {
-          ...currentProgress,
-          practiceSetsCompleted: newPracticeSetsCompleted,
-          badges: newBadges,
-        },
+        progress: updatedProgress,
       };
     });
   }, [setUserData]);
 
+
   const clearUserData = useCallback(() => {
-    setUserDataFromLocalStorage(initialUserData);
-  }, [setUserDataFromLocalStorage]);
+    setUserDataState(initialUserData);
+  }, [setUserDataState]);
 
   const contextValue = {
-    userData,
+    userData: userDataState,
     setUserData,
     updateSettings,
     updateProgress,
@@ -203,6 +269,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     toggleLessonCompletion,
     addErrorToArchive,
     clearErrorArchive,
+    processWordRepetition,
     recordPracticeSetCompletion,
     isLoading: isStorageLoading,
   };
@@ -221,4 +288,3 @@ export function useUserData(): UserDataContextType {
   }
   return context;
 }
-
