@@ -16,7 +16,7 @@ import { generateSpeakingTopic } from "@/ai/flows/generate-speaking-topic-flow";
 import type { GenerateSpeakingTopicInput, GenerateSpeakingTopicOutput } from "@/ai/flows/generate-speaking-topic-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban, MessageCircleQuestion } from "lucide-react"; // Added MessageCircleQuestion
+import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban, MessageCircleQuestion } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -133,9 +133,10 @@ export function SpeakingModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log('TTS: SpeakingModuleClient - Voices loaded/changed:', voicesRef.current.map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
+        console.log(`TTS: SpeakingModuleClient - Voices loaded/changed for ${currentLang}:`, voicesRef.current.filter(v => v.lang.startsWith(mapInterfaceLanguageToBcp47(currentLang))).map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
+
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       updateVoices();
       window.speechSynthesis.onvoiceschanged = updateVoices;
@@ -149,7 +150,7 @@ export function SpeakingModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     };
-  }, []);
+  }, [currentLang]);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
@@ -252,7 +253,7 @@ export function SpeakingModuleClient() {
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t]);
+  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); // Added dependencies
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
@@ -307,14 +308,14 @@ export function SpeakingModuleClient() {
 
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]); // Added dependencies
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, []);
+  }, [setCurrentlySpeakingTTSId]); // Added dependencies
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -442,7 +443,10 @@ export function SpeakingModuleClient() {
                     {(speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0) ? (
                         <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
                         {speakingResult.guidingQuestions.map((question, index) => (
-                            <li key={index}>{question}</li>
+                            <li key={index} className="flex items-start gap-2">
+                                <HelpCircle className="h-4 w-4 text-primary/70 shrink-0 mt-1" />
+                                <span>{question}</span>
+                            </li>
                         ))}
                         </ul>
                     ) : (
@@ -455,14 +459,17 @@ export function SpeakingModuleClient() {
             
             <div>
                 <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                    <MessageCircleQuestion className="h-5 w-5 text-primary/80" /> {/* New Icon */}
+                    <MessageCircleQuestion className="h-5 w-5 text-primary/80" />
                     {t('followUpQuestionsHeader')}
                 </h3>
                  <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
                     {(speakingResult.followUpQuestions && speakingResult.followUpQuestions.length > 0) ? (
                         <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
                         {speakingResult.followUpQuestions.map((question, index) => (
-                            <li key={index}>{question}</li>
+                           <li key={index} className="flex items-start gap-2">
+                                <MessageCircleQuestion className="h-4 w-4 text-primary/70 shrink-0 mt-1" />
+                                <span>{question}</span>
+                            </li>
                         ))}
                         </ul>
                     ) : (
@@ -473,8 +480,7 @@ export function SpeakingModuleClient() {
                 </ScrollArea>
             </div>
 
-            {speakingResult.practiceScript && (
-              <div>
+            <div>
                 <div className="flex justify-between items-center mt-4 mb-2">
                   <h3 className="font-semibold text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary/80" />
@@ -516,22 +522,8 @@ export function SpeakingModuleClient() {
                       </div>
                     )}
                 </ScrollArea>
-              </div>
-            )}
-             {!speakingResult.practiceScript && (
-                 <div className="mt-4">
-                    <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary/80" />
-                        {t('practiceScriptHeader')}
-                    </h3>
-                    <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
-                      <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
-                          {t('noPracticeScript')}
-                      </div>
-                    </ScrollArea>
-                 </div>
-            )}
-
+            </div>
+            
             <div>
               <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
                 <Lightbulb className="h-5 w-5 text-primary/80" />
