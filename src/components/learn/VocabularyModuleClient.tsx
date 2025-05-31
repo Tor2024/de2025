@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,13 +15,14 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, Info, RefreshCw } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, RefreshCw } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel, UserLearnedWord } from "@/lib/types";
 import { interfaceLanguageCodes, learningStageIntervals, MAX_LEARNING_STAGE } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 import { enUS, ru as ruLocale } from 'date-fns/locale';
+import { useSearchParams } from 'next/navigation'; // Added
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -68,8 +69,8 @@ const baseEnTranslations: Record<string, string> = {
   typeInPracticeYourTranslationLabel: "Your Translation:",
   typeInPracticeCheckButton: "Check",
   typeInPracticeNextButton: "Next",
-  typeInFeedbackCorrect: "Correct!",
-  typeInFeedbackIncorrectPrefix: "Incorrect. Correct answer was:",
+  feedbackCorrect: "Correct!",
+  feedbackIncorrectPrefix: "Incorrect. Correct answer was:",
   typeInPracticeComplete: "Practice Complete!",
   typeInPracticeScoreMessage: "Your Score: {correct} out of {total}.",
   showTypeInPracticeHintButton: "Show Hint (First Letter)",
@@ -129,8 +130,8 @@ const baseRuTranslations: Record<string, string> = {
   typeInPracticeYourTranslationLabel: "Ваш перевод:",
   typeInPracticeCheckButton: "Проверить",
   typeInPracticeNextButton: "Дальше",
-  typeInFeedbackCorrect: "Правильно!",
-  typeInFeedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
+  feedbackCorrect: "Правильно!",
+  feedbackIncorrectPrefix: "Неправильно. Правильный ответ:",
   typeInPracticeComplete: "Практика завершена!",
   typeInPracticeScoreMessage: "Ваш результат: {correct} из {total}.",
   showTypeInPracticeHintButton: "Показать подсказку (первая буква)",
@@ -204,7 +205,8 @@ export function VocabularyModuleClient() {
   const [mcPracticeScore, setMcPracticeScore] = useState({ correct: 0, total: 0 });
   const [isCurrentMcPracticeMistakeArchived, setIsCurrentMcPracticeMistakeArchived] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<VocabularyFormData>({
+  const searchParams = useSearchParams(); // Added
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<VocabularyFormData>({ // Added setValue
     resolver: zodResolver(vocabularySchema),
   });
 
@@ -244,7 +246,7 @@ export function VocabularyModuleClient() {
       .slice(0, 3);
 
     const options = shuffleArray([correctWord, ...distractors]);
-    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length))); // Ensure max 4 options
+    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length)));
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
     setIsMcPracticeSubmitted(false);
@@ -258,10 +260,14 @@ export function VocabularyModuleClient() {
   }, [currentMcPracticeIndex, practiceWords, setupMcPracticeExercise]);
 
 
-  const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
+  const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => { // Extracted AI call logic
+    if (!userData.settings) {
+      toast({ title: t('onboardingMissing'), variant: "destructive" });
+      return;
+    }
     setIsAiLoading(true);
-    setVocabularyResult(null);
-    setCurrentTopic(data.topic);
+    setVocabularyResult(null); // Clear previous results immediately
+    setCurrentTopic(formData.topic);
     // Reset all states related to flashcards and practice modes
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
@@ -285,16 +291,11 @@ export function VocabularyModuleClient() {
     setIsCurrentMcPracticeMistakeArchived(false);
 
     try {
-      if (!userData.settings) {
-        toast({ title: t('onboardingMissing'), variant: "destructive" });
-        setIsAiLoading(false);
-        return;
-      }
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
-        topic: data.topic,
+        topic: formData.topic,
       };
 
       const result = await generateVocabulary(flowInput);
@@ -304,13 +305,12 @@ export function VocabularyModuleClient() {
         setPracticeWords(shuffledWords);
         setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
         setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
-        // setupMcPracticeExercise will be called by useEffect
+        // setupMcPracticeExercise will be called by useEffect when practiceWords changes
       }
       toast({
         title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', data.topic),
+        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.topic),
       });
-      reset();
     } catch (error) {
       console.error("Vocabulary generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -322,7 +322,25 @@ export function VocabularyModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
+  }, [userData.settings, toast, t]); // Removed reset from here
+
+
+  const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
+    await fetchVocabularyList(data);
+    reset(); // Reset form only after manual submission
   };
+
+  useEffect(() => { // Effect for handling URL query parameters
+    const initialTopic = searchParams.get('topic');
+    // Only auto-fetch if topic is from URL and no results/loading in progress
+    if (initialTopic && !vocabularyResult && !isAiLoading) { 
+      setValue('topic', initialTopic);
+      fetchVocabularyList({ topic: initialTopic });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [searchParams, setValue, fetchVocabularyList]); // Dependencies: searchParams, setValue, fetchVocabularyList
+  // vocabularyResult and isAiLoading are intentionally omitted from deps here for initial load only logic.
+
 
   const handleClearResults = () => {
     setVocabularyResult(null);
@@ -386,10 +404,10 @@ export function VocabularyModuleClient() {
     const userAnswer = userTypeInAnswer.trim().toLowerCase();
     const correctAnswer = currentTypeInPracticeWord.translation.trim().toLowerCase();
     if (userAnswer === correctAnswer) {
-      setTypeInPracticeFeedback(t('typeInFeedbackCorrect'));
+      setTypeInPracticeFeedback(t('feedbackCorrect'));
       setTypeInPracticeScore(prev => ({ ...prev, correct: prev.correct + 1 }));
     } else {
-      setTypeInPracticeFeedback(`${t('typeInFeedbackIncorrectPrefix')} ${currentTypeInPracticeWord.translation}`);
+      setTypeInPracticeFeedback(`${t('feedbackIncorrectPrefix')} ${currentTypeInPracticeWord.translation}`);
     }
     setIsTypeInPracticeSubmitted(true);
     setShowTypeInPracticeHint(false);
@@ -464,6 +482,7 @@ export function VocabularyModuleClient() {
   const handleNextMcPracticeExercise = () => {
     if (currentMcPracticeIndex < practiceWords.length - 1) {
       setCurrentMcPracticeIndex(prev => prev + 1);
+      // setupMcPracticeExercise will be called by useEffect
     } else {
       setMcPracticeFeedback(t('mcPracticeComplete'));
       recordPracticeSetCompletion();
@@ -471,16 +490,12 @@ export function VocabularyModuleClient() {
   };
 
   const handleRestartMcPractice = () => {
-    setCurrentMcPracticeIndex(0);
+    setCurrentMcPracticeIndex(0); // This will trigger useEffect to setup first exercise
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
-    // setupMcPracticeExercise(0, practiceWords); // Re-setup first exercise
-    // ^ This line can cause an infinite loop with useEffect. 
-    // currentMcPracticeIndex change triggers useEffect, which calls setup, which might change states.
-    // Let useEffect handle re-setup based on currentMcPracticeIndex change.
-     setSelectedMcOption(null);
-     setMcPracticeFeedback("");
-     setIsMcPracticeSubmitted(false);
-     setIsCurrentMcPracticeMistakeArchived(false);
+    setSelectedMcOption(null);
+    setMcPracticeFeedback("");
+    setIsMcPracticeSubmitted(false);
+    setIsCurrentMcPracticeMistakeArchived(false);
   };
 
   const handleArchiveMcPracticeMistake = () => {
@@ -587,7 +602,9 @@ export function VocabularyModuleClient() {
                           {currentWordData.word}
                           <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
                         </h3>
-                        {/* Button "Hide Details" is removed, click on card to hide */}
+                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setIsCardRevealed(false);}}>
+                            <EyeOff className="mr-2 h-4 w-4" /> {t('hideDetailsButton')}
+                        </Button>
                       </div>
                       <div className="border-t pt-3 space-y-3">
                         <div>
@@ -682,7 +699,7 @@ export function VocabularyModuleClient() {
                       className={cn(
                         "transition-colors duration-300 ease-in-out",
                         isTypeInPracticeSubmitted &&
-                        (typeInPracticeFeedback === t('typeInFeedbackCorrect') ?
+                        (typeInPracticeFeedback === t('feedbackCorrect') ?
                           'border-green-500 focus-visible:ring-green-500 bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                           :
                           'border-red-500 focus-visible:ring-red-500 bg-red-100/50 dark:bg-red-900/30 text-red-700 dark:text-red-400')
@@ -714,7 +731,7 @@ export function VocabularyModuleClient() {
                       </Button>
                     ) : null
                     }
-                    {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('typeInFeedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
+                    {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('feedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
                       <Button variant="outline" size="sm" onClick={handleArchiveTypeInPracticeMistake} className="text-xs">
                         <Archive className="mr-1.5 h-3.5 w-3.5" />
                         {t('archiveMistakeButton')}
@@ -725,10 +742,10 @@ export function VocabularyModuleClient() {
                   {typeInPracticeFeedback && !typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
                     <p className={cn(
                       "text-sm mt-2 flex items-center gap-1",
-                      typeInPracticeFeedback === t('typeInFeedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      typeInPracticeFeedback === t('feedbackCorrect') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     )}
                     >
-                      {typeInPracticeFeedback === t('typeInFeedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {typeInPracticeFeedback === t('feedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                       {typeInPracticeFeedback}
                     </p>
                   )}
@@ -796,17 +813,18 @@ export function VocabularyModuleClient() {
                       let buttonClassName = "justify-start text-left h-auto py-2 transition-colors duration-200 whitespace-normal";
 
                       if (isMcPracticeSubmitted) {
+                         buttonClassName = cn(buttonClassName, "disabled:opacity-100"); // Keep opacity for submitted buttons
                         if (isActualCorrectAnswer) {
                           buttonClassName = cn(buttonClassName, "bg-green-500/20 border-green-500 text-green-700 hover:bg-green-500/30 dark:bg-green-700/30 dark:text-green-400 dark:border-green-600");
                         } else if (isSelected && !isActualCorrectAnswer) {
                           buttonClassName = cn(buttonClassName, "bg-red-500/20 border-red-500 text-red-700 hover:bg-red-500/30 dark:bg-red-700/30 dark:text-red-400 dark:border-red-600");
                         } else {
-                          buttonClassName = cn(buttonClassName, "border-border opacity-60");
+                           buttonClassName = cn(buttonClassName, "border-border opacity-60 hover:bg-muted/50");
                         }
                       } else if (isSelected) {
                         buttonClassName = cn(buttonClassName, "bg-primary/20 border-primary text-primary hover:bg-primary/30");
                       } else {
-                        buttonClassName = cn(buttonClassName, "border-border");
+                        buttonClassName = cn(buttonClassName, "border-border hover:bg-muted/50");
                       }
 
                       return (
@@ -850,8 +868,8 @@ export function VocabularyModuleClient() {
                     >
                       {mcPracticeFeedback === t('mcFeedbackCorrect') ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                       {mcPracticeFeedback}
-                      {mcPracticeFeedback === t('mcFeedbackIncorrect') && currentMcPracticeWord &&
-                        <span className="ml-1">{t('typeInFeedbackIncorrectPrefix')} {currentMcPracticeWord.translation}</span>
+                      {mcPracticeFeedback === t('mcFeedbackIncorrect') && currentMcPracticeWord && selectedMcOption && currentMcPracticeWord.translation.trim().toLowerCase() !== selectedMcOption.translation.trim().toLowerCase() &&
+                        <span className="ml-1">{t('feedbackIncorrectPrefix')} {currentMcPracticeWord.translation}</span>
                       }
                     </p>
                   )}
@@ -903,4 +921,4 @@ export function VocabularyModuleClient() {
   );
 }
 
-  
+    
