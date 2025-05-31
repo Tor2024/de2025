@@ -21,7 +21,7 @@ const GenerateVocabularyInputSchema = z.object({
 });
 export type GenerateVocabularyInput = z.infer<typeof GenerateVocabularyInputSchema>;
 
-const VocabularyWordSchema = z.object({ // Removed export here
+const VocabularyWordSchema = z.object({ 
     word: z.string().describe('The vocabulary word in the targetLanguage.'),
     translation: z.string().describe('The translation of the word into the interfaceLanguage.'),
     exampleSentence: z.string().optional().describe('An example sentence using the word in the targetLanguage.'),
@@ -52,15 +52,16 @@ User Preferences:
 - Proficiency Level (for word complexity): {{{proficiencyLevel}}}
 - Topic: {{{topic}}}
 
-Instructions:
-1.  **Words:** Generate a list of 5-10 vocabulary words related to the {{{topic}}}.
-    *   The words MUST be in the {{{targetLanguage}}}.
-    *   The complexity of the words, their translations, and especially the example sentences MUST be appropriate for the {{{proficiencyLevel}}}. For example:
+CRITICAL Instructions:
+1.  **Words Relevance and Level Appropriateness:**
+    *   The generated words MUST be highly relevant to the specified {{{topic}}}.
+    *   The complexity of the words, their translations, and especially the example sentences MUST be strictly appropriate for the {{{proficiencyLevel}}}. For example:
         - For A1-A2: Use very common words, simple translations, and very basic example sentences.
         - For B1-B2: Use more nuanced vocabulary, accurate translations of more complex meanings, and sentences with moderately complex structures.
         - For C1-C2: Introduce idiomatic expressions, specialized vocabulary (if relevant to the topic), and complex example sentences that demonstrate advanced usage.
-2.  **Translations:** For each word, provide a translation into the {{{interfaceLanguage}}}.
-3.  **Example Sentences (Optional but encouraged):** For each word, try to provide a simple example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence should also be appropriate for the {{{proficiencyLevel}}}.
+    *   Ensure that the selected words are commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
+2.  **Translations:** For each word, provide an accurate translation into the {{{interfaceLanguage}}}.
+3.  **Example Sentences (Optional but HIGHLY encouraged):** For each word, try to provide a simple, clear example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence MUST also be appropriate for the {{{proficiencyLevel}}}.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 The 'words' array should contain objects, each with 'word', 'translation', and optionally 'exampleSentence'.
