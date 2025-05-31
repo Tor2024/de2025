@@ -158,7 +158,7 @@ const baseRuTranslations: Record<string, string> = {
     tooltipGoal: "Текущая цель",
     ttsPlayText: "Озвучить описание",
     ttsStopText: "Остановить озвучку",
-    ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
+    ttsExperimentalText: "Текст в речь (TTS) экспериментальный. Голос и поддержка языка зависят от вашего браузера/ОС.",
     ttsNotSupportedTitle: "TTS не поддерживается",
     ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
     ttsUtteranceErrorTitle: "Ошибка синтеза речи",
@@ -234,17 +234,17 @@ export default function DashboardPage() {
         clearTimeout(cooldownTimeoutRef.current);
         cooldownTimeoutRef.current = null;
       }
-      setTipCooldownEndTime(null); // Clear cooldown on success
+      setTipCooldownEndTime(null); 
     } catch (error) {
       console.error("Failed to generate tutor tip:", error);
-      setAiTutorTip(t('aiTutorTipStatic')); // Show static tip on error
+      setAiTutorTip(t('aiTutorTipStatic')); 
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('aiTutorTipErrorTitle'),
         description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
-      const cooldownDuration = 120 * 1000; // 120 seconds cooldown
+      const cooldownDuration = 120 * 1000; 
       setTipCooldownEndTime(Date.now() + cooldownDuration);
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -259,33 +259,35 @@ export default function DashboardPage() {
   }, [
     isTipLoading,
     tipCooldownEndTime,
-    userData.settings,
+    userData.settings?.interfaceLanguage,
+    userData.settings?.targetLanguage,
+    userData.settings?.proficiencyLevel,
+    userData.settings?.goal,
     t,
     toast
   ]);
 
-  useEffect(() => {
-    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-      fetchTutorTip();
-    }
-  }, [
-      isUserDataLoading,
-      userData.settings?.interfaceLanguage, // More specific dependencies
-      userData.settings?.targetLanguage,
-      userData.settings?.proficiencyLevel,
-      userData.settings?.goal,
-      fetchTutorTip, // Add fetchTutorTip itself as a dependency
-      tipCooldownEndTime // Add tipCooldownEndTime to re-trigger if it changes
-  ]);
+  // useEffect(() => {
+  //   if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+  //     fetchTutorTip();
+  //   }
+  // }, [
+  //     isUserDataLoading,
+  //     userData.settings?.interfaceLanguage, 
+  //     userData.settings?.targetLanguage,
+  //     userData.settings?.proficiencyLevel,
+  //     userData.settings?.goal,
+  //     fetchTutorTip, 
+  //     tipCooldownEndTime 
+  // ]);
 
   useEffect(() => {
     if (!isUserDataLoading && !userData.settings) {
       router.replace('/');
     }
-  }, [userData, isUserDataLoading, router]); // Changed from userData.settings
+  }, [userData, isUserDataLoading, router]); 
 
   useEffect(() => {
-    // Cleanup timeout on component unmount
     return () => {
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -310,7 +312,7 @@ export default function DashboardPage() {
         let pastErrorsSummary = "No specific past errors noted for recommendation.";
         if (userData.progress.errorArchive && userData.progress.errorArchive.length > 0) {
             pastErrorsSummary = userData.progress.errorArchive
-                .slice(-5) // Take last 5 errors
+                .slice(-5) 
                 .map((err: ErrorRecord) => `Module: ${err.module}, Context: ${err.context || 'N/A'}, User attempt: ${err.userAttempt}, Correct: ${err.correctAnswer || 'N/A'}`)
                 .join('; ');
         }
@@ -358,12 +360,23 @@ export default function DashboardPage() {
     }
   };
 
+  const getLoadingMessage = () => {
+    if (currentLang === 'ru') return 'Загрузка данных пользователя...';
+    return 'Loading user data...';
+  };
+
+  const getRedirectingMessage = () => {
+    if (currentLang === 'ru') return 'Перенаправление на вашу панель управления...';
+    return 'Redirecting to your dashboard...';
+  };
+
+
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{getLoadingMessage()}</p>
         </div>
       </AppShell>
     );
@@ -374,7 +387,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{getRedirectingMessage()}</p>
         </div>
       </AppShell>
     );
@@ -565,6 +578,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-
-    
