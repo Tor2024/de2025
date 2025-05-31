@@ -15,7 +15,7 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, RefreshCw, Info } from "lucide-react"; // Added Info
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, RefreshCw, Info } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel, UserLearnedWord } from "@/lib/types";
 import { interfaceLanguageCodes, learningStageIntervals, MAX_LEARNING_STAGE } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -96,8 +96,8 @@ const baseEnTranslations: Record<string, string> = {
   learningStageLabel: "Learning Stage:",
   nextReviewLabel: "Next Review:",
   newWordStatus: "New word (not in review cycle yet)",
-  nextPartButton: "Next Part",
-  repeatLessonPartButton: "Repeat This Set",
+  nextPartButton: "Next Part", // Used for "Next Set" of words / clear results
+  repeatLessonPartButton: "Repeat This Set", // Used for "Practice This Set Again"
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -157,7 +157,7 @@ const baseRuTranslations: Record<string, string> = {
   learningStageLabel: "Стадия изучения:",
   nextReviewLabel: "Следующее повторение:",
   newWordStatus: "Новое слово (еще не в цикле повторения)",
-  nextPartButton: "Далее",
+  nextPartButton: "Следующий набор",
   repeatLessonPartButton: "Повторить этот набор",
 };
 
@@ -221,57 +221,20 @@ export function VocabularyModuleClient() {
     return enUS;
   };
 
-  useEffect(() => {
-    const currentWordData = vocabularyResult?.words?.[currentCardIndex];
-    if (currentWordData && userData.settings && userData.progress?.learnedWords) {
-      const srsEntry = userData.progress.learnedWords.find(
-        (lw) => lw.word.toLowerCase() === currentWordData.word.toLowerCase() && lw.targetLanguage === userData.settings!.targetLanguage
-      );
-      setCurrentWordSrsData(srsEntry || null);
-    } else {
-      setCurrentWordSrsData(null);
-    }
-  }, [currentCardIndex, vocabularyResult, userData.progress?.learnedWords, userData.settings]);
-
-
-  const setupMcPracticeExercise = useCallback((index: number, wordsForMc: VocabularyWord[]) => {
-    if (!wordsForMc || wordsForMc.length === 0 || index < 0 || index >= wordsForMc.length) {
-      setMcPracticeOptions([]);
-      return;
-    }
-    const correctWord = wordsForMc[index];
-    const distractors = wordsForMc
-      .filter(word => word.word.toLowerCase() !== correctWord.word.toLowerCase())
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 3);
-
-    const options = shuffleArray([correctWord, ...distractors]);
-    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length)));
-    setSelectedMcOption(null);
-    setMcPracticeFeedback("");
-    setIsMcPracticeSubmitted(false);
-    setIsCurrentMcPracticeMistakeArchived(false);
-  }, []);
-
-  useEffect(() => {
-    if (practiceWords.length > 0 && currentMcPracticeIndex < practiceWords.length) {
-      setupMcPracticeExercise(currentMcPracticeIndex, practiceWords);
-    }
-  }, [currentMcPracticeIndex, practiceWords, setupMcPracticeExercise]);
-
   const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => {
     if (!userData.settings) {
       toast({ title: t('onboardingMissing'), variant: "destructive" });
       return;
     }
     setIsAiLoading(true);
-    setVocabularyResult(null);
+    setVocabularyResult(null); // Clear previous results
     setCurrentTopic(formData.topic);
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
     setCurrentWordSrsData(null);
     setPracticeWords([]);
     
+    // Reset Type-In Practice
     setCurrentTypeInPracticeIndex(0);
     setUserTypeInAnswer("");
     setTypeInPracticeFeedback("");
@@ -280,6 +243,7 @@ export function VocabularyModuleClient() {
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
     
+    // Reset Multiple Choice Practice
     setCurrentMcPracticeIndex(0);
     setMcPracticeOptions([]);
     setSelectedMcOption(null);
@@ -303,6 +267,10 @@ export function VocabularyModuleClient() {
         setPracticeWords(shuffledWords);
         setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
         setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
+      } else {
+        setPracticeWords([]); // Ensure practice words are empty if no words generated
+        setTypeInPracticeScore({ correct: 0, total: 0 });
+        setMcPracticeScore({ correct: 0, total: 0 });
       }
       toast({
         title: t('toastSuccessTitle'),
@@ -323,7 +291,7 @@ export function VocabularyModuleClient() {
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
     await fetchVocabularyList(data);
-    reset();
+    reset(); // Clear form only after manual submission
   };
 
   useEffect(() => {
@@ -342,6 +310,7 @@ export function VocabularyModuleClient() {
     setIsCardRevealed(false);
     setCurrentWordSrsData(null);
     setPracticeWords([]);
+    // Reset Type-In Practice
     setCurrentTypeInPracticeIndex(0);
     setUserTypeInAnswer("");
     setTypeInPracticeFeedback("");
@@ -349,6 +318,7 @@ export function VocabularyModuleClient() {
     setTypeInPracticeScore({ correct: 0, total: 0 });
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
+    // Reset Multiple Choice Practice
     setCurrentMcPracticeIndex(0);
     setMcPracticeOptions([]);
     setSelectedMcOption(null);
@@ -373,6 +343,18 @@ export function VocabularyModuleClient() {
     }
   };
   
+  useEffect(() => {
+    const currentWordData = vocabularyResult?.words?.[currentCardIndex];
+    if (currentWordData && userData.settings && userData.progress?.learnedWords) {
+      const srsEntry = userData.progress.learnedWords.find(
+        (lw) => lw.word.toLowerCase() === currentWordData.word.toLowerCase() && lw.targetLanguage === userData.settings!.targetLanguage
+      );
+      setCurrentWordSrsData(srsEntry || null);
+    } else {
+      setCurrentWordSrsData(null);
+    }
+  }, [currentCardIndex, vocabularyResult, userData.progress?.learnedWords, userData.settings]);
+
   const handleWordRepetition = (knewIt: boolean) => {
     const wordData = vocabularyResult?.words?.[currentCardIndex];
     if (wordData && userData.settings) {
@@ -417,7 +399,7 @@ export function VocabularyModuleClient() {
       setIsCurrentTypeInPracticeMistakeArchived(false);
     } else {
       setTypeInPracticeFeedback(t('typeInPracticeComplete'));
-      recordPracticeSetCompletion();
+      if (practiceWords.length > 0) recordPracticeSetCompletion();
     }
   };
 
@@ -451,9 +433,31 @@ export function VocabularyModuleClient() {
   };
 
   const currentMcPracticeWord = practiceWords[currentMcPracticeIndex];
-  const typeInScorePercentage = typeInPracticeScore.total > 0 ? (typeInPracticeScore.correct / typeInPracticeScore.total) * 100 : 0;
-  const mcScorePercentage = mcPracticeScore.total > 0 ? (mcPracticeScore.correct / mcPracticeScore.total) * 100 : 0;
 
+  const setupMcPracticeExercise = useCallback((index: number, wordsForMc: VocabularyWord[]) => {
+    if (!wordsForMc || wordsForMc.length === 0 || index < 0 || index >= wordsForMc.length) {
+      setMcPracticeOptions([]);
+      return;
+    }
+    const correctWord = wordsForMc[index];
+    const distractors = wordsForMc
+      .filter(word => word.word.toLowerCase() !== correctWord.word.toLowerCase())
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3);
+
+    const options = shuffleArray([correctWord, ...distractors]);
+    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length))); // Ensure max 4 options, or less if not enough words
+    setSelectedMcOption(null);
+    setMcPracticeFeedback("");
+    setIsMcPracticeSubmitted(false);
+    setIsCurrentMcPracticeMistakeArchived(false);
+  }, []);
+
+  useEffect(() => {
+    if (practiceWords.length > 0 && currentMcPracticeIndex < practiceWords.length) {
+      setupMcPracticeExercise(currentMcPracticeIndex, practiceWords);
+    }
+  }, [currentMcPracticeIndex, practiceWords, setupMcPracticeExercise]);
 
   const handleMcOptionSelect = (option: VocabularyWord) => {
     if (isMcPracticeSubmitted) return;
@@ -477,13 +481,19 @@ export function VocabularyModuleClient() {
       setCurrentMcPracticeIndex(prev => prev + 1);
     } else {
       setMcPracticeFeedback(t('mcPracticeComplete'));
-      recordPracticeSetCompletion();
+      if (practiceWords.length > 0) recordPracticeSetCompletion();
     }
   };
 
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
+    // Re-setup first exercise options
+    if (practiceWords.length > 0) {
+        setupMcPracticeExercise(0, practiceWords);
+    } else {
+        setMcPracticeOptions([]);
+    }
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
     setIsMcPracticeSubmitted(false);
@@ -505,6 +515,7 @@ export function VocabularyModuleClient() {
     });
   };
 
+
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
@@ -513,6 +524,9 @@ export function VocabularyModuleClient() {
     return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
   const currentWordData = vocabularyResult?.words?.[currentCardIndex];
+  const typeInScorePercentage = typeInPracticeScore.total > 0 ? (typeInPracticeScore.correct / typeInPracticeScore.total) * 100 : 0;
+  const mcScorePercentage = mcPracticeScore.total > 0 ? (mcPracticeScore.correct / mcPracticeScore.total) * 100 : 0;
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -721,7 +735,7 @@ export function VocabularyModuleClient() {
                       <Button onClick={handleNextTypeInPractice}>
                         {t('typeInPracticeNextButton')}
                       </Button>
-                    ) : null
+                    ) : null 
                     }
                     {isTypeInPracticeSubmitted && typeInPracticeFeedback !== t('feedbackCorrect') && !isCurrentTypeInPracticeMistakeArchived && (
                       <Button variant="outline" size="sm" onClick={handleArchiveTypeInPracticeMistake} className="text-xs">
@@ -842,7 +856,7 @@ export function VocabularyModuleClient() {
                       <Button onClick={handleNextMcPracticeExercise}>
                         {t('practiceNextMcButton')}
                       </Button>
-                    ) : null
+                    ) : null 
                     }
                      {isMcPracticeSubmitted && mcPracticeFeedback !== t('mcFeedbackCorrect') && !isCurrentMcPracticeMistakeArchived && (
                       <Button variant="outline" size="sm" onClick={handleArchiveMcPracticeMistake} className="text-xs">
@@ -912,3 +926,6 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
+
+
+    
