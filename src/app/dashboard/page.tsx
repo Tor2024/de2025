@@ -199,7 +199,6 @@ export default function DashboardPage() {
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
 
-
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
@@ -214,11 +213,11 @@ export default function DashboardPage() {
   }, [currentLang]);
 
   const fetchTutorTip = useCallback(async () => {
-    if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
-      return;
-    }
     if (!userData.settings) {
       setAiTutorTip(t('aiTutorTipStatic'));
+      return;
+    }
+    if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
       return;
     }
 
@@ -235,17 +234,17 @@ export default function DashboardPage() {
         clearTimeout(cooldownTimeoutRef.current);
         cooldownTimeoutRef.current = null;
       }
-      setTipCooldownEndTime(null);
+      setTipCooldownEndTime(null); // Clear cooldown on success
     } catch (error) {
       console.error("Failed to generate tutor tip:", error);
-      setAiTutorTip(t('aiTutorTipStatic'));
+      setAiTutorTip(t('aiTutorTipStatic')); // Show static tip on error
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('aiTutorTipErrorTitle'),
         description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
-      const cooldownDuration = 60 * 1000;
+      const cooldownDuration = 120 * 1000; // 120 seconds cooldown
       setTipCooldownEndTime(Date.now() + cooldownDuration);
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -260,10 +259,7 @@ export default function DashboardPage() {
   }, [
     isTipLoading,
     tipCooldownEndTime,
-    userData.settings?.interfaceLanguage,
-    userData.settings?.targetLanguage,
-    userData.settings?.proficiencyLevel,
-    userData.settings?.goal,
+    userData.settings,
     t,
     toast
   ]);
@@ -272,24 +268,24 @@ export default function DashboardPage() {
     if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
       fetchTutorTip();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
       isUserDataLoading,
-      userData.settings?.interfaceLanguage,
+      userData.settings?.interfaceLanguage, // More specific dependencies
       userData.settings?.targetLanguage,
       userData.settings?.proficiencyLevel,
       userData.settings?.goal,
-      fetchTutorTip,
-      tipCooldownEndTime
+      fetchTutorTip, // Add fetchTutorTip itself as a dependency
+      tipCooldownEndTime // Add tipCooldownEndTime to re-trigger if it changes
   ]);
 
   useEffect(() => {
     if (!isUserDataLoading && !userData.settings) {
       router.replace('/');
     }
-  }, [userData.settings, isUserDataLoading, router]);
+  }, [userData, isUserDataLoading, router]); // Changed from userData.settings
 
   useEffect(() => {
+    // Cleanup timeout on component unmount
     return () => {
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -362,23 +358,12 @@ export default function DashboardPage() {
     }
   };
 
-  const getLoadingMessage = (lang: string | undefined) => {
-    if (lang === 'ru') return 'Загрузка данных пользователя...';
-    return 'Loading user data...';
-  };
-
-  const getRedirectingMessage = (lang: string | undefined) => {
-    if (lang === 'ru') return 'Перенаправление на вашу панель управления...';
-    return 'Redirecting to your dashboard...';
-  };
-
-
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getLoadingMessage(currentLang)}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
@@ -389,7 +374,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{getRedirectingMessage(currentLang)}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -581,3 +566,5 @@ export default function DashboardPage() {
   );
 }
 
+
+    
