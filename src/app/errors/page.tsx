@@ -173,7 +173,7 @@ export default function ErrorArchivePage() {
                             <Target className="h-4 w-4" />
                             {t('errorContext')}:
                           </p>
-                          <p className="italic bg-muted/20 p-2 rounded-sm ml-5">{error.context}</p>
+                          <p className="italic bg-muted/20 p-2 rounded-sm ml-5 whitespace-pre-wrap">{error.context}</p>
                         </div>
                       )}
                       <div className="space-y-1">
@@ -181,7 +181,7 @@ export default function ErrorArchivePage() {
                            <UserCheck className="h-4 w-4" />
                            {t('errorUserAttempt')}:
                         </p>
-                        <p className="text-red-600 dark:text-red-400 bg-red-500/10 p-2 rounded-sm ml-5">{error.userAttempt}</p>
+                        <p className="text-red-600 dark:text-red-400 bg-red-500/10 p-2 rounded-sm ml-5 whitespace-pre-wrap">{error.userAttempt}</p>
                       </div>
                       {error.correctAnswer && (
                         <div className="space-y-1">
@@ -189,7 +189,7 @@ export default function ErrorArchivePage() {
                             <CheckCircle2 className="h-4 w-4" />
                             {t('errorCorrectAnswer')}:
                           </p>
-                          <p className="text-green-600 dark:text-green-400 bg-green-500/10 p-2 rounded-sm ml-5">{error.correctAnswer}</p>
+                          <p className="text-green-600 dark:text-green-400 bg-green-500/10 p-2 rounded-sm ml-5 whitespace-pre-wrap">{error.correctAnswer}</p>
                         </div>
                       )}
                     </CardContent>
@@ -203,3 +203,4 @@ export default function ErrorArchivePage() {
     </AppShell>
   );
 }
+
