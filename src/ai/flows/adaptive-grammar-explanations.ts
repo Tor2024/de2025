@@ -115,6 +115,7 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
   async (input: AdaptiveGrammarExplanationsInput) => {
     const promptData: Record<string, any> = { ...input };
 
+    // Initialize default values for first past error details
     promptData.firstPastErrorModule = 'N/A';
     promptData.firstPastErrorContext = 'N/A';
     promptData.firstPastErrorUserAttempt = 'N/A';
@@ -123,15 +124,16 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     if (input.userPastErrors && input.userPastErrors !== "No past errors recorded.") {
       const firstErrorLine = input.userPastErrors.split('\n')[0];
       if (firstErrorLine) {
-        const parts = firstErrorLine.split(',').map(p => p.trim());
-        const extractValue = (fullString: string | undefined, keyName: string) => {
-          if (!fullString || !fullString.startsWith(keyName + ':')) return 'N/A';
-          return fullString.substring(keyName.length + 1).trim() || 'N/A';
-        };
-        promptData.firstPastErrorModule = extractValue(parts[0], 'Module');
-        promptData.firstPastErrorContext = extractValue(parts[1], 'Context');
-        promptData.firstPastErrorUserAttempt = extractValue(parts[2], 'User attempt');
-        promptData.firstPastErrorCorrect = extractValue(parts[3], 'Correct');
+        // Regex to capture values for each key, allowing commas within values
+        const moduleMatch = firstErrorLine.match(/Module:\s*(.*?)(?=\s*,\s*Context:|$)/);
+        const contextMatch = firstErrorLine.match(/Context:\s*(.*?)(?=\s*,\s*User attempt:|$)/);
+        const attemptMatch = firstErrorLine.match(/User attempt:\s*(.*?)(?=\s*,\s*Correct:|$)/);
+        const correctMatch = firstErrorLine.match(/Correct:\s*(.*)$/);
+
+        promptData.firstPastErrorModule = moduleMatch && moduleMatch[1] ? moduleMatch[1].trim() : 'N/A';
+        promptData.firstPastErrorContext = contextMatch && contextMatch[1] ? contextMatch[1].trim() : 'N/A';
+        promptData.firstPastErrorUserAttempt = attemptMatch && attemptMatch[1] ? attemptMatch[1].trim() : 'N/A';
+        promptData.firstPastErrorCorrect = correctMatch && correctMatch[1] ? correctMatch[1].trim() : 'N/A';
       }
     }
 
@@ -142,3 +144,4 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output;
   }
 );
+

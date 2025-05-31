@@ -67,6 +67,9 @@ const baseEnTranslations: Record<string, string> = {
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
+  aiExplanationErrorToastTitle: "AI Explanation Error",
+  aiExplanationErrorToastDescriptionTemplate: "Could not fetch explanation for task error. ({error})",
+  aiExplanationErrorFallback: "Failed to load AI explanation for this error. ({error})",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -105,6 +108,9 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
+  aiExplanationErrorToastTitle: "Ошибка объяснения ИИ",
+  aiExplanationErrorToastDescriptionTemplate: "Не удалось получить объяснение ошибки от ИИ. ({error})",
+  aiExplanationErrorFallback: "Не удалось загрузить объяснение ИИ для этой ошибки. ({error})",
 };
 
 const generateTranslations = () => {
@@ -127,9 +133,6 @@ const germanArticleHighlights: Record<string, { color: string; hintKey: string }
   'das': { color: 'green', hintKey: 'hintDas' },
 };
 
-const TARGET_LANG_START_DELIMITER = "##TARGET_LANG_START##";
-const TARGET_LANG_END_DELIMITER = "##TARGET_LANG_END##";
-
 interface TextSegment {
   text: string;
   langCode: string;
@@ -140,6 +143,8 @@ const HighlightedTextRenderer: React.FC<{ text: string | undefined; highlights: 
 
   const segments: TextSegment[] = [];
   let lastIndex = 0;
+  const TARGET_LANG_START_DELIMITER = "##TARGET_LANG_START##";
+  const TARGET_LANG_END_DELIMITER = "##TARGET_LANG_END##";
   const regex = new RegExp(
     `${TARGET_LANG_START_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${TARGET_LANG_END_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
     'gs'
@@ -322,6 +327,8 @@ export function GrammarModuleClient() {
   ): TextSegment[] => {
     const segments: TextSegment[] = [];
     let lastIndex = 0;
+    const TARGET_LANG_START_DELIMITER = "##TARGET_LANG_START##";
+    const TARGET_LANG_END_DELIMITER = "##TARGET_LANG_END##";
     const regex = new RegExp(
       `${TARGET_LANG_START_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${TARGET_LANG_END_DELIMITER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
       'gs'
@@ -336,8 +343,9 @@ export function GrammarModuleClient() {
           langCode: interfaceLangBcp47,
         });
       }
+      // The captured group (match[1]) is the text between the delimiters
       segments.push({
-        text: match[1], // Текст между маркерами
+        text: match[1],
         langCode: targetLangBcp47,
       });
       lastIndex = regex.lastIndex;
@@ -374,7 +382,7 @@ export function GrammarModuleClient() {
           console.info('TTS: GrammarModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: GrammarModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
+          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
@@ -383,7 +391,7 @@ export function GrammarModuleClient() {
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [toast, t, setCurrentlySpeakingTTSId]); // Removed ttsUtteranceErrorTitle and Description
+  }, [setCurrentlySpeakingTTSId, toast, t]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined) => {
     playTextInternalIdRef.current += 1;
@@ -408,7 +416,6 @@ export function GrammarModuleClient() {
     const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
     const targetLangBcp47 = mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage);
     
-    // Add start cue
     const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
     startCueUtterance.lang = interfaceLangBcp47;
     const startCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -437,7 +444,6 @@ export function GrammarModuleClient() {
       }
     });
     
-    // Add end cue
     const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
     endCueUtterance.lang = interfaceLangBcp47;
     const endCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -448,7 +454,7 @@ export function GrammarModuleClient() {
 
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText, voicesRef]); // Removed ttsNotSupportedTitle and Description
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, parseMultiLanguageText, voicesRef]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -464,22 +470,26 @@ export function GrammarModuleClient() {
       }
     };
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices(); // Initial load
-      window.speechSynthesis.onvoiceschanged = updateVoices; // Subsequent changes
+      updateVoices(); 
+      window.speechSynthesis.onvoiceschanged = updateVoices; 
     }
 
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.onvoiceschanged = null;
         if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel(); // Cancel any ongoing speech
+          window.speechSynthesis.cancel(); 
         }
       }
-      setCurrentlySpeakingTTSId(null); // Reset speaking ID on unmount
+      setCurrentlySpeakingTTSId(null); 
     };
   }, []);
 
   const fetchAndSetGrammarExplanation = useCallback(async (formData: GrammarFormData) => {
+    if (!userData.settings || !userData.progress) { 
+      toast({ title: t('onboardingMissing'), variant: "destructive" });
+      return;
+    }
     setIsAiLoading(true);
     setExplanationResult(null);
     setCurrentTopic(formData.grammarTopic);
@@ -490,11 +500,6 @@ export function GrammarModuleClient() {
     setArchivedGrammarMistakes({});
     stopSpeech();
     try {
-      if (!userData.settings || !userData.progress) { 
-        toast({ title: t('onboardingMissing'), variant: "destructive" });
-        setIsAiLoading(false);
-        return;
-      }
       const grammarInput: AdaptiveGrammarExplanationsInput = {
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         grammarTopic: formData.grammarTopic,
@@ -519,7 +524,7 @@ export function GrammarModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
-  }, [userData, toast, t, stopSpeech, reset]);
+  }, [userData, toast, t, stopSpeech]);
 
   const onSubmitHandler: SubmitHandler<GrammarFormData> = async (data) => {
     await fetchAndSetGrammarExplanation(data);
@@ -561,7 +566,6 @@ export function GrammarModuleClient() {
     const actualCorrectAnswer = task.correctAnswer.trim().toLowerCase();
     const isCorrect = userAnswer === actualCorrectAnswer;
     setTaskFeedback(prev => ({ ...prev, [taskId]: { submitted: true, isCorrect } }));
-    // Reset archived status for this task as it's being re-checked
     setArchivedGrammarMistakes(prev => ({...prev, [taskId]: false}));
 
 
@@ -580,10 +584,12 @@ export function GrammarModuleClient() {
       } catch (error) {
         console.error("AI error explanation failed:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: `Failed to load AI explanation for this error. ${errorMessage}` }));
+        const fallbackMsg = t('aiExplanationErrorFallback').replace('{error}', errorMessage);
+        const toastDesc = t('aiExplanationErrorToastDescriptionTemplate').replace('{error}', errorMessage);
+        setTaskErrorExplanations(prev => ({ ...prev, [taskId]: fallbackMsg }));
         toast({
-            title: "AI Explanation Error",
-            description: `Could not fetch explanation for task error. ${errorMessage}`,
+            title: t('aiExplanationErrorToastTitle'),
+            description: toastDesc,
             variant: "destructive"
         });
       } finally {
