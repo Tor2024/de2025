@@ -95,6 +95,11 @@ const baseEnTranslations: Record<string, string> = {
     aiRecommendationInfoTitle: "Lesson Recommendation",
     aiRecommendationNoLessonReasoning: "AI could not find a specific lesson to recommend right now.",
     aiRecommendationNavFailed: "(Could not auto-navigate, please find the lesson in your roadmap).",
+    // New toast keys for RoadmapDisplay
+    lessonMarkedCompleteToastTitle: "Lesson Complete!",
+    lessonMarkedCompleteToastDescription: "Lesson '{lessonTitle}' marked as complete. +25 XP",
+    lessonMarkedIncompleteToastTitle: "Lesson Status Updated",
+    lessonMarkedIncompleteToastDescription: "Lesson '{lessonTitle}' marked as incomplete.",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -171,6 +176,11 @@ const baseRuTranslations: Record<string, string> = {
     aiRecommendationInfoTitle: "Рекомендация урока",
     aiRecommendationNoLessonReasoning: "ИИ не смог найти конкретный урок для рекомендации в данный момент.",
     aiRecommendationNavFailed: "(Автоматический переход не удался, пожалуйста, найдите урок в вашем плане).",
+    // New toast keys for RoadmapDisplay
+    lessonMarkedCompleteToastTitle: "Урок завершен!",
+    lessonMarkedCompleteToastDescription: "Урок '{lessonTitle}' отмечен как пройденный. +25 XP",
+    lessonMarkedIncompleteToastTitle: "Статус урока обновлен",
+    lessonMarkedIncompleteToastDescription: "Урок '{lessonTitle}' отмечен как не пройденный.",
 };
 
 const generateTranslations = () => {
@@ -187,8 +197,6 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
-// Helper function to parse topic line and generate link
-// This needs to be kept in sync with the one in RoadmapDisplay.tsx or moved to a shared util
 const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
     { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
     { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
@@ -203,20 +211,30 @@ const parseTopicAndGetLink = (topicLine: string, lessonContext?: { lessonId: str
   let href: string | null = null;
   const displayText = topicLine; 
 
-  const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
-  const topicLower = topicLine.toLowerCase();
+  const cleanAndEncodeTopic = (rawTopic: string): string => {
+    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
+    cleaned = cleaned.replace(/^["':\s]+|["':\s]+$/g, "").trim();
+    return encodeURIComponent(cleaned);
+  };
+  
+  const topicLineLower = topicLine.toLowerCase();
 
   for (const mod of keywordsToModules) {
     for (const keyword of mod.keywords) {
-      if (topicLower.startsWith(keyword)) {
-        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
+      const keywordLower = keyword.toLowerCase();
+      if (topicLineLower.startsWith(keywordLower)) {
+        let theme = mod.topicExtractor 
+          ? mod.topicExtractor(topicLine, keyword) 
+          : topicLine.substring(keyword.length).trim();
+
         theme = cleanAndEncodeTopic(theme);
-        if (theme) {
+        if (theme.length > 0) {
           href = `${mod.path}?topic=${theme}`;
           if (lessonContext) {
             href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
-            if (mod.needsLevel) {
-              href += `&baseLevel=${encodeURIComponent(lessonContext.lessonLevel.split(' ')[0] || lessonContext.lessonLevel)}`;
+            if (mod.needsLevel && lessonContext.lessonLevel) {
+              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
+              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
             }
           }
         }
@@ -225,6 +243,7 @@ const parseTopicAndGetLink = (topicLine: string, lessonContext?: { lessonId: str
     }
     if (href) break;
   }
+  console.log(`parseTopicAndGetLink for "${topicLine}" with lessonLevel "${lessonContext?.lessonLevel}" -> href: "${href}"`);
   return { href, displayText };
 };
 
@@ -243,20 +262,29 @@ export default function DashboardPage() {
   const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = useCallback((key: string, defaultText?: string): string => {
+  const t = useCallback((key: string, defaultText?: string, params?: Record<string, string>): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
+    let textToReturn = defaultText || key;
+
     if (langTranslations && langTranslations[key]) {
-      return langTranslations[key];
+      textToReturn = langTranslations[key];
+    } else {
+      const enTranslations = pageTranslations['en'];
+      if (enTranslations && enTranslations[key]) {
+        textToReturn = enTranslations[key];
+      }
     }
-    const enTranslations = pageTranslations['en'];
-    if (enTranslations && enTranslations[key]) {
-      return enTranslations[key];
+    
+    if (params) {
+        Object.keys(params).forEach(paramKey => {
+            textToReturn = textToReturn.replace(`{${paramKey}}`, params[paramKey]);
+        });
     }
-    return defaultText || key;
+    return textToReturn;
   }, [currentLang]);
 
   const fetchTutorTip = useCallback(async () => {
-    if (!userData.settings) { // Added check for userData.settings
+    if (!userData.settings) {
         console.warn("fetchTutorTip: User settings not available.");
         setAiTutorTip(t('aiTutorTipStatic'));
         return;
@@ -310,21 +338,20 @@ export default function DashboardPage() {
     toast
   ]);
 
-  // useEffect(() => {
-  //   // Temporarily disabled automatic tip fetching on load to reduce API calls
-  //   // Re-enabled automatic tip fetching
-  //   if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-  //     fetchTutorTip();
-  //   }
-  // }, [
-  //     isUserDataLoading,
-  //     userData.settings?.interfaceLanguage, 
-  //     userData.settings?.targetLanguage,
-  //     userData.settings?.proficiencyLevel,
-  //     userData.settings?.goal,
-  //     tipCooldownEndTime,
-  //     fetchTutorTip, // Ensure fetchTutorTip is stable or correctly memoized if it's complex
-  // ]);
+  useEffect(() => {
+     if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+       fetchTutorTip();
+     }
+  }, [
+      isUserDataLoading,
+      userData.settings?.interfaceLanguage, 
+      userData.settings?.targetLanguage,
+      userData.settings?.proficiencyLevel,
+      userData.settings?.goal,
+      tipCooldownEndTime,
+      // fetchTutorTip should not be in dependencies if it itself depends on these, to avoid loop
+      // it's memoized by useCallback, so its reference changes only when its own deps change
+  ]);
 
   useEffect(() => {
     if (userData.settings === null && !isUserDataLoading) {
@@ -384,13 +411,13 @@ export default function DashboardPage() {
 
                 if (href) {
                     toast({
-                        title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                        title: t('aiRecommendationTitle', undefined, {lessonTitle}),
                         description: recommendation.reasoning || "",
                     });
                     router.push(href);
                 } else {
                     toast({
-                        title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                        title: t('aiRecommendationTitle', undefined, {lessonTitle}),
                         description: (recommendation.reasoning || "") + " " + t('aiRecommendationNavFailed'),
                     });
                     if (roadmapDisplayRef.current) {
@@ -399,7 +426,7 @@ export default function DashboardPage() {
                 }
             } else {
                  toast({ 
-                    title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
+                    title: t('aiRecommendationTitle', undefined, {lessonTitle}),
                     description: (recommendation.reasoning || "") + (lesson ? " (This lesson has no topics defined yet)." : ""),
                 });
                  if (roadmapDisplayRef.current) {
@@ -412,6 +439,9 @@ export default function DashboardPage() {
                 description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
                 variant: "default",
             });
+             if (roadmapDisplayRef.current) {
+                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
     } catch (error) {
@@ -430,7 +460,7 @@ export default function DashboardPage() {
   if (isUserDataLoading) {
     return (
       <AppShell>
-        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
         </div>
@@ -438,10 +468,10 @@ export default function DashboardPage() {
     );
   }
 
-  if (userData.settings === null) { // userData.settings может быть null если онбординг не пройден
+  if (userData.settings === null) { 
     return (
        <AppShell>
-        <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
+        <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
           <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
         </div>
@@ -498,6 +528,10 @@ export default function DashboardPage() {
               ttsNotSupportedDescription={t('ttsNotSupportedDescription')}
               ttsUtteranceErrorTitle={t('ttsUtteranceErrorTitle')}
               ttsUtteranceErrorDescription={t('ttsUtteranceErrorDescription')}
+              lessonMarkedCompleteToastTitleKey="lessonMarkedCompleteToastTitle"
+              lessonMarkedCompleteToastDescriptionKey="lessonMarkedCompleteToastDescription"
+              lessonMarkedIncompleteToastTitleKey="lessonMarkedIncompleteToastTitle"
+              lessonMarkedIncompleteToastDescriptionKey="lessonMarkedIncompleteToastDescription"
             />
           </div>
           <div className="md:w-1/3 space-y-6">

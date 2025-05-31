@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useCallback, useRef } from "react";
-import Link from "next/link"; // Added Link
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -13,7 +13,7 @@ import type { Lesson, InterfaceLanguage as AppInterfaceLanguage, TargetLanguage 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { mapInterfaceLanguageToBcp47 } from "@/lib/types";
+import { mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types"; // For interface language TTS
 
 interface RoadmapDisplayProps {
   titleText: string;
@@ -34,18 +34,16 @@ interface RoadmapDisplayProps {
   ttsNotSupportedDescription: string;
   ttsUtteranceErrorTitle: string;
   ttsUtteranceErrorDescription: string;
+  // New props for toast localization
+  lessonMarkedCompleteToastTitleKey: string;
+  lessonMarkedCompleteToastDescriptionKey: string;
+  lessonMarkedIncompleteToastTitleKey: string;
+  lessonMarkedIncompleteToastDescriptionKey: string;
 }
 
 // Helper function to parse topic line and generate link
-const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: string | null; displayText: string } => {
-  let href: string | null = null;
-  const displayText = topicLine; // Display the full topic line
-
-  const cleanAndEncodeTopic = (rawTopic: string) => encodeURIComponent(rawTopic.replace(/^["']|["']$/g, '').trim());
-
-  const topicLower = topicLine.toLowerCase();
-
-  const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
+// This function is also present in DashboardPage.tsx and should be kept in sync or moved to a shared util.
+const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
     { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
     { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
     { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
@@ -55,15 +53,38 @@ const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: s
     { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
   ];
 
+const parseTopicAndGetLink = (topicLine: string, lessonContext?: { lessonId: string; lessonLevel: string }): { href: string | null; displayText: string } => {
+  let href: string | null = null;
+  const displayText = topicLine; 
+
+  const cleanAndEncodeTopic = (rawTopic: string): string => {
+    // Remove text in parentheses, e.g., (Das deutsche Alphabet) or (das deutsche Alphabet)
+    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
+    // Remove common leading/trailing punctuation that might remain
+    cleaned = cleaned.replace(/^["':\s]+|["':\s]+$/g, "").trim();
+    return encodeURIComponent(cleaned);
+  };
+  
+  const topicLineLower = topicLine.toLowerCase();
+
   for (const mod of keywordsToModules) {
     for (const keyword of mod.keywords) {
-      if (topicLower.startsWith(keyword)) {
-        let theme = mod.topicExtractor ? mod.topicExtractor(topicLine, keyword) : topicLine.substring(keyword.length).trim();
+      const keywordLower = keyword.toLowerCase();
+      if (topicLineLower.startsWith(keywordLower)) {
+        let theme = mod.topicExtractor 
+          ? mod.topicExtractor(topicLine, keyword) // Pass original case keyword for specific extractors
+          : topicLine.substring(keyword.length).trim(); // Use original case keyword length for substring
+
         theme = cleanAndEncodeTopic(theme);
-        if (theme) {
+        if (theme.length > 0) {
           href = `${mod.path}?topic=${theme}`;
-          if (mod.needsLevel) {
-            href += `&level=${encodeURIComponent(lessonLevel.split(' ')[0] || lessonLevel)}`; // Use only level code like A1, B2
+          if (lessonContext) {
+            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
+            if (mod.needsLevel && lessonContext.lessonLevel) {
+               // Extract only the CEFR code like A1, B2 from "Уровень A1" or "Level A1"
+              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
+              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
+            }
           }
         }
         break;
@@ -71,7 +92,6 @@ const parseTopicAndGetLink = (topicLine: string, lessonLevel: string): { href: s
     }
     if (href) break;
   }
-
   return { href, displayText };
 };
 
@@ -95,6 +115,10 @@ export function RoadmapDisplay({
   ttsNotSupportedDescription,
   ttsUtteranceErrorTitle,
   ttsUtteranceErrorDescription,
+  lessonMarkedCompleteToastTitleKey,
+  lessonMarkedCompleteToastDescriptionKey,
+  lessonMarkedIncompleteToastTitleKey,
+  lessonMarkedIncompleteToastDescriptionKey,
 }: RoadmapDisplayProps) {
   const { userData, toggleLessonCompletion } = useUserData();
   const { toast } = useToast();
@@ -108,21 +132,18 @@ export function RoadmapDisplay({
   const playTextInternalIdRef = React.useRef<number>(0);
 
   const currentLang = userData.settings?.interfaceLanguage || 'en';
-  const t = useCallback((key: string, defaultText?: string): string => {
-    const translations: Record<string, Record<string,string>> = {
-        // Dummy translations, actual ones are passed via props
-        ttsPlayText: ttsPlayText,
-        ttsStopText: ttsStopText,
-        ttsExperimentalText: ttsExperimentalText,
-        ttsNotSupportedTitle: ttsNotSupportedTitle,
-        ttsNotSupportedDescription: ttsNotSupportedDescription,
-        ttsUtteranceErrorTitle: ttsUtteranceErrorTitle,
-        ttsUtteranceErrorDescription: ttsUtteranceErrorDescription,
-    };
-    // This is a simplified t function for internal use if needed,
-    // but props should provide ready translations.
-    return translations[currentLang]?.[key] || translations['en']?.[key] || defaultText || key;
-  }, [currentLang, ttsPlayText, ttsStopText, ttsExperimentalText, ttsNotSupportedTitle, ttsNotSupportedDescription, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
+  const t = useCallback((key: string, defaultText?: string, params?: Record<string, string>): string => {
+    // This component receives translated texts as props, so this 't' is a placeholder
+    // or could be used if we had a more complex structure for texts passed via props.
+    // For now, we assume keys passed are already for direct use or need simple replacement.
+    let text = defaultText || key;
+    if (params) {
+      Object.keys(params).forEach(paramKey => {
+        text = text.replace(`{${paramKey}}`, params[paramKey]);
+      });
+    }
+    return text;
+  }, []);
 
 
   React.useEffect(() => {
@@ -134,8 +155,8 @@ export function RoadmapDisplay({
     };
 
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices(); // Initial load
-      window.speechSynthesis.onvoiceschanged = updateVoices; // Subsequent changes
+      updateVoices(); 
+      window.speechSynthesis.onvoiceschanged = updateVoices; 
     }
 
     return () => {
@@ -243,7 +264,7 @@ export function RoadmapDisplay({
           console.info('TTS: RoadmapDisplay - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
+          toast({ title: t(ttsUtteranceErrorTitle), description: t(ttsUtteranceErrorDescription), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
@@ -251,15 +272,15 @@ export function RoadmapDisplay({
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [toast, t, setCurrentlySpeakingTTSId, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
+  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]);
 
 
-  const playText = useCallback((lessonId: string, textToSpeak: string | undefined, langCode: string) => {
+  const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
 
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
+    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
+      toast({ title: t(ttsNotSupportedTitle), description: t(ttsNotSupportedDescription), variant: "destructive" });
       return;
     }
     if (window.speechSynthesis.speaking) {
@@ -268,27 +289,29 @@ export function RoadmapDisplay({
     utteranceQueueRef.current = [];
     currentUtteranceIndexRef.current = 0;
 
-    const sanitizedText = sanitizeTextForTTS(textToSpeak);
-    if (!sanitizedText) {
+    const fullText = textToSpeak || "";
+     if (!fullText.trim()) {
       setCurrentlySpeakingTTSId(null);
       return;
     }
 
-    const interfaceLangBcp47 = userData.settings?.interfaceLanguage ? mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage) : 'en-US';
+    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
     
-    const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    startSignalUtterance.lang = interfaceLangBcp47;
-    const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (startVoice) startSignalUtterance.voice = startVoice;
-    startSignalUtterance.rate = 0.95;
-    startSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(startSignalUtterance);
+    // Add "Пииип" at the beginning
+    const startCueUtterance = new SpeechSynthesisUtterance("Пииип");
+    startCueUtterance.lang = interfaceLangBcp47; // Interface language for "Пииип"
+    const startCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (startCueVoice) startCueUtterance.voice = startCueVoice;
+    startCueUtterance.rate = 0.95;
+    startCueUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(startCueUtterance);
     
+    const sanitizedText = sanitizeTextForTTS(fullText);
     const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [];
     sentences.forEach(sentence => {
       if (sentence.trim()) {
         const utterance = new SpeechSynthesisUtterance(sentence.trim());
-        utterance.lang = langCode; // Use the provided langCode for the main content
+        utterance.lang = langCode; 
         const voice = selectPreferredVoice(langCode, voicesRef.current || []);
         if (voice) utterance.voice = voice;
         utterance.rate = 0.95;
@@ -296,18 +319,19 @@ export function RoadmapDisplay({
         utteranceQueueRef.current.push(utterance);
       }
     });
-
-    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    endSignalUtterance.lang = interfaceLangBcp47;
-    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (endVoice) endSignalUtterance.voice = endVoice;
-    endSignalUtterance.rate = 0.95;
-    endSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(endSignalUtterance);
     
-    setCurrentlySpeakingTTSId(lessonId);
+    // Add "Пииип" at the end
+    const endCueUtterance = new SpeechSynthesisUtterance("Пииип");
+    endCueUtterance.lang = interfaceLangBcp47; // Interface language for "Пииип"
+    const endCueVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
+    if (endCueVoice) endCueUtterance.voice = endCueVoice;
+    endCueUtterance.rate = 0.95;
+    endCueUtterance.pitch = 1.1;
+    utteranceQueueRef.current.push(endCueUtterance);
+
+    setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings?.interfaceLanguage, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -350,7 +374,6 @@ export function RoadmapDisplay({
               const isCompleted = completedLessonIds.includes(lesson.id);
               const hasDescription = lesson.description && lesson.description.trim().length > 0;
               const isCurrentlySpeakingThis = currentlySpeakingTTSId === lesson.id;
-              // Ensure ttsPlayButtonId is unique if lesson.id might not be (though it should be)
               const ttsPlayButtonId = `tts-lesson-${lesson.id || index}`;
 
 
@@ -371,7 +394,19 @@ export function RoadmapDisplay({
                             className="h-7 w-7 shrink-0 flex items-center justify-center cursor-pointer" 
                             onClick={(e) => {
                               e.stopPropagation(); 
+                              const wasCompleting = !completedLessonIds.includes(lesson.id);
                               toggleLessonCompletion(lesson.id);
+                              if (wasCompleting) {
+                                toast({
+                                  title: t(lessonMarkedCompleteToastTitleKey, "Lesson Complete!"),
+                                  description: t(lessonMarkedCompleteToastDescriptionKey, "Lesson '{lessonTitle}' marked as complete. +25 XP", { lessonTitle: lesson.title }),
+                                });
+                              } else {
+                                toast({
+                                  title: t(lessonMarkedIncompleteToastTitleKey, "Lesson Status Updated"),
+                                  description: t(lessonMarkedIncompleteToastDescriptionKey, "Lesson '{lessonTitle}' marked as incomplete.", { lessonTitle: lesson.title }),
+                                });
+                              }
                             }}
                             aria-label={isCompleted ? markIncompleteTooltip : markCompleteTooltip}
                           >
@@ -429,7 +464,7 @@ export function RoadmapDisplay({
                         <h4 className="font-semibold text-sm mb-1.5 flex items-center"><ListChecks className="mr-2 h-4 w-4 text-primary/70"/>{topicsToCoverText}</h4>
                         <ul className="list-disc list-inside pl-1 space-y-1 text-sm">
                           {lesson.topics.map((topic, topicIndex) => {
-                            const { href, displayText } = parseTopicAndGetLink(topic, lesson.level);
+                            const { href, displayText } = parseTopicAndGetLink(topic, { lessonId: lesson.id, lessonLevel: lesson.level});
                             return (
                               <li key={topicIndex} className="ml-2 whitespace-pre-wrap">
                                 {href ? (
