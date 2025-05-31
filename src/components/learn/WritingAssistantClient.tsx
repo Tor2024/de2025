@@ -14,10 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
-import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
+import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput, ErrorCategory } from "@/ai/flows/ai-powered-writing-assistance";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle, Sparkles, XCircle, FileText } from "lucide-react"; 
+import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks } from "lucide-react"; 
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
@@ -48,6 +48,10 @@ const baseEnTranslations: Record<string, string> = {
   feedbackSectionTitle: "Feedback",
   yourOriginalTextSectionTitle: "Your Original Text",
   correctedTextSectionTitle: "Corrected Text (with highlights)",
+  errorCategoriesHeader: "Identified Error Types",
+  errorCategoryLabel: "Category",
+  errorSpecificErrorLabel: "Specific Error",
+  errorCommentLabel: "Comment",
   onboardingMissing: "Please complete onboarding first.",
   loading: "Loading...",
   informalLetterEmail: "Informal Letter/Email",
@@ -77,6 +81,10 @@ const baseRuTranslations: Record<string, string> = {
   feedbackSectionTitle: "Обратная связь",
   yourOriginalTextSectionTitle: "Ваш исходный текст",
   correctedTextSectionTitle: "Исправленный текст (с выделениями)",
+  errorCategoriesHeader: "Выявленные типы ошибок",
+  errorCategoryLabel: "Категория",
+  errorSpecificErrorLabel: "Конкретная ошибка",
+  errorCommentLabel: "Комментарий",
   onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
   informalLetterEmail: "Неофициальное письмо/E-Mail",
@@ -109,7 +117,7 @@ export function WritingAssistantClient() {
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
   const [submittedUserText, setSubmittedUserText] = useState<string | null>(null);
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm<WritingFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<WritingFormData>({
     resolver: zodResolver(writingSchema),
   });
 
@@ -120,18 +128,12 @@ export function WritingAssistantClient() {
   };
 
   useEffect(() => {
-    // Если пользователь меняет язык интерфейса, а результат уже есть, его лучше очистить,
-    // так как обратная связь от ИИ была на предыдущем языке.
-    if (assistanceResult && userData.settings?.interfaceLanguage) {
-        // Дополнительно можно проверить, что язык действительно изменился, если хранить предыдущий язык.
-        // Но для простоты пока очистим, если результат есть и язык пользователя определен.
-        // setAssistanceResult(null);
-        // setSubmittedUserText(null);
-        // Эта логика может быть сложной, если пользователь часто меняет язык. 
-        // Возможно, лучше оставить результаты и просто информировать, что они были на другом языке.
-        // Или не делать ничего, как сейчас.
+    // Reset form with default proficiency from user settings when user data is loaded
+    if (userData.settings) {
+        // We don't need to reset the proficiency here as it's part of general user settings,
+        // not a per-task setting in this module's form.
     }
-  }, [userData.settings?.interfaceLanguage, assistanceResult]);
+  }, [userData.settings, reset]);
 
 
   if (isUserDataLoading) {
@@ -145,7 +147,7 @@ export function WritingAssistantClient() {
   const onSubmit: SubmitHandler<WritingFormData> = async (data) => {
     setIsAiLoading(true);
     setAssistanceResult(null);
-    setSubmittedUserText(data.userText); // Сохраняем текст пользователя
+    setSubmittedUserText(data.userText); 
     try {
       if (!userData.settings) {
          toast({ title: t('onboardingMissing'), variant: "destructive" });
@@ -166,7 +168,6 @@ export function WritingAssistantClient() {
         title: t('toastSuccessTitle'),
         description: t('toastSuccessDescription'),
       });
-      // Не вызываем reset(), чтобы пользователь мог видеть свой введенный текст и настройки
     } catch (error) {
       console.error("Writing assistance error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -183,6 +184,7 @@ export function WritingAssistantClient() {
   const handleClearResults = () => {
     setAssistanceResult(null);
     setSubmittedUserText(null);
+    reset(); // Reset the form fields
   };
   
   const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
@@ -262,13 +264,35 @@ export function WritingAssistantClient() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
-              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
-              </ScrollArea>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
+                </ScrollArea>
+              </div>
 
+              {assistanceResult.errorCategories && assistanceResult.errorCategories.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <ListChecks className="h-5 w-5 text-orange-500" />
+                    {t('errorCategoriesHeader')}
+                  </h3>
+                  <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                    <ul className="space-y-3">
+                      {assistanceResult.errorCategories.map((errCat, index) => (
+                        <li key={index} className="text-sm p-2 rounded-md bg-card border border-border/50">
+                          <p><strong>{t('errorCategoryLabel', 'Category')}:</strong> {errCat.category}</p>
+                          <p><strong>{t('errorSpecificErrorLabel', 'Error')}:</strong> {errCat.specificError}</p>
+                          {errCat.comment && <p><em>{t('errorCommentLabel', 'Comment')}: {errCat.comment}</em></p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+            
             {submittedUserText && (
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -296,3 +320,4 @@ export function WritingAssistantClient() {
     </div>
   );
 }
+

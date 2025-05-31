@@ -26,9 +26,17 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
+const ErrorCategorySchema = z.object({
+  category: z.string().describe('The general type of error, e.g., "Grammar", "Vocabulary", "Punctuation", "Style". MUST be in the {{{interfaceLanguage}}}.'),
+  specificError: z.string().describe('A more specific description of the error, e.g., "Incorrect verb tense", "Word choice", "Missing comma". MUST be in the {{{interfaceLanguage}}}.'),
+  comment: z.string().optional().describe('A brief, constructive comment or suggestion related to this specific error type. MUST be in the {{{interfaceLanguage}}}.')
+});
+export type ErrorCategory = z.infer<typeof ErrorCategorySchema>;
+
 const AIPoweredWritingAssistanceOutputSchema = z.object({
   feedback: z.string().describe('AI-driven feedback on structure, grammar, and tone. If writingTaskType was specified, feedback should be contextual to that type. CRITICALLY: This feedback MUST be in the {{{interfaceLanguage}}}. Feedback should be tailored to the user proficiency level. Ensure the text is clear, concise, and well-suited for text-to-speech conversion if applicable.'),
   markedCorrectedText: z.string().describe('The corrected version of the input text, with corrections clearly marked. Use <ins>inserted text</ins> for additions/changes and <del>deleted text</del> for deletions. This text should be suitable for direct HTML rendering. ONLY use <ins> and <del> tags, no other HTML elements, attributes, or styles. The text should be appropriate for the user proficiency level.'),
+  errorCategories: z.array(ErrorCategorySchema).optional().describe('A list of identified error categories with specific errors and brief comments. All text within this structure MUST be in the {{{interfaceLanguage}}}.')
 });
 export type AIPoweredWritingAssistanceOutput = z.infer<typeof AIPoweredWritingAssistanceOutputSchema>;
 
@@ -42,13 +50,13 @@ const writingAssistantPrompt = ai.definePrompt({
   input: {schema: AIPoweredWritingAssistanceInputSchema},
   output: {schema: AIPoweredWritingAssistanceOutputSchema},
   prompt: `You are an AI writing assistant that provides feedback and corrections on user-submitted text.
-CRITICAL: All explanations and feedback in the 'feedback' field MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
+CRITICAL: All explanations and feedback in the 'feedback' field and 'errorCategories' field (including category names, specific errors, and comments) MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
 The user's proficiency level in the target language is: {{{proficiencyLevel}}}.
-Tailor your feedback and corrections to this level:
-- For lower levels (e.g., A1-A2), focus on fundamental errors, use simpler language in your feedback, and suggest simpler corrections.
+Tailor your feedback, corrections, and error categorization to this level:
+- For lower levels (e.g., A1-A2), focus on fundamental errors, use simpler language in your feedback and error descriptions, and suggest simpler corrections.
 - For intermediate levels (e.g., B1-B2), address more complex grammatical structures and vocabulary, and provide more detailed explanations.
-- For higher levels (e.g., C1-C2), provide nuanced feedback on style, advanced grammar, idiomatic expressions, and overall coherence. Corrected text can be more sophisticated.
+- For higher levels (e.g., C1-C2), provide nuanced feedback on style, advanced grammar, idiomatic expressions, and overall coherence. Corrected text can be more sophisticated. Error categories can be more specific.
 
 The user is writing based on the following prompt:
 Prompt: {{{prompt}}}
@@ -59,7 +67,6 @@ Text: {{{text}}}
 {{#if writingTaskType}}
 The user has specified that this is a "{{{writingTaskType}}}" type of writing task.
 CRITICAL: When providing feedback, you MUST pay close attention to the conventions of this specific task type ({{{writingTaskType}}}). Use the guide below to inform your feedback regarding structure, tone, formality, typical expressions, and salutations/closings, adapting to the user's {{{proficiencyLevel}}}. Your feedback should explicitly comment on how well the user's text adheres to the norms of the specified task type.
-For example, if the task is a "Formal Letter/Email", assess if the user employed appropriate formal greetings, closings, and sentence structures. If it's an "Essay", check for logical structure, argumentation, etc.
 
 --- BEGIN GERMAN WRITING TASK FORMATS GUIDE (Use this if applicable, or adapt principles for other languages) ---
 Основные форматы письменных заданий в немецком языке
@@ -145,14 +152,20 @@ For example, if the task is a "Formal Letter/Email", assess if the user employed
 {{/if}}
 
 Your tasks:
-1.  Provide feedback on the structure, grammar, and tone of the user's text. This feedback MUST be in the {{{interfaceLanguage}}} and be appropriate for the user's {{{proficiencyLevel}}}.
+1.  Provide feedback on the structure, grammar, and tone of the user's text. This feedback MUST be in the {{{interfaceLanguage}}} and be appropriate for the user's {{{proficiencyLevel}}}. Ensure it is clear, concise, and well-suited for text-to-speech.
 2.  Provide a corrected version of the user's text in the 'markedCorrectedText' field. In this field, you MUST highlight the changes you made compared to the original user's text.
-    Use ONLY the HTML tags <ins>inserted or changed text</ins> for any text you add or modify, and <del>deleted text</del> for any text you remove from the original.
+    Use ONLY the HTML tags \`<ins>inserted or changed text</ins>\` for any text you add or modify, and \`<del>deleted text</del>\` for any text you remove from the original.
     For example, if the original was "I go to store" and you correct it to "I went to the store.", your markedCorrectedText should be "I <ins>went</ins> to <ins>the </ins>store<del>go</del>."
-    If the original was "I like apples bananas and oranges" and you correct it to "I like apples, bananas, and oranges.", your markedCorrectedText should be "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges."
+    If the original was "I like apples bananas and oranges" and you correct it to "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges.", your markedCorrectedText should be "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges."
     Do NOT use any other HTML tags, attributes, or styles in 'markedCorrectedText'. The corrected text should also be appropriate for the user's {{{proficiencyLevel}}}.
+3.  Analyze the errors in the user's text and provide a list of identified error categories in the 'errorCategories' field.
+    For each identified error, specify:
+    *   'category': The general type of error (e.g., "Grammar", "Vocabulary", "Punctuation", "Style").
+    *   'specificError': A more specific description of the error (e.g., "Incorrect verb tense", "Word choice", "Missing comma").
+    *   'comment' (optional): A brief, constructive comment or suggestion related to this specific error type.
+    All text in 'errorCategories' (category, specificError, comment) MUST be in the {{{interfaceLanguage}}}.
 
-Output the feedback and the marked corrected text as a JSON object matching the defined output schema.
+Output the feedback, the marked corrected text, and the error categories as a JSON object matching the defined output schema.
   `,
 });
 
@@ -162,7 +175,7 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     inputSchema: AIPoweredWritingAssistanceInputSchema,
     outputSchema: AIPoweredWritingAssistanceOutputSchema,
   },
-  async (input: AIPoweredWritingAssistanceInput) => {
+  async (input) => {
     const {output} = await writingAssistantPrompt(input);
     if (!output) {
         throw new Error("AI failed to generate writing assistance. Output was null.");
