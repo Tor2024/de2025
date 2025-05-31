@@ -39,10 +39,17 @@ const BADGE_XP_1000 = "1000 XP Power Up!";
 const BADGE_STREAK_14_DAYS = "14-Day Dedication!";
 const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
 const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
+const BADGE_XP_2000 = "2000 XP Grandmaster!";
+const BADGE_STREAK_30_DAYS = "30-Day Consistency King/Queen!";
 
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const [userData, setUserData, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
+  const [userData, setUserDataFromLocalStorage, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
+
+  const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
+    setUserDataFromLocalStorage(dataOrFn);
+  }, [setUserDataFromLocalStorage]);
+
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
@@ -86,6 +93,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (newCompletedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
           newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
         }
+        if (newCompletedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
+          newBadges.push(BADGE_LESSONS_5_COMPLETED);
+        }
         if (newXp >= 100 && !newBadges.includes(BADGE_XP_100)) {
           newBadges.push(BADGE_XP_100);
         }
@@ -94,6 +104,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         }
         if (newXp >= 1000 && !newBadges.includes(BADGE_XP_1000)) {
           newBadges.push(BADGE_XP_1000);
+        }
+        if (newXp >= 2000 && !newBadges.includes(BADGE_XP_2000)) {
+          newBadges.push(BADGE_XP_2000);
         }
         if (newStreak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) {
           newBadges.push(BADGE_STREAK_3_DAYS);
@@ -104,8 +117,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (newStreak >= 14 && !newBadges.includes(BADGE_STREAK_14_DAYS)) {
           newBadges.push(BADGE_STREAK_14_DAYS);
         }
-        if (newCompletedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
-          newBadges.push(BADGE_LESSONS_5_COMPLETED);
+        if (newStreak >= 30 && !newBadges.includes(BADGE_STREAK_30_DAYS)) {
+          newBadges.push(BADGE_STREAK_30_DAYS);
         }
       }
 
@@ -130,7 +143,6 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
       };
       const updatedErrorArchive = [...(prev.progress?.errorArchive || []), newError];
-      // Limit error archive to last 50 entries
       const limitedErrorArchive = updatedErrorArchive.slice(-50); 
 
       return {
@@ -178,8 +190,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [setUserData]);
 
   const clearUserData = useCallback(() => {
-    setUserData(initialUserData);
-  }, [setUserData]);
+    setUserDataFromLocalStorage(initialUserData);
+  }, [setUserDataFromLocalStorage]);
 
   const contextValue = {
     userData,
@@ -209,3 +221,4 @@ export function useUserData(): UserDataContextType {
   }
   return context;
 }
+
