@@ -261,13 +261,24 @@ export default function DashboardPage() {
     isTipLoading, 
     tipCooldownEndTime, 
     userData.settings, 
-    t, // t is now stable due to currentLang logic
+    t, 
     toast
   ]); 
   
   useEffect(() => {
-    // Automatic tip fetching removed
-  }, []);
+    if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
+      fetchTutorTip();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+      isUserDataLoading, 
+      userData.settings?.interfaceLanguage, 
+      userData.settings?.targetLanguage, 
+      userData.settings?.proficiencyLevel, 
+      userData.settings?.goal,
+      tipCooldownEndTime 
+      // fetchTutorTip is memoized and its dependencies are stable or included here
+  ]);
 
   useEffect(() => {
     if (!isUserDataLoading && !userData.settings) {
@@ -314,9 +325,6 @@ export default function DashboardPage() {
                 title: t('aiRecommendationTitle').replace('{lessonTitle}', lessonTitle),
                 description: recommendation.reasoning || "",
             });
-            // Future: Scroll to and expand the lesson in RoadmapDisplay
-            // For now, just log it.
-            console.log("Recommended Lesson ID:", recommendation.recommendedLessonId);
             if (roadmapDisplayRef.current) {
                 roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
@@ -403,7 +411,7 @@ export default function DashboardPage() {
               loadingContentText={t('roadmapLoadingContent')}
               introductionHeaderText={t('roadmapIntroduction')}
               topicsToCoverText={t('roadmapTopicsToCoverText')}
-              estimatedDurationText={t('roadmapEstimatedDuration')}
+              estimatedDurationText={t('roadmapEstimatedDurationText')}
               conclusionHeaderText={t('roadmapConclusion')}
               markCompleteTooltip={t('markCompleteTooltip')}
               markIncompleteTooltip={t('markIncompleteTooltip')}
@@ -549,3 +557,4 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
