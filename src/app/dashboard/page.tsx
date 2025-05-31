@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from 'react'; 
+import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
@@ -10,16 +10,16 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag, Sparkles as SparklesIcon } from "lucide-react"; 
+import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag, Sparkles as SparklesIcon } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel } from "@/lib/types";
-import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow'; 
+import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel, type ErrorRecord } from "@/lib/types";
+import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import type { GetLessonRecommendationInput, GetLessonRecommendationOutput, Lesson as AiLessonType } from '@/ai/flows/get-lesson-recommendation-flow';
 import { useToast } from "@/hooks/use-toast";
-import { appModulesConfig } from "@/lib/modulesConfig"; 
+import { appModulesConfig } from "@/lib/modulesConfig";
 
 const baseEnTranslations: Record<string, string> = {
     loadingUserData: "Loading user data...",
@@ -200,18 +200,18 @@ export default function DashboardPage() {
   const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
 
 
-  const currentLang = isUserDataLoading || !userData.settings ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     if (langTranslations && langTranslations[key]) {
-      return langTranslations[key]; 
+      return langTranslations[key];
     }
     const enTranslations = pageTranslations['en'];
     if (enTranslations && enTranslations[key]) {
-      return enTranslations[key]; 
+      return enTranslations[key];
     }
-    return defaultText || key; 
-  };
+    return defaultText || key;
+  }, [currentLang]);
 
   const fetchTutorTip = useCallback(async () => {
     if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
@@ -235,17 +235,17 @@ export default function DashboardPage() {
         clearTimeout(cooldownTimeoutRef.current);
         cooldownTimeoutRef.current = null;
       }
-      setTipCooldownEndTime(null); 
+      setTipCooldownEndTime(null);
     } catch (error) {
       console.error("Failed to generate tutor tip:", error);
-      setAiTutorTip(t('aiTutorTipStatic')); 
+      setAiTutorTip(t('aiTutorTipStatic'));
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: t('aiTutorTipErrorTitle'),
         description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
-      const cooldownDuration = 60 * 1000; 
+      const cooldownDuration = 60 * 1000;
       setTipCooldownEndTime(Date.now() + cooldownDuration);
       if (cooldownTimeoutRef.current) {
         clearTimeout(cooldownTimeoutRef.current);
@@ -257,27 +257,30 @@ export default function DashboardPage() {
     } finally {
       setIsTipLoading(false);
     }
-  }, [ 
-    isTipLoading, 
-    tipCooldownEndTime, 
-    userData.settings, 
-    t, 
+  }, [
+    isTipLoading,
+    tipCooldownEndTime,
+    userData.settings?.interfaceLanguage,
+    userData.settings?.targetLanguage,
+    userData.settings?.proficiencyLevel,
+    userData.settings?.goal,
+    t,
     toast
-  ]); 
-  
+  ]);
+
   useEffect(() => {
     if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
       fetchTutorTip();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-      isUserDataLoading, 
-      userData.settings?.interfaceLanguage, 
-      userData.settings?.targetLanguage, 
-      userData.settings?.proficiencyLevel, 
+      isUserDataLoading,
+      userData.settings?.interfaceLanguage,
+      userData.settings?.targetLanguage,
+      userData.settings?.proficiencyLevel,
       userData.settings?.goal,
-      tipCooldownEndTime 
-      // fetchTutorTip is memoized and its dependencies are stable or included here
+      fetchTutorTip,
+      tipCooldownEndTime
   ]);
 
   useEffect(() => {
@@ -293,7 +296,7 @@ export default function DashboardPage() {
       }
     };
   }, []);
-  
+
   const handleRecommendLessonClick = async () => {
     if (!userData.settings || !userData.progress?.learningRoadmap) {
         toast({
@@ -308,12 +311,21 @@ export default function DashboardPage() {
     setLastRecommendation(null);
 
     try {
+        let pastErrorsSummary = "No specific past errors noted for recommendation.";
+        if (userData.progress.errorArchive && userData.progress.errorArchive.length > 0) {
+            pastErrorsSummary = userData.progress.errorArchive
+                .slice(-5) // Take last 5 errors
+                .map((err: ErrorRecord) => `Module: ${err.module}, Context: ${err.context || 'N/A'}, User attempt: ${err.userAttempt}, Correct: ${err.correctAnswer || 'N/A'}`)
+                .join('; ');
+        }
+
         const input: GetLessonRecommendationInput = {
             interfaceLanguage: userData.settings.interfaceLanguage,
             currentLearningRoadmap: userData.progress.learningRoadmap,
             completedLessonIds: userData.progress.completedLessonIds || [],
             userGoal: userData.settings.goal,
             currentProficiencyLevel: userData.settings.proficiencyLevel,
+            userPastErrors: pastErrorsSummary,
         };
         const recommendation = await getLessonRecommendation(input);
         setLastRecommendation(recommendation);
@@ -333,7 +345,7 @@ export default function DashboardPage() {
             toast({
                 title: t('aiRecommendationInfoTitle'),
                 description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
-                variant: "default", 
+                variant: "default",
             });
         }
 
@@ -349,13 +361,24 @@ export default function DashboardPage() {
         setIsRecommendationLoading(false);
     }
   };
-  
+
+  const getLoadingMessage = (lang: string | undefined) => {
+    if (lang === 'ru') return 'Загрузка данных пользователя...';
+    return 'Loading user data...';
+  };
+
+  const getRedirectingMessage = (lang: string | undefined) => {
+    if (lang === 'ru') return 'Перенаправление на вашу панель управления...';
+    return 'Redirecting to your dashboard...';
+  };
+
+
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('loadingUserData')}</p>
+          <p className="ml-4">{getLoadingMessage(currentLang)}</p>
         </div>
       </AppShell>
     );
@@ -366,7 +389,7 @@ export default function DashboardPage() {
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{t('redirecting')}</p>
+          <p className="ml-4">{getRedirectingMessage(currentLang)}</p>
         </div>
       </AppShell>
     );
@@ -389,9 +412,9 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
-        
-        <Button 
-          onClick={handleRecommendLessonClick} 
+
+        <Button
+          onClick={handleRecommendLessonClick}
           disabled={isRecommendationLoading || !userData.progress?.learningRoadmap}
           className="w-full md:w-auto mb-6 py-6 text-lg"
           variant="default"
@@ -437,17 +460,17 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary h-6 w-6"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {isTipLoading && !aiTutorTip ? ( 
+                {isTipLoading && !aiTutorTip ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
                 )}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3 w-full" 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full"
                   onClick={fetchTutorTip}
                   disabled={isRefreshButtonDisabled}
                 >
@@ -462,13 +485,13 @@ export default function DashboardPage() {
 
         <div>
           <h2 className="text-2xl font-semibold tracking-tight mb-4 flex items-center gap-2">
-            <LayoutGrid className="text-primary h-6 w-6" /> 
+            <LayoutGrid className="text-primary h-6 w-6" />
             {t('exploreLearningModules')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {appModulesConfig.map((mod) => (
               <ModuleLinkCard
-                key={mod.id} 
+                key={mod.id}
                 title={t(mod.titleKey, mod.defaultTitle)}
                 description={t(mod.descriptionKey, mod.defaultDescription)}
                 href={mod.href}
