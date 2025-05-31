@@ -1,6 +1,6 @@
-
 "use client";
 
+import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,13 +14,13 @@ import { generateVocabulary } from "@/ai/flows/generate-vocabulary-flow";
 import type { GenerateVocabularyInput, GenerateVocabularyOutput, VocabularyWord } from "@/ai/flows/generate-vocabulary-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, Info } from "lucide-react";
+import { FileText, Sparkles, Languages, MessageSquareText, XCircle, Eye, EyeOff, ArrowLeft, ArrowRight, Repeat, CheckCircle2, Lightbulb, Archive, PartyPopper, Info, RefreshCw } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel, UserLearnedWord } from "@/lib/types";
-import { interfaceLanguageCodes } from "@/lib/types";
+import { interfaceLanguageCodes, learningStageIntervals, MAX_LEARNING_STAGE } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
-import { enUS, ru as ruLocale } from 'date-fns/locale'; // Renamed ru to ruLocale
+import { enUS, ru as ruLocale } from 'date-fns/locale';
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -74,7 +74,7 @@ const baseEnTranslations: Record<string, string> = {
   showTypeInPracticeHintButton: "Show Hint (First Letter)",
   hideTypeInPracticeHintButton: "Hide Hint",
   typeInHintLabel: "Hint:",
-  typeInPracticeAgainButton: "Practice Again",
+  typeInPracticeAgainButton: "Practice This Set Again",
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
@@ -94,6 +94,8 @@ const baseEnTranslations: Record<string, string> = {
   learningStageLabel: "Learning Stage:",
   nextReviewLabel: "Next Review:",
   newWordStatus: "New word (not in review cycle yet)",
+  nextPartButton: "Next Part",
+  repeatLessonPartButton: "Repeat This Set",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -133,7 +135,7 @@ const baseRuTranslations: Record<string, string> = {
   showTypeInPracticeHintButton: "Показать подсказку (первая буква)",
   hideTypeInPracticeHintButton: "Скрыть подсказку",
   typeInHintLabel: "Подсказка:",
-  typeInPracticeAgainButton: "Практиковать снова",
+  typeInPracticeAgainButton: "Практиковать этот набор снова",
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
@@ -153,6 +155,8 @@ const baseRuTranslations: Record<string, string> = {
   learningStageLabel: "Стадия изучения:",
   nextReviewLabel: "Следующее повторение:",
   newWordStatus: "Новое слово (еще не в цикле повторения)",
+  nextPartButton: "Далее",
+  repeatLessonPartButton: "Повторить этот набор",
 };
 
 const generateTranslations = () => {
@@ -180,8 +184,8 @@ export function VocabularyModuleClient() {
   const [isCardRevealed, setIsCardRevealed] = useState(false);
   const [currentWordSrsData, setCurrentWordSrsData] = useState<UserLearnedWord | null>(null);
 
-
   const [practiceWords, setPracticeWords] = useState<VocabularyWord[]>([]);
+  // Type-In Practice States
   const [currentTypeInPracticeIndex, setCurrentTypeInPracticeIndex] = useState(0);
   const [userTypeInAnswer, setUserTypeInAnswer] = useState("");
   const [typeInPracticeFeedback, setTypeInPracticeFeedback] = useState("");
@@ -190,7 +194,7 @@ export function VocabularyModuleClient() {
   const [showTypeInPracticeHint, setShowTypeInPracticeHint] = useState(false);
   const [isCurrentTypeInPracticeMistakeArchived, setIsCurrentTypeInPracticeMistakeArchived] = useState(false);
 
-
+  // Multiple Choice Practice States
   const [currentMcPracticeIndex, setCurrentMcPracticeIndex] = useState(0);
   const [mcPracticeOptions, setMcPracticeOptions] = useState<VocabularyWord[]>([]);
   const [selectedMcOption, setSelectedMcOption] = useState<VocabularyWord | null>(null);
@@ -239,7 +243,7 @@ export function VocabularyModuleClient() {
       .slice(0, 3);
 
     const options = shuffleArray([correctWord, ...distractors]);
-    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length)));
+    setMcPracticeOptions(options.slice(0, Math.min(4, wordsForMc.length))); // Ensure max 4 options
     setSelectedMcOption(null);
     setMcPracticeFeedback("");
     setIsMcPracticeSubmitted(false);
@@ -257,10 +261,12 @@ export function VocabularyModuleClient() {
     setIsAiLoading(true);
     setVocabularyResult(null);
     setCurrentTopic(data.topic);
+    // Reset all states related to flashcards and practice modes
     setCurrentCardIndex(0);
     setIsCardRevealed(false);
     setCurrentWordSrsData(null);
     setPracticeWords([]);
+    
     setCurrentTypeInPracticeIndex(0);
     setUserTypeInAnswer("");
     setTypeInPracticeFeedback("");
@@ -268,6 +274,7 @@ export function VocabularyModuleClient() {
     setTypeInPracticeScore({ correct: 0, total: 0 });
     setShowTypeInPracticeHint(false);
     setIsCurrentTypeInPracticeMistakeArchived(false);
+    
     setCurrentMcPracticeIndex(0);
     setMcPracticeOptions([]);
     setSelectedMcOption(null);
@@ -296,7 +303,7 @@ export function VocabularyModuleClient() {
         setPracticeWords(shuffledWords);
         setTypeInPracticeScore(prev => ({ ...prev, total: result.words.length }));
         setMcPracticeScore(prev => ({ ...prev, total: result.words.length }));
-        setupMcPracticeExercise(0, shuffledWords);
+        // setupMcPracticeExercise will be called by useEffect
       }
       toast({
         title: t('toastSuccessTitle'),
@@ -355,18 +362,18 @@ export function VocabularyModuleClient() {
   };
   
   const handleWordRepetition = (knewIt: boolean) => {
-    if (currentWordData && userData.settings) {
-      processWordRepetition(currentWordData, userData.settings.targetLanguage as AppTargetLanguage, knewIt);
+    const wordData = vocabularyResult?.words?.[currentCardIndex];
+    if (wordData && userData.settings) {
+      processWordRepetition(wordData, userData.settings.targetLanguage as AppTargetLanguage, knewIt);
       toast({
         title: t('flashcardStatusUpdatedToast'),
         duration: 2000,
       });
-      handleNextCard(); // Automatically go to next card
+      handleNextCard(); 
     }
   };
 
 
-  const currentWordData = vocabularyResult?.words?.[currentCardIndex];
   const currentTypeInPracticeWord = practiceWords[currentTypeInPracticeIndex];
 
   const handleUserTypeInAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -432,6 +439,9 @@ export function VocabularyModuleClient() {
   };
 
   const currentMcPracticeWord = practiceWords[currentMcPracticeIndex];
+  const typeInScorePercentage = typeInPracticeScore.total > 0 ? (typeInPracticeScore.correct / typeInPracticeScore.total) * 100 : 0;
+  const mcScorePercentage = mcPracticeScore.total > 0 ? (mcPracticeScore.correct / mcPracticeScore.total) * 100 : 0;
+
 
   const handleMcOptionSelect = (option: VocabularyWord) => {
     if (isMcPracticeSubmitted) return;
@@ -453,7 +463,6 @@ export function VocabularyModuleClient() {
   const handleNextMcPracticeExercise = () => {
     if (currentMcPracticeIndex < practiceWords.length - 1) {
       setCurrentMcPracticeIndex(prev => prev + 1);
-      // setupMcPracticeExercise is called via useEffect
     } else {
       setMcPracticeFeedback(t('mcPracticeComplete'));
       recordPracticeSetCompletion();
@@ -463,7 +472,6 @@ export function VocabularyModuleClient() {
   const handleRestartMcPractice = () => {
     setCurrentMcPracticeIndex(0);
     setMcPracticeScore(prev => ({ ...prev, correct: 0 }));
-    // setupMcPracticeExercise is called via useEffect
   };
 
   const handleArchiveMcPracticeMistake = () => {
@@ -488,6 +496,7 @@ export function VocabularyModuleClient() {
   if (!userData.settings) {
     return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
+  const currentWordData = vocabularyResult?.words?.[currentCardIndex];
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -558,7 +567,7 @@ export function VocabularyModuleClient() {
                       <h3 className="text-3xl md:text-4xl font-semibold text-primary break-all mb-6">
                         {currentWordData.word}
                       </h3>
-                      <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}} size="lg" variant="outline">
+                       <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(true);}} size="lg" variant="outline">
                         <Eye className="mr-2 h-5 w-5" /> {t('showDetailsButton')}
                       </Button>
                     </>
@@ -569,6 +578,9 @@ export function VocabularyModuleClient() {
                           {currentWordData.word}
                           <span className="text-sm font-normal text-muted-foreground ml-2">({userData.settings?.targetLanguage})</span>
                         </h3>
+                        <Button onClick={(e) => { e.stopPropagation(); setIsCardRevealed(false);}} variant="ghost" size="sm" className="text-muted-foreground">
+                            <EyeOff className="mr-1 h-4 w-4" /> {t('hideDetailsButton')}
+                        </Button>
                       </div>
                       <div className="border-t pt-3 space-y-3">
                         <div>
@@ -727,9 +739,29 @@ export function VocabularyModuleClient() {
                         .replace('{total}', typeInPracticeScore.total.toString())}
                     </p>
                   )}
-                  <Button onClick={handleRestartTypeInPractice} variant="outline">
-                    {t('typeInPracticeAgainButton')}
-                  </Button>
+                   {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                        {typeInScorePercentage <= 70 && (
+                           <Button onClick={handleRestartTypeInPractice} variant="default">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={handleClearResults} 
+                          variant={typeInScorePercentage > 70 ? "default" : "outline"}
+                        >
+                          <ArrowRight className="mr-2 h-4 w-4" />
+                          {t('nextPartButton')}
+                        </Button>
+                        {typeInScorePercentage > 70 && (
+                           <Button onClick={handleRestartTypeInPractice} variant="outline">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                 </div>
               )}
             </CardFooter>
@@ -829,9 +861,29 @@ export function VocabularyModuleClient() {
                         .replace('{total}', mcPracticeScore.total.toString())}
                     </p>
                   )}
-                  <Button onClick={handleRestartMcPractice} variant="outline">
-                    {t('practiceAgainMcButton')}
-                  </Button>
+                  {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
+                     <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                        {mcScorePercentage <= 70 && (
+                           <Button onClick={handleRestartMcPractice} variant="default">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={handleClearResults} 
+                          variant={mcScorePercentage > 70 ? "default" : "outline"}
+                        >
+                          <ArrowRight className="mr-2 h-4 w-4" />
+                          {t('nextPartButton')}
+                        </Button>
+                        {mcScorePercentage > 70 && (
+                           <Button onClick={handleRestartMcPractice} variant="outline">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                      </div>
+                  )}
                 </div>
               )}
             </CardFooter>
@@ -841,3 +893,5 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
+
+  

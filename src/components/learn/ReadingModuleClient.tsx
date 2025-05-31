@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -16,7 +15,7 @@ import { generateReadingMaterial } from "@/ai/flows/generate-reading-material-fl
 import type { GenerateReadingMaterialInput, GenerateReadingMaterialOutput } from "@/ai/flows/generate-reading-material-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { BookOpen, HelpCircle, Sparkles, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive, Volume2, Ban } from "lucide-react";
+import { BookOpen, HelpCircle, Sparkles, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive, Volume2, Ban, ArrowRight, RefreshCw } from "lucide-react";
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage, ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { interfaceLanguageCodes, proficiencyLevels, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,6 +69,8 @@ const baseEnTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
   ttsUtteranceErrorTitle: "Speech Error",
   ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
+  nextPartButton: "Next Part",
+  repeatLessonPartButton: "Repeat Lesson Part",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -110,6 +111,8 @@ const baseRuTranslations: Record<string, string> = {
   ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
   ttsUtteranceErrorTitle: "Ошибка синтеза речи",
   ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
+  nextPartButton: "Далее",
+  repeatLessonPartButton: "Повторить урок",
 };
 
 const generateTranslations = () => {
@@ -153,7 +156,7 @@ export function ReadingModuleClient() {
     },
   });
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const currentLang = isUserDataLoading || !userData.settings ? 'en' : userData.settings.interfaceLanguage;
   const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
@@ -164,7 +167,6 @@ export function ReadingModuleClient() {
     const updateVoices = () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         voicesRef.current = window.speechSynthesis.getVoices();
-        console.log(`TTS: ReadingModuleClient - Voices loaded/changed for ${currentLang}:`, voicesRef.current.filter(v => v.lang.startsWith(mapInterfaceLanguageToBcp47(currentLang))).map(v => ({ name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
       }
     };
 
@@ -181,64 +183,39 @@ export function ReadingModuleClient() {
       }
       setCurrentlySpeakingTTSId(null);
     };
-  }, [currentLang]);
+  }, []);
 
   const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-      console.warn('TTS: ReadingModuleClient - Voices not available or synthesis not supported.');
+      console.warn(`TTS: ReadingModuleClient - Voices not available or synthesis not supported for lang "${langCode}".`);
       return undefined;
     }
-    console.log(`TTS: ReadingModuleClient - Selecting voice for lang "${langCode}". Available voices:`, availableVoices.map(v => ({name: v.name, lang: v.lang, default: v.default, localService: v.localService })));
-
+  
     let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
     if (!targetLangVoices.length) {
       const baseLang = langCode.split('-')[0];
       targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
-      if (targetLangVoices.length) {
-        console.log(`TTS: ReadingModuleClient - No exact match for "${langCode}", using base lang "${baseLang}" voices.`);
-      }
     }
-
-    if (!targetLangVoices.length) {
-      console.warn(`TTS: ReadingModuleClient - No voices found for lang "${langCode}" or base lang.`);
-      return undefined;
-    }
-    
+  
+    if (!targetLangVoices.length) return undefined;
+  
     if (langCode.startsWith('de')) {
       const specificGermanVoice = targetLangVoices.find(voice =>
         voice.name.toLowerCase().includes('german') || voice.name.toLowerCase().includes('deutsch')
       );
-      if (specificGermanVoice) {
-        console.log(`TTS: ReadingModuleClient - Selected specific German voice: ${specificGermanVoice.name}`);
-        return specificGermanVoice;
-      }
+      if (specificGermanVoice) return specificGermanVoice;
     }
-    
+  
     const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-    if (googleVoice) {
-      console.log('TTS: ReadingModuleClient - Selected Google voice:', googleVoice.name);
-      return googleVoice;
-    }
-
+    if (googleVoice) return googleVoice;
+  
     const defaultVoice = targetLangVoices.find(voice => voice.default);
-    if (defaultVoice) {
-      console.log('TTS: ReadingModuleClient - Selected default voice:', defaultVoice.name);
-      return defaultVoice;
-    }
+    if (defaultVoice) return defaultVoice;
     
     const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-    if (localServiceVoice) {
-      console.log('TTS: ReadingModuleClient - Selected local service voice:', localServiceVoice.name);
-      return localServiceVoice;
-    }
+    if (localServiceVoice) return localServiceVoice;
     
-    if (targetLangVoices.length > 0) {
-      console.log('TTS: ReadingModuleClient - Selected first available voice:', targetLangVoices[0].name);
-      return targetLangVoices[0];
-    }
-    
-    console.warn(`TTS: ReadingModuleClient - Could not select any voice for lang "${langCode}".`);
-    return undefined;
+    return targetLangVoices[0];
   }, []);
 
   const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
@@ -272,14 +249,13 @@ export function ReadingModuleClient() {
       };
       utterance.onerror = (event) => {
         if (event.error === "interrupted") {
-          console.info('TTS: ReadingModuleClient - Speech synthesis interrupted by user or new call.');
+          console.info('TTS: ReadingModuleClient - Speech synthesis interrupted.');
         } else {
           console.error('TTS: ReadingModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
           toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
-      console.log(`TTS: ReadingModuleClient - Speaking segment: "${utterance.text.substring(0,30)}...", Lang: ${utterance.lang}, Voice: ${utterance.voice ? utterance.voice.name : 'Default'}`);
       window.speechSynthesis.speak(utterance);
     } else {
       setCurrentlySpeakingTTSId(null);
@@ -307,6 +283,7 @@ export function ReadingModuleClient() {
     }
     
     const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
+    
     const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
     startSignalUtterance.lang = interfaceLangBcp47;
     const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
@@ -339,7 +316,7 @@ export function ReadingModuleClient() {
     
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]);
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, mapInterfaceLanguageToBcp47]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
@@ -347,7 +324,6 @@ export function ReadingModuleClient() {
     }
     setCurrentlySpeakingTTSId(null);
   }, [setCurrentlySpeakingTTSId]);
-  // End TTS Logic
 
 
   const fetchReadingMaterial = useCallback(async (formData: ReadingFormData) => {
@@ -391,11 +367,9 @@ export function ReadingModuleClient() {
 
   const onSubmit: SubmitHandler<ReadingFormData> = async (data) => {
     await fetchReadingMaterial(data);
-    // Не сбрасываем форму здесь, чтобы пользователь мог легко изменить только тему или уровень
   };
   
   useEffect(() => {
-    // Initialize form with user's default proficiency or first available if not set
     if (userData.settings) {
       setValue('proficiencyLevel', userData.settings.proficiencyLevel);
     }
@@ -471,6 +445,7 @@ export function ReadingModuleClient() {
   const totalQuestions = readingResult?.comprehensionQuestions?.length || 0;
   const ttsPlayButtonId = `tts-reading-${readingResult?.title?.replace(/\s+/g, '-') || currentTopic.replace(/\s+/g, '-') || 'text'}`;
   const isCurrentlySpeakingThisText = currentlySpeakingTTSId === ttsPlayButtonId;
+  const scorePercentage = totalQuestions > 0 ? (correctAnswersCount / totalQuestions) * 100 : 0;
 
 
   const getScoreMessage = () => {
@@ -491,12 +466,15 @@ export function ReadingModuleClient() {
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
             <BookOpen className="h-8 w-8 text-primary" />
             {t('title')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-center">
             {t('description')}
+             {typeof window !== 'undefined' && window.speechSynthesis && (
+                <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
+            )}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -628,26 +606,26 @@ export function ReadingModuleClient() {
                               className="ml-4 space-y-1"
                             >
                               {q.options.map((opt, optIndex) => {
-                                const isSelected = userAnswer === opt;
+                                const isSelectedOption = userAnswer === opt;
                                 const isActualCorrectAnswer = q.answer === opt;
                                 let labelClassName = "text-sm";
-                                if (hasSubmitted && isSelected && isCorrect) {
-                                  labelClassName = "text-sm font-semibold text-green-600 dark:text-green-400";
-                                } else if (hasSubmitted && isSelected && !isCorrect) {
-                                  labelClassName = "text-sm font-semibold text-red-600 dark:text-red-400";
-                                } else if (hasSubmitted && !isSelected && isActualCorrectAnswer) {
-                                  labelClassName = "text-sm font-semibold text-green-700 dark:text-green-500";
+                                if (hasSubmitted) {
+                                  if (isActualCorrectAnswer) {
+                                    labelClassName = cn(labelClassName, "font-semibold text-green-600 dark:text-green-400");
+                                  } else if (isSelectedOption && !isActualCorrectAnswer) {
+                                    labelClassName = cn(labelClassName, "font-semibold text-red-600 dark:text-red-400");
+                                  }
                                 }
-
+                                
                                 return (
                                   <div key={optIndex} className="flex items-center space-x-2">
                                     <RadioGroupItem value={opt} id={`q${index}-opt${optIndex}`} />
                                     <Label htmlFor={`q${index}-opt${optIndex}`} className={labelClassName}>
                                       {opt}
                                     </Label>
-                                    {hasSubmitted && isSelected && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                                    {hasSubmitted && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-600" />}
-                                    {hasSubmitted && !isSelected && isActualCorrectAnswer && <Target className="h-4 w-4 text-green-700 opacity-70" />}
+                                    {hasSubmitted && isSelectedOption && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                    {hasSubmitted && isSelectedOption && !isCorrect && <XCircle className="h-4 w-4 text-red-600" />}
+                                    {hasSubmitted && !isSelectedOption && isActualCorrectAnswer && <Target className="h-4 w-4 text-green-600 opacity-70" />}
                                   </div>
                                 );
                               })}
@@ -678,19 +656,38 @@ export function ReadingModuleClient() {
                   </ul>
                 </ScrollArea>
                 {hasQuestions && (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
                     {!isAnswersSubmitted ? (
                       <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
                         {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
                         {t('checkAnswersButton')}
                       </Button>
                     ) : (
-                      <Button onClick={handleTryAgain} variant="outline" disabled={isAiLoading}>
-                        {t('tryAgainButton')}
-                      </Button>
+                      <>
+                        {scorePercentage <= 70 && (
+                          <Button onClick={handleTryAgain} variant="default" className="w-full sm:w-auto">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={handleClearResults} 
+                          variant={scorePercentage > 70 ? "default" : "outline"} 
+                          className="w-full sm:w-auto"
+                        >
+                           <ArrowRight className="mr-2 h-4 w-4" />
+                           {t('nextPartButton')}
+                        </Button>
+                         {scorePercentage > 70 && (
+                           <Button onClick={handleTryAgain} variant="outline" className="w-full sm:w-auto">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            {t('repeatLessonPartButton')}
+                          </Button>
+                        )}
+                      </>
                     )}
                      {isAnswersSubmitted && (
-                      <p className="text-sm mt-2 text-muted-foreground">{getScoreMessage()}</p>
+                      <p className="text-sm text-muted-foreground mt-2 sm:mt-0 sm:ml-4">{getScoreMessage()}</p>
                     )}
                   </div>
                 )}
@@ -708,3 +705,4 @@ export function ReadingModuleClient() {
   );
 }
     
+  

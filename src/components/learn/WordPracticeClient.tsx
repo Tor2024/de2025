@@ -1,7 +1,7 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import * as React from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/contexts/UserDataContext";
 import { generateFillInTheBlankExercises } from "@/ai/flows/generate-fill-in-the-blank-flow";
-import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput, FillBlankExercise as ExerciseType } from "@/ai/flows/generate-fill-in-the-blank-flow"; // Renamed FillBlankExercise to ExerciseType
+import type { GenerateFillInTheBlankInput, GenerateFillInTheBlankOutput } from "@/ai/flows/generate-fill-in-the-blank-flow";
+import type { FillBlankExercise as ExerciseType } from "@/ai/flows/generate-fill-in-the-blank-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive, PartyPopper } from "lucide-react";
+import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive, PartyPopper, ArrowRight, RefreshCw } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,8 @@ const baseEnTranslations: Record<string, string> = {
   archiveMistakeButton: "Archive this mistake",
   mistakeArchivedToastTitle: "Mistake Archived",
   mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
+  nextPartButton: "Next Set",
+  repeatLessonPartButton: "Repeat This Set",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -92,6 +95,8 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
+  nextPartButton: "Следующий набор",
+  repeatLessonPartButton: "Повторить этот набор",
 };
 
 const generateTranslations = () => {
@@ -131,11 +136,11 @@ export function WordPracticeClient() {
     resolver: zodResolver(exerciseFormSchema),
   });
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
-  const t = (key: string, defaultText?: string): string => {
+  const currentLang = isUserDataLoading || !userData.settings ? 'en' : userData.settings.interfaceLanguage;
+  const t = useCallback((key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  };
+  }, [currentLang]);
 
   const currentExercise = exerciseResult?.exercises?.[currentExerciseIndex];
   const currentExerciseState = exerciseStates[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false };
@@ -192,7 +197,7 @@ export function WordPracticeClient() {
   const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setExerciseStates(prev => ({
       ...prev,
-      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false }), userAnswer: e.target.value, isCorrect: undefined }
+      [currentExerciseIndex]: { ...(prev[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false }), userAnswer: e.target.value, isCorrect: undefined, isMistakeArchived: false }
     }));
   };
 
@@ -248,6 +253,18 @@ export function WordPracticeClient() {
     resetTopicForm();
   };
 
+  const handleRestartCurrentSet = () => {
+    setCurrentExerciseIndex(0);
+    const resetStates: Record<number, ExerciseState> = {};
+    if (exerciseResult?.exercises) {
+      exerciseResult.exercises.forEach((_, index) => {
+        resetStates[index] = { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false, isCorrect: undefined };
+      });
+    }
+    setExerciseStates(resetStates);
+    setShowOverallResults(false);
+  };
+
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
@@ -257,6 +274,7 @@ export function WordPracticeClient() {
 
   const totalExercises = exerciseResult?.exercises?.length || 0;
   const correctCount = Object.values(exerciseStates).filter(state => state.isCorrect).length;
+  const scorePercentage = totalExercises > 0 ? (correctCount / totalExercises) * 100 : 0;
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -319,9 +337,28 @@ export function WordPracticeClient() {
                     <p className="text-lg text-muted-foreground">
                         {t('scoreMessage').replace('{correct}', correctCount.toString()).replace('{total}', totalExercises.toString())}
                     </p>
-                    <Button onClick={handleClearResults} className="mt-6">
-                        {t('generateExercisesButton')}
-                    </Button>
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                      {scorePercentage <= 70 && (
+                        <Button onClick={handleRestartCurrentSet} variant="default" className="w-full sm:w-auto">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          {t('repeatLessonPartButton')}
+                        </Button>
+                      )}
+                      <Button 
+                        onClick={handleClearResults} // This effectively generates a new set
+                        variant={scorePercentage > 70 ? "default" : "outline"} 
+                        className="w-full sm:w-auto"
+                      >
+                        <ArrowRight className="mr-2 h-4 w-4" />
+                        {t('nextPartButton')} 
+                      </Button>
+                       {scorePercentage > 70 && (
+                         <Button onClick={handleRestartCurrentSet} variant="outline" className="w-full sm:w-auto">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          {t('repeatLessonPartButton')}
+                        </Button>
+                      )}
+                    </div>
                 </div>
             ) : currentExercise ? (
               <div className="p-4 rounded-md border bg-muted/30 shadow-sm">
@@ -365,7 +402,7 @@ export function WordPracticeClient() {
                       {t('correctAnswerLabel')} <span className="font-semibold text-primary">{currentExercise.correctAnswer}</span>
                     </p>
                      {currentExerciseState.isSubmitted && !currentExerciseState.isCorrect && !currentExerciseState.isMistakeArchived && (
-                        <Button variant="outline" size="sm" onClick={handleArchiveMistake} className="text-xs">
+                        <Button variant="outline" size="sm" onClick={handleArchiveMistake} className="text-xs mt-1">
                             <Archive className="mr-1.5 h-3.5 w-3.5" />
                             {t('archiveMistakeButton')}
                         </Button>
@@ -414,3 +451,5 @@ export function WordPracticeClient() {
     </div>
   );
 }
+
+  
