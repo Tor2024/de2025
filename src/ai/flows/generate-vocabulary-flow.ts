@@ -21,7 +21,7 @@ const GenerateVocabularyInputSchema = z.object({
 });
 export type GenerateVocabularyInput = z.infer<typeof GenerateVocabularyInputSchema>;
 
-export const VocabularyWordSchema = z.object({
+const VocabularyWordSchema = z.object({ // Removed export here
     word: z.string().describe('The vocabulary word in the targetLanguage.'),
     translation: z.string().describe('The translation of the word into the interfaceLanguage.'),
     exampleSentence: z.string().optional().describe('An example sentence using the word in the targetLanguage.'),
