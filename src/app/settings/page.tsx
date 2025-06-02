@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -21,6 +20,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import * as React from 'react';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { useTheme, Theme } from '@/contexts/ThemeContext';
 
 const baseEnTranslations = {
   title: "Settings",
@@ -72,9 +75,16 @@ const pageTranslations = generateTranslations();
 
 
 export default function SettingsPage() {
-  const { userData, clearUserData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, clearUserData, isLoading: isUserDataLoading, updateSettings } = useUserData();
   const router = useRouter();
   const [isResetDialogOpen, setIsResetDialogOpen] = React.useState(false);
+  const [interests, setInterests] = React.useState<string[]>(userData.settings?.interests || []);
+  const [goals, setGoals] = React.useState<string[]>(Array.isArray(userData.settings?.goal) ? userData.settings.goal : userData.settings?.goal ? [userData.settings.goal] : []);
+  const [interestInput, setInterestInput] = React.useState('');
+  const [goalInput, setGoalInput] = React.useState('');
+  const [isSaving, setIsSaving] = React.useState(false);
+  const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
@@ -103,6 +113,40 @@ export default function SettingsPage() {
     }
     const lang = supportedLanguages.find(l => l.name === codeOrName);
     return lang ? `${lang.nativeName} (${lang.name})` : codeOrName;
+  };
+
+  const handleAddInterest = () => {
+    if (interestInput.trim() && !interests.includes(interestInput.trim())) {
+      setInterests([...interests, interestInput.trim()]);
+      setInterestInput('');
+    }
+  };
+
+  const handleRemoveInterest = (interest: string) => {
+    setInterests(interests.filter(i => i !== interest));
+  };
+
+  const handleAddGoal = () => {
+    if (goalInput.trim() && !goals.includes(goalInput.trim())) {
+      setGoals([...goals, goalInput.trim()]);
+      setGoalInput('');
+    }
+  };
+
+  const handleRemoveGoal = (goal: string) => {
+    setGoals(goals.filter(g => g !== goal));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      updateSettings({ interests, goal: Array.isArray(goals) ? goals : goals ? [goals] : [] });
+      toast({ title: 'Изменения сохранены', description: 'Ваши интересы и цели обновлены.', variant: 'default' });
+    } catch (e) {
+      toast({ title: 'Ошибка', description: 'Не удалось сохранить изменения. Попробуйте ещё раз.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isUserDataLoading) {
@@ -144,16 +188,61 @@ export default function SettingsPage() {
                   <GraduationCap className="h-4 w-4 text-primary/80" />
                   <p><strong>{t('targetLanguageLabel')}</strong> {getLanguageDisplayName(userData.settings.targetLanguage, 'target')}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <BarChartHorizontalBig className="h-4 w-4 text-primary/80" />
-                  <p><strong>{t('proficiencyLabel')}</strong> {userData.settings.proficiencyLevel}</p>
+                <div className="mt-4">
+                  <p className="font-semibold mb-1">Интересы:</p>
+                  <div className="flex gap-2 mb-2 flex-wrap">
+                    {interests.map((interest, idx) => (
+                      <Badge key={idx} className="bg-primary/10 text-primary cursor-pointer" onClick={() => handleRemoveInterest(interest)}>
+                        {interest} ×
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={interestInput}
+                      onChange={e => setInterestInput(e.target.value)}
+                      placeholder="Добавить интерес..."
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddInterest(); }}
+                      className="flex-1"
+                    />
+                    <Button type="button" onClick={handleAddInterest} disabled={!interestInput.trim()}>Добавить</Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Flag className="h-4 w-4 text-primary/80" />
-                  <p><strong>{t('goalLabel')}</strong> {userData.settings.goal}</p>
+                <div className="mt-4">
+                  <p className="font-semibold mb-1">Цели изучения:</p>
+                  <div className="flex gap-2 mb-2 flex-wrap">
+                    {goals.map((goal, idx) => (
+                      <Badge key={idx} className="bg-primary/10 text-primary cursor-pointer" onClick={() => handleRemoveGoal(goal)}>
+                        {goal} ×
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={goalInput}
+                      onChange={e => setGoalInput(e.target.value)}
+                      placeholder="Добавить цель..."
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddGoal(); }}
+                      className="flex-1"
+                    />
+                    <Button type="button" onClick={handleAddGoal} disabled={!goalInput.trim()}>Добавить</Button>
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleSave} disabled={isSaving} variant="default">
+                    {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
+                  </Button>
                 </div>
               </div>
             )}
+            <div className="text-left text-sm bg-muted/50 p-4 rounded-md shadow-sm space-y-2">
+              <div className="mb-2 font-semibold">Тема оформления:</div>
+              <div className="flex gap-2">
+                <Button variant={theme === 'light' ? 'default' : 'outline'} onClick={() => setTheme('light')}>Светлая</Button>
+                <Button variant={theme === 'dark' ? 'default' : 'outline'} onClick={() => setTheme('dark')}>Тёмная</Button>
+                <Button variant={theme === 'system' ? 'default' : 'outline'} onClick={() => setTheme('system')}>Системная</Button>
+              </div>
+            </div>
             <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)} className="mt-4">

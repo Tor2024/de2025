@@ -1,8 +1,7 @@
-
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { ReadingModuleClient } from "@/components/learn/ReadingModuleClient";
+import ReadingModuleClient from "@/components/learn/ReadingModuleClient";
 import { useUserData } from "@/contexts/UserDataContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

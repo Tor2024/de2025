@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Explains a user's error in a grammar task.
@@ -51,6 +50,10 @@ Please provide a detailed explanation of why the user's answer was incorrect.
 - Explain why the provided "{{{correctAnswer}}}" is correct according to these rules.
 - Be constructive and encouraging.
 - Keep the explanation focused on this specific error and task.
+- Если ответ пользователя частично совпадает с правильным (например, буква или часть слова), обязательно укажи, что он был близок, и объясни, чего не хватило.
+- Если задание на вставку буквы/части слова, объясняй, почему засчитан только полный ответ.
+- Приводи сравнения с другими словами, если это поможет запомнить.
+- Не повторяй очевидное, если пользователь уже понял суть.
 `,
 });
 

@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI-powered reading material generator.
@@ -18,6 +17,11 @@ const GenerateReadingMaterialInputSchema = z.object({
   targetLanguage: z.enum(targetLanguageNames).describe('The target language for the reading text (e.g., German, English).'),
   proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2) to tailor text complexity.'),
   topic: z.string().min(3).describe('The topic for the reading material (e.g., "Daily Routines", "Space Exploration").'),
+  goals: z.array(z.string()).describe('User learning goals.'),
+  interests: z.array(z.string()).describe('User interests.'),
+  topicMistakes: z.record(z.number()).optional().describe('User mistakes by topic.'),
+  grammarMistakes: z.record(z.number()).optional().describe('User mistakes by grammar point.'),
+  vocabMistakes: z.record(z.number()).optional().describe('User mistakes by vocabulary.'),
 });
 export type GenerateReadingMaterialInput = z.infer<typeof GenerateReadingMaterialInputSchema>;
 
@@ -45,29 +49,28 @@ const generateReadingMaterialPrompt = ai.definePrompt({
   output: {schema: GenerateReadingMaterialOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging reading materials.
 
-Task: Generate a short reading text and optional comprehension questions based on the user's preferences.
+Task: Generate a short reading text and optional comprehension questions based on the user's preferences and learning profile.
 
-User Preferences:
+User Profile:
 - Interface Language (for questions/instructions): {{{interfaceLanguage}}}
 - Target Language (for the reading text): {{{targetLanguage}}}
 - Proficiency Level (for text complexity): {{{proficiencyLevel}}}
 - Topic: {{{topic}}}
+- User Goals: {{#if goals.length}}{{goals}}{{else}}не указаны{{/if}}
+- User Interests: {{#if interests.length}}{{interests}}{{else}}не указаны{{/if}}
+- Mistakes by topic: {{#if topicMistakes}}{{topicMistakes}}{{else}}нет данных{{/if}}
+- Mistakes by grammar: {{#if grammarMistakes}}{{grammarMistakes}}{{else}}нет данных{{/if}}
+- Mistakes by vocabulary: {{#if vocabMistakes}}{{vocabMistakes}}{{else}}нет данных{{/if}}
 
-Instructions:
-1.  **Title (Optional):** Generate a concise and relevant title for the reading text. The title MUST be in the {{{targetLanguage}}}.
-2.  **Reading Text:**
-    *   Generate a coherent and engaging text on the specified {{{topic}}}.
-    *   The text MUST be in the {{{targetLanguage}}}.
-    *   The complexity of vocabulary, sentence structure, and overall content MUST be appropriate for the {{{proficiencyLevel}}}. Aim for approximately 150-200 words for A1-A2, 200-250 for B1-B2, and 250-300 for C1-C2.
-    *   Ensure the text is grammatically correct and natural-sounding.
-3.  **Comprehension Questions (Optional, 2-3 questions):**
-    *   If you generate questions, they should test understanding of the main ideas or key details of the {{{readingText}}}.
-    *   Each question (the 'question' field) MUST be in the {{{interfaceLanguage}}}.
-    *   If providing multiple-choice options (the 'options' array), these options MUST also be in the {{{interfaceLanguage}}}.
-    *   Provide the correct answer or an indication of the correct option (the 'answer' field), also in the {{{interfaceLanguage}}}. This could be the full answer for open questions, or the letter/number of the correct option for multiple choice.
-    *   Keep questions relatively simple and appropriate for the user's ability to understand them in their {{{interfaceLanguage}}} after reading a text in the {{{targetLanguage}}} at the specified {{{proficiencyLevel}}}.
-
-Output Format: Ensure your response is a JSON object matching the defined output schema.
+CRITICAL Instructions:
+1.  **Text Relevance and Level Appropriateness:**
+    *   The generated text MUST be highly relevant to the specified {{{topic}}}.
+    *   The complexity of the text, questions, и особенно примеры ДОЛЖНЫ строго соответствовать уровню {{{proficiencyLevel}}}.
+    *   Where possible, учитывай интересы, цели и слабые места пользователя (ошибки, темы, грамматика, лексика) — делай текст более релевантным и полезным для проработки этих аспектов.
+    *   Ensure that the selected text is commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
+2.  **Comprehension Questions:** Generate 2-4 questions to check understanding. Для каждого вопроса: формулируй его максимально понятно для новичка, всегда указывай, что именно должен сделать пользователь (например: выбрать правильный вариант, вписать слово, ответить на вопрос по содержанию и т.д.). Если есть риск неоднозначности, добавь короткую подсказку или пример. Избегай слишком кратких и абстрактных формулировок. Для каждого вопроса указывай правильный ответ и, если возможно, варианты (для multiple choice). Если даёшь объяснение к ответу — оно должно быть подробным, с разъяснением, почему правильный ответ именно такой, а другие — нет, с примерами, если это поможет. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.
+3.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
+The 'comprehensionQuestions' array should contain objects, each with 'question', 'answer', and optionally 'options'.
 `,
 });
 

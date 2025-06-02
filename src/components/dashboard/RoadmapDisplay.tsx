@@ -1,8 +1,7 @@
-
 "use client";
 
 import * as React from "react";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types"; // For interface language TTS
+import { Button } from "@/components/ui/button";
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RoadmapDisplayProps {
   titleText: string;
@@ -145,6 +146,17 @@ export function RoadmapDisplay({
     return text;
   }, []);
 
+  // Определяем индекс текущего (следующего незавершённого) урока
+  const currentLessonIndex = roadmap?.lessons.findIndex(lesson => !completedLessonIds.includes(lesson.id)) ?? 0;
+  const currentLessonId = roadmap?.lessons[currentLessonIndex]?.id;
+  const lessonRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Автоматический скролл к текущему уроку при изменении
+  useEffect(() => {
+    if (lessonRefs.current[currentLessonIndex]) {
+      lessonRefs.current[currentLessonIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentLessonIndex]);
 
   React.useEffect(() => {
     const updateVoices = () => {
@@ -233,7 +245,7 @@ export function RoadmapDisplay({
     if (!text) return "";
     let sanitizedText = text;
     sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-    sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
+    sanitizedText = sanitizedText.replace(/["«»„""]/g, '');
     sanitizedText = sanitizedText.replace(/'/g, '');
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
@@ -264,7 +276,7 @@ export function RoadmapDisplay({
           console.info('TTS: RoadmapDisplay - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: RoadmapDisplay - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: t(ttsUtteranceErrorTitle), description: t(ttsUtteranceErrorDescription), variant: 'destructive' });
+          toast({ title: t(ttsUtteranceErrorTitle, 'Ошибка синтеза речи'), description: t(ttsUtteranceErrorDescription, 'Попробуйте ещё раз.'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
@@ -280,7 +292,7 @@ export function RoadmapDisplay({
     const currentPlayId = playTextInternalIdRef.current;
 
     if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
-      toast({ title: t(ttsNotSupportedTitle), description: t(ttsNotSupportedDescription), variant: "destructive" });
+      toast({ title: t(ttsNotSupportedTitle, 'Синтез речи не поддерживается'), description: t(ttsNotSupportedDescription, 'Ваш браузер не поддерживает синтез речи.'), variant: "destructive" });
       return;
     }
     if (window.speechSynthesis.speaking) {
@@ -341,14 +353,24 @@ export function RoadmapDisplay({
   }, []);
 
   if (!roadmap || !roadmap.lessons || roadmap.lessons.length === 0) {
+    // Skeleton Loader для roadmap и уроков
     return (
       <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300 h-full flex flex-col">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><BookMarked className="text-primary"/>{loadingTitleText}</CardTitle>
-          <CardDescription>{loadingDescriptionText}</CardDescription>
+          <Skeleton className="h-8 w-2/3 mb-2" />
+          <Skeleton className="h-4 w-1/2 mb-4" />
         </CardHeader>
         <CardContent className="flex-grow">
-          <p>{loadingContentText}</p>
+          <div className="space-y-4">
+            {[1,2,3].map(i => (
+              <div key={i} className="mb-4">
+                <Skeleton className="h-6 w-1/3 mb-2" />
+                <Skeleton className="h-4 w-full mb-1" />
+                <Skeleton className="h-4 w-2/3 mb-1" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
@@ -372,6 +394,7 @@ export function RoadmapDisplay({
           <Accordion type="multiple" className="w-full">
             {roadmap.lessons.map((lesson: Lesson, index: number) => {
               const isCompleted = completedLessonIds.includes(lesson.id);
+              const isCurrent = index === currentLessonIndex;
               const hasDescription = lesson.description && lesson.description.trim().length > 0;
               const isCurrentlySpeakingThis = currentlySpeakingTTSId === lesson.id;
               const ttsPlayButtonId = `tts-lesson-${lesson.id || index}`;
@@ -381,9 +404,11 @@ export function RoadmapDisplay({
                 <AccordionItem
                   value={`lesson-item-${index}`}
                   key={`lesson-key-${index}`}
+                  ref={el => { lessonRefs.current[index] = el; }}
                   className={cn(
                     "bg-card mb-2 rounded-md border shadow-sm hover:shadow-md transition-shadow",
-                    isCompleted && "bg-green-500/10 border-green-500/30"
+                    isCompleted && "bg-green-500/10 border-green-500/30",
+                    isCurrent && !isCompleted && "border-primary ring-2 ring-primary/40"
                   )}
                 >
                   <AccordionTrigger className="p-4 text-base hover:no-underline">
@@ -398,13 +423,13 @@ export function RoadmapDisplay({
                               toggleLessonCompletion(lesson.id);
                               if (wasCompleting) {
                                 toast({
-                                  title: t(lessonMarkedCompleteToastTitleKey, "Lesson Complete!"),
-                                  description: t(lessonMarkedCompleteToastDescriptionKey, "Lesson '{lessonTitle}' marked as complete. +25 XP", { lessonTitle: lesson.title }),
+                                  title: t(lessonMarkedCompleteToastTitleKey, 'Урок завершён!'),
+                                  description: t(lessonMarkedCompleteToastDescriptionKey, '+25 XP за выполнение урока.'),
                                 });
                               } else {
                                 toast({
-                                  title: t(lessonMarkedIncompleteToastTitleKey, "Lesson Status Updated"),
-                                  description: t(lessonMarkedIncompleteToastDescriptionKey, "Lesson '{lessonTitle}' marked as incomplete.", { lessonTitle: lesson.title }),
+                                  title: t(lessonMarkedIncompleteToastTitleKey, 'Статус урока изменён'),
+                                  description: t(lessonMarkedIncompleteToastDescriptionKey, 'Урок отмечен как не завершён.'),
                                 });
                               }
                             }}
@@ -483,6 +508,22 @@ export function RoadmapDisplay({
 
                     {lesson.estimatedDuration && (
                       <p className="text-xs text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>{estimatedDurationText} {lesson.estimatedDuration}</p>
+                    )}
+
+                    {isCurrent && !isCompleted && (
+                      <Button
+                        className="mt-4"
+                        onClick={() => {
+                          toggleLessonCompletion(lesson.id);
+                          setTimeout(() => {
+                            if (lessonRefs.current[currentLessonIndex + 1]) {
+                              lessonRefs.current[currentLessonIndex + 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 300);
+                        }}
+                      >
+                        Перейти к следующему уроку
+                      </Button>
                     )}
                   </AccordionContent>
                 </AccordionItem>

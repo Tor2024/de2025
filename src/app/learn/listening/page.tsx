@@ -1,8 +1,7 @@
-
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { ListeningModuleClient } from "@/components/learn/ListeningModuleClient";
+import ListeningModuleClient from "@/components/learn/ListeningModuleClient";
 import { useUserData } from "@/contexts/UserDataContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

@@ -1,4 +1,3 @@
-
 // Use server directive is required for all Genkit flows.
 'use server';
 
@@ -17,6 +16,16 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
 import type { Lesson } from '@/lib/types'; // Ensure Lesson type is imported if its structure is complex
+import { germanCurriculum } from '@/curriculums/german';
+import { frenchCurriculum } from '@/curriculums/french';
+import { spanishCurriculum } from '@/curriculums/spanish';
+import { italianCurriculum } from '@/curriculums/italian';
+import { portugueseCurriculum } from '@/curriculums/portuguese';
+import { chineseCurriculum } from '@/curriculums/chinese';
+import { japaneseCurriculum } from '@/curriculums/japanese';
+import { koreanCurriculum } from '@/curriculums/korean';
+import { turkishCurriculum } from '@/curriculums/turkish';
+import { arabicCurriculum } from '@/curriculums/arabic';
 
 const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema
@@ -24,8 +33,14 @@ const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user wants to study (e.g., German, English). The actual learning content and concepts in the roadmap (e.g., grammar rules, vocabulary themes) should be for this language.'),
   proficiencyLevel: z
     .enum(proficiencyLevels)
-    .describe('The user-selected current/starting proficiency level (e.g., A1-A2, B1-B2, C1-C2). The generated roadmap must still cover all levels from A0/A1 to C2, but this input provides context for the user\'s starting point and may influence the introduction or initial focus of the comprehensive plan.'),
-  personalGoal: z.string().describe('The personal goal of the user (e.g., Pass B2 TELC exam).'),
+    .describe('The user-selected current/starting proficiency level (e.g., A1-A2, B1-B2, C1-C2). The generated roadmap must still cover all levels from A0/A1 to C2, но это поле теперь необязательное.')
+    .optional(),
+  goals: z.array(z.string()),
+  interests: z.array(z.string()),
+  topicMistakes: z.record(z.number()).optional(),
+  grammarMistakes: z.record(z.number()).optional(),
+  vocabMistakes: z.record(z.number()).optional(),
+  userName: z.string().optional(),
 });
 
 export type GeneratePersonalizedLearningRoadmapInput = z.infer<
@@ -57,229 +72,46 @@ export async function generatePersonalizedLearningRoadmap(
   return generatePersonalizedLearningRoadmapFlow(input);
 }
 
+const getCurriculum = (targetLanguage: string) => {
+  switch (targetLanguage) {
+    case 'German': return germanCurriculum;
+    case 'French': return frenchCurriculum;
+    case 'Spanish': return spanishCurriculum;
+    case 'Italian': return italianCurriculum;
+    case 'Portuguese': return portugueseCurriculum;
+    case 'Chinese': return chineseCurriculum;
+    case 'Japanese': return japaneseCurriculum;
+    case 'Korean': return koreanCurriculum;
+    case 'Turkish': return turkishCurriculum;
+    case 'Arabic': return arabicCurriculum;
+    default: return [];
+  }
+};
+
 const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   name: 'generatePersonalizedLearningRoadmapPrompt',
   input: {schema: GeneratePersonalizedLearningRoadmapInputSchema},
   output: {schema: GeneratePersonalizedLearningRoadmapOutputSchema},
-  prompt: `You are an AI language tutor specializing in creating personalized, structured, and comprehensive learning roadmaps for language learners.
-
-  Based on the user's interface language, target language, STARTING proficiency level, and personal goal, generate a COMPLETE and ADAPTIVE learning roadmap.
-
-  The output MUST be a JSON object matching the provided schema. Each lesson object in the 'lessons' array must include a unique 'id' field (e.g., 'module_a1_lesson_1', 'german_b2_topic_3').
-
-  VERY IMPORTANT INSTRUCTIONS REGARDING LANGUAGE AND FORMATTING:
-  1.  **Interface Language ({{{interfaceLanguage}}})**: ALL user-facing text within the roadmap structure ITSELF must be in this language. This includes:
-      *   The 'introduction' field (provide a welcoming and informative intro. If the user provided a 'proficiencyLevel', acknowledge it as their starting point but emphasize the plan covers A0-C2 for comprehensive learning.).
-      *   The 'conclusion' field (if present, make it encouraging).
-      *   For EACH lesson in the 'lessons' array:
-          *   CRITICALLY: The 'level' text (e.g., for Russian interface: 'Уровень A1', for English interface: 'Level A1'). This text MUST be in the {{{interfaceLanguage}}}.
-          *   The 'title' of the lesson (make it engaging and clear). MUST be in the {{{interfaceLanguage}}}.
-          *   The 'description' of the lesson (make this detailed and user-friendly, suitable for the CEFR level. Include brief explanations or examples for key concepts where appropriate). MUST be in the {{{interfaceLanguage}}}.
-          *   The 'estimatedDuration' text (e.g., '2 недели', '2 weeks'). MUST be in the {{{interfaceLanguage}}}.
-          *   CRITICALLY: EACH individual string within the 'topics' array. These strings describe learning points FOR the targetLanguage, but THE STRINGS THEMSELVES must be written in the {{{interfaceLanguage}}}. These topic strings should be descriptive, ACTION-ORIENTED (e.g., "Грамматика: Изучение немецкого алфавита...", "Лексика: Практика слов по теме..."), and may include very brief examples or clarifications to aid understanding. (e.g., for Russian interface and German target, a topic string could be 'Грамматика: Немецкий алфавит (das deutsche Alphabet) и основы произношения').
-  2.  **Target Language ({{{targetLanguage}}})**: The actual linguistic concepts, grammar rules, vocabulary themes, etc., that the roadmap teaches should pertain to this language.
-  3.  **NO ASTERISKS/MARKDOWN FOR EMPHASIS**: Do NOT use asterisks (*, **) or underscores (_, __) or any other Markdown-like characters for text emphasis (like bolding or italicizing) in any of the generated text fields (introduction, lesson descriptions, lesson topics, conclusion). Present information clearly without such special formatting characters.
-  4.  **TTS-FRIENDLY TEXT**: All generated text for 'introduction', 'lessons[].description', and 'conclusion' should be clear, concise, and well-suited for text-to-speech conversion (e.g., avoid overly complex sentence structures where possible, use common vocabulary for explanations in the {{{interfaceLanguage}}}).
-
-  CONTENT AND STRUCTURE OF LESSONS:
-  *   **Comprehensive Coverage (A0-C2)**: The generated roadmap MUST be comprehensive. The 'lessons' array should cover all CEFR levels from A0/A1 (absolute beginner) to C2 (mastery) for the targetLanguage. The provided {{{proficiencyLevel}}} indicates the user's STARTING point, but the plan must guide them through all subsequent levels up to C2.
-  *   **Balanced Skills & Action-Oriented Topics**: Design lessons to integrate various language skills (grammar, vocabulary, listening, reading, writing, speaking) where appropriate for the level and topic. Avoid making lessons solely about one skill. Strive to incorporate practical application exercises for each skill within a lesson. For example, a lesson on "Travel" for A2 German could include:
-      - "Лексика: Изучение слов для бронирования, транспорта ({{{interfaceLanguage}}})"
-      - "Грамматика: Освоение Perfekt для описания прошлых поездок ({{{interfaceLanguage}}})"
-      - "Аудирование: Прослушивание диалога на вокзале ({{{interfaceLanguage}}})"
-      - "Чтение: Короткий блог о путешествиях ({{{interfaceLanguage}}})"
-      - "Письмо: Написание электронного письма в отель ({{{interfaceLanguage}}})"
-      - "Говорение: Ролевая игра 'Покупка билета' ({{{interfaceLanguage}}})"
-    Each topic string should clearly indicate what aspect of the target language it covers and imply an action (e.g., "Лексика: Изучение...", "Грамматика: Практика...", "Аудирование: Прослушивание...", "Чтение: Анализ текста...").
-  *   **Thematic/Functional Context**: Whenever possible, frame lessons or modules within a thematic (e.g., "Travel", "Work", "Hobbies") or functional (e.g., "Making appointments", "Expressing opinions") context. This makes learning more engaging.
-  *   **Systematic Progression**: Ensure a logical and systematic progression of topics and skills throughout the levels.
-
-  EXAMPLE (if interfaceLanguage='ru', targetLanguage='German', proficiencyLevel='A1-A2'):
-  - 'introduction' field will be in Russian, and might state something like: "Добро пожаловать! Этот план поможет вам выучить немецкий язык. Вы указали, что ваш текущий уровень A1-A2. План охватывает все уровни от A0 до C2..." (No asterisks for emphasis).
-  - 'conclusion' fields will be in Russian. (No asterisks).
-  - A lesson object might look like:
+  prompt: ({ interfaceLanguage, targetLanguage, proficiencyLevel, goals, interests, topicMistakes, grammarMistakes, vocabMistakes, userName }) => ([
     {
-      "id": "german_a1_module_1_alphabet",
-      "level": "Уровень A1", // In Russian - THIS IS CRITICAL.
-      "title": "Основы немецкого: Алфавит и приветствия", // In Russian
-      "description": "Этот модуль знакомит с немецким алфавитом, базовыми правилами произношения и основными фразами для приветствия и знакомства. Важно запомнить правильное произношение букв 'ä', 'ö', 'ü', 'ß'. Мы начнем с самых азов, чтобы заложить прочный фундамент.", // In Russian, detailed, NO asterisks for emphasis
-      "topics": [
-          "Лексика: Изучение немецкого алфавита (Das deutsche Alphabet) и его особенностей",
-          "Фонетика: Освоение основных правил произношения, звуков ä, ö, ü, ß, буквосочетаний ei, eu, ch, sch",
-          "Практика: Чтение простых слов и имен, упражнения на слух для различения звуков",
-          "Коммуникация: Заучивание приветствий (Hallo, Guten Tag, Guten Morgen) и прощаний (Tschüss, Auf Wiedersehen)",
-          "Коммуникация: Тренировка представления себя (Ich heiße...), и как спросить имя (Wie heißen Sie?)",
-          "Числа: Изучение чисел от 1 до 10 (eins, zwei... zehn) и их употребления",
-          "Аудирование: Упражнения на распознавание приветствий и чисел",
-          "Письмо: Упражнение - написать свое имя и возраст"
-      ], // CRITICAL: These topic strings are in Russian, describing German concepts, and are more detailed and action-oriented.
-      "estimatedDuration": "1 неделя" // In Russian
+      text: `
+Сгенерируй индивидуальный учебный план для пользователя:
+- Уровень: ${proficiencyLevel}
+- Цели: ${goals?.join(', ') || 'не указаны'}
+- Интересы: ${interests?.join(', ') || 'не указаны'}
+- Частые ошибки по темам: ${topicMistakes ? JSON.stringify(topicMistakes) : 'нет данных'}
+- Частые ошибки по грамматике: ${grammarMistakes ? JSON.stringify(grammarMistakes) : 'нет данных'}
+- Частые ошибки по лексике: ${vocabMistakes ? JSON.stringify(vocabMistakes) : 'нет данных'}
+
+В качестве основы для структуры учебного плана используй следующий curriculum для языка ${targetLanguage}:
+${JSON.stringify(getCurriculum(targetLanguage))}
+
+Важное правило: для каждого уровня CEFR (A1, A2, B1, B2, C1, C2) обязательно включай как минимум одну грамматическую и одну лексическую тему из curriculum. Не допускается, чтобы в каком-либо уровне отсутствовала одна из этих категорий.
+
+Уделяй больше внимания темам и заданиям, связанным с интересами и целями пользователя. Включай больше упражнений на "слабые места" (темы/грамматика/лексика, где были ошибки). Длина и сложность заданий должны соответствовать уровню пользователя.
+`  
     }
-
-  SPECIFIC GUIDANCE FOR GERMAN LANGUAGE (if targetLanguage is 'German'):
-  If the targetLanguage is 'German', pay close attention to the following detailed curriculum guideline for German language levels A1-C2. This is a strong reference for the depth, breadth, and type of topics expected. Adapt and structure these concepts (or similar ones covering the same grammatical points) into your lesson plan, ensuring each lesson integrates various skills and is presented in a user-friendly way with explanations and examples within the lesson descriptions and topics where appropriate. Remember, while this guide details German grammar and lexis, the topics strings in your JSON output MUST be in the {{{interfaceLanguage}}}.
-
-  --- BEGIN GERMAN LANGUAGE CURRICULUM GUIDELINE (A1-C2) ---
-  A1 — Начальный уровень
-Цель: простое общение на бытовые темы, понимание повседневных фраз.
-
-📚 Лексика:
-Приветствие, прощание
-Представление себя, семьи
-Профессии, национальности
-Числа, возраст, время
-Еда и напитки
-Покупки, цены, магазины
-В доме, квартира, мебель
-Город, транспорт
-Повседневные действия
-Погода, времена года
-Дни недели, месяцы
-Хобби, свободное время
-Простые разговоры по телефону
-
-🔠 Грамматика:
-Определённый/неопределённый артикль (der/die/das/ein/eine)
-Местоимения (ich, du, er, sie, es …)
-Спряжение глаголов в Präsens (жить, быть, иметь, делать)
-Основный порядок слов (глагол на 2-м месте)
-Вопросительные слова (wie, wo, was …)
-Повелительное наклонение (du-формы)
-Akkusativ/ Dativ в простых фразах
-Модальные глаголы (müssen, können, wollen …)
-Предлоги места и времени (in, auf, an, um, am, im)
-Простые связки: weil, aber, und
-
-🇩🇪 A2 — Базовый уровень
-Цель: уверенное использование языка в повседневных ситуациях.
-
-📚 Лексика:
-Путешествия, билеты, гостиницы
-Праздники, подарки, поздравления
-Здоровье, посещение врача
-Повседневная рутина, работа
-Одежда, цвета, стиль
-Письмо, электронная почта, объявления
-Расписание, встречи, договорённости
-
-🔠 Грамматика:
-Прошедшее время: Perfekt (Ich habe gearbeitet)
-Dativ/ Akkusativ с артиклями и предлогами
-Притяжательные местоимения (mein, dein …)
-Глаголы с управлением (helfen + Dativ)
-Сложные модальные глаголы
-Употребление "es gibt", "man"
-Частицы: doch, mal, ja, denn
-Простые придаточные: weil, dass, wenn
-Степени сравнения прилагательных
-
-🇩🇪 B1 — Пороговый уровень
-Цель: участвовать в более сложных диалогах, выражать мнение.
-
-📚 Лексика:
-Работа и профессия, резюме, интервью
-Образование, школа, университет
-Общество, культура, СМИ
-Природа и экология
-Истории, рассказы, события из прошлого
-Чувства, мнения, аргументы
-
-🔠 Грамматика:
-Perfekt vs. Präteritum (расширено: повествование, формальный и неформальный стиль)
-Plusquamperfekt (Ich hatte gemacht)
-Konjunktiv II (würde, könnte, hätte…)
-Придаточные предложения: obwohl, damit, als, während
-Пассив (Präsens и Präteritum)
-Наречия времени и порядка (zuerst, danach, schließlich)
-Инфинитивные конструкции mit "zu"
-Relativsätze (который, где…)
-Предлоги с Genitiv (trotz, während, wegen и др.)
-Употребление временных и причинно-следственных конструкций
-Индиректная речь (введение)
-
-💡 Совет: B1 — минимальный уровень для начала подготовки к TestDaF.
-
-🇩🇪 B2 — Продвинутый уровень
-Цель: формулировать аргументированное мнение, понимать абстрактные темы.
-
-📚 Лексика:
-Политика, наука, техника
-Миграция, культура, интеграция
-Экономика, потребительство
-Интернет, цифровизация
-Общественное мнение, реклама, СМИ
-Эссе, письма, аргументация
-
-🔠 Грамматика:
-Konjunktiv II Vergangenheit (hätte gemacht, wäre gegangen)
-Сложный пассив + модальные глаголы (könnte gemacht werden)
-Нюансы союзов: dennoch, hingegen, somit
-Nominalisierung (Verlust → der Verlust)
-Придаточные с Partizipien (das Auto, in der Garage stehend…)
-Структуры с "lassen", "werden", "sich lassen"
-Условные предложения: Typ II и III
-Разные типы подчинённых предложений (Kausalsatz, Konzessivsatz, Temporalsatz и др.)
-Точная структура и инверсия в длинных предложениях
-Absolutformen (глагольные конструкции без личного подлежащего)
-
-🇩🇪 C1 — Продвинутый профессиональный
-Цель: владение языком на академическом уровне, участие в дискуссиях, написание эссе.
-Уровень сдачи TestDaF и Goethe-Zertifikat C1.
-
-📚 Лексика:
-Научные и социокультурные термины
-Статистика, графики, аналитика
-Структура эссе, ввод-аргументы-заключение
-Специализированная лексика (университет, образование, работа)
-
-🔠 Грамматика:
-Все времена (Perfekt, Plusquamperfekt, Futur I/II)
-Все типы пассива и Konjunktiv I/II
-Косвенная речь (Er sagte, er habe …)
-Сложные инфинитивные и причастные конструкции
-Длинные придаточные предложения
-Стилистика: формальный / нейтральный / публицистический стиль
-Упрощённые формулы: "es sei denn", "geschweige denn", "sowohl … als auch …"
-Контраст, сравнение, допущение: сложные Konnektoren и Stilmittel
-
-🇩🇪 C2 — Носительский уровень
-Цель: профессиональное или академическое владение, глубокое понимание сложных текстов.
-
-📚 Лексика:
-Философия, право, экономика
-Языковой анализ, метафоры, стилистика
-Идиомы, культурные отсылки
-Риторика, речевые манипуляции
-
-🔠 Грамматика:
-Все вышеуказанное + активное применение
-Сжатие информации (замены сложных конструкций)
-Редкие и редактируемые формы глаголов, местоимений
-Устойчивые обороты, подчинённые обороты
-Сравнительный стилистический анализ
-
-📑 Для экзаменов:
-🎓 Goethe C1/C2:
-Тестирует: чтение, аудирование, письмо, говорение
-Особое внимание: аргументация, структура, стиль
-
-🎓 TestDaF (уровень примерно B2–C1):
-TestDaF-4 = уровень C1
-Темы: университет, обучение, наука, интеграция, общество
-Тестирует:
-Чтение сложных текстов
-Письмо академического эссе
-Устную речь (ответы на ситуации и аргументация)
-Аудирование академических лекций
-  --- END GERMAN LANGUAGE CURRICULUM GUIDELINE ---
-
-  User's chosen interface language (for ALL roadmap text like titles, descriptions, level text, AND EACH TOPIC STRING): {{{interfaceLanguage}}}
-  User's target language (for the concepts the learning content refers to): {{{targetLanguage}}}
-  User's STARTING proficiency level (for context, but plan must be A0-C2): {{{proficiencyLevel}}}
-  User's personal goal: {{{personalGoal}}}
-
-  Generate the structured learning roadmap now according to ALL the instructions above. Ensure lesson descriptions are detailed and topics are broken down clearly and are action-oriented.
-  `,
+  ]),
 });
 
 // Define the flow using the AI prompt

@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -22,7 +21,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 import { enUS, ru as ruLocale } from 'date-fns/locale';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { lessonTypes } from '@/config/lessonTypes';
 
 const vocabularySchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters"),
@@ -175,7 +176,90 @@ const generateTranslations = () => {
 
 const componentTranslations = generateTranslations();
 
+// Тип для статического лексического задания
+interface StaticVocabTask {
+  type: 'translate' | 'synonym' | 'fill' | 'antonym';
+  question: string;
+  correctAnswer: string;
+  explanation: string;
+  options?: string[]; // для выбора
+}
+
+const staticVocabTasks: StaticVocabTask[] = [
+  {
+    type: 'translate',
+    question: 'Переведите на английский: "яблоко"',
+    correctAnswer: 'apple',
+    explanation: '"Яблоко" по-английски — "apple".',
+  },
+  {
+    type: 'synonym',
+    question: 'Выберите синоним к слову "big":',
+    correctAnswer: 'large',
+    explanation: 'Синоним слова "big" — "large".',
+    options: ['small', 'large', 'thin', 'old'],
+  },
+  {
+    type: 'fill',
+    question: 'Вставьте слово: "I ___ to school every day."',
+    correctAnswer: 'go',
+    explanation: 'Правильный вариант: "I go to school every day."',
+  },
+  {
+    type: 'antonym',
+    question: 'Выберите антоним к слову "hot":',
+    correctAnswer: 'cold',
+    explanation: 'Антоним слова "hot" — "cold".',
+    options: ['cold', 'warm', 'soft', 'hard'],
+  },
+  {
+    type: 'translate',
+    question: 'Переведите на английский: "книга"',
+    correctAnswer: 'book',
+    explanation: '"Книга" по-английски — "book".',
+  },
+  {
+    type: 'fill',
+    question: 'Вставьте слово: "She ___ a doctor."',
+    correctAnswer: 'is',
+    explanation: 'Правильный вариант: "She is a doctor."',
+  },
+  {
+    type: 'synonym',
+    question: 'Выберите синоним к слову "happy":',
+    correctAnswer: 'joyful',
+    explanation: 'Синоним слова "happy" — "joyful".',
+    options: ['sad', 'angry', 'joyful', 'tired'],
+  },
+];
+
+const lessonSections = ['theory', 'grammar', 'vocabulary', 'practice', 'reading', 'listening', 'writing'];
+
+function goToNextSection(
+  currentSection: string,
+  lessonId: string | null,
+  topic: string | null,
+  baseLevel: string | null,
+  router: ReturnType<typeof useRouter>
+) {
+  const currentIndex = lessonSections.indexOf(currentSection);
+  // Найти следующий существующий раздел
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
+  }
+  // Если ничего не найдено — на дашборд
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
+}
+
 export function VocabularyModuleClient() {
+  const router = useRouter();
   const { userData, isLoading: isUserDataLoading, addErrorToArchive, processWordRepetition, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -205,7 +289,11 @@ export function VocabularyModuleClient() {
   const [mcPracticeScore, setMcPracticeScore] = useState({ correct: 0, total: 0 });
   const [isCurrentMcPracticeMistakeArchived, setIsCurrentMcPracticeMistakeArchived] = useState(false);
 
+  const [isNextLoading, setIsNextLoading] = useState(false);
+  const [nextError, setNextError] = useState('');
+
   const searchParams = useSearchParams();
+  const lessonIdFromParams = searchParams.get('lessonId');
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<VocabularyFormData>({
     resolver: zodResolver(vocabularySchema),
   });
@@ -223,7 +311,7 @@ export function VocabularyModuleClient() {
 
   const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => {
     if (!userData.settings) {
-      toast({ title: t('onboardingMissing'), variant: "destructive" });
+      toast({ title: t('onboardingMissing', 'Пожалуйста, завершите ввод данных для начала работы.'), variant: "destructive" });
       return;
     }
     setIsAiLoading(true);
@@ -253,11 +341,14 @@ export function VocabularyModuleClient() {
     setIsCurrentMcPracticeMistakeArchived(false);
 
     try {
+      const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
       const flowInput: GenerateVocabularyInput = {
-        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
-        targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
-        proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
+        interfaceLanguage: 'ru',
+        targetLanguage: 'German',
+        proficiencyLevel: safeProficiencyLevel,
         topic: formData.topic,
+        goals: [],
+        interests: [],
       };
 
       const result = await generateVocabulary(flowInput);
@@ -273,15 +364,15 @@ export function VocabularyModuleClient() {
         setMcPracticeScore({ correct: 0, total: 0 });
       }
       toast({
-        title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.topic),
+        title: t('toastSuccessTitle', 'Список слов успешно сгенерирован!'),
+        description: t('toastSuccessDescriptionTemplate', 'Слова по теме: {topic}').replace('{topic}', formData.topic),
       });
     } catch (error) {
       console.error("Vocabulary generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: t('toastErrorTitle', 'Ошибка при генерации словаря'),
+        description: `${t('toastErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -291,7 +382,7 @@ export function VocabularyModuleClient() {
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
     await fetchVocabularyList(data);
-    reset(); // Clear form only after manual submission
+    reset();
   };
 
   useEffect(() => {
@@ -360,7 +451,7 @@ export function VocabularyModuleClient() {
     if (wordData && userData.settings) {
       processWordRepetition(wordData, userData.settings.targetLanguage as AppTargetLanguage, knewIt);
       toast({
-        title: t('flashcardStatusUpdatedToast'),
+        title: t('flashcardStatusUpdatedToast', 'Статус карточки обновлён!'),
         duration: 2000,
       });
       handleNextCard(); 
@@ -427,8 +518,8 @@ export function VocabularyModuleClient() {
     });
     setIsCurrentTypeInPracticeMistakeArchived(true);
     toast({
-      title: t('mistakeArchivedToastTitle'),
-      description: t('mistakeArchivedToastDescription'),
+      title: t('mistakeArchivedToastTitle', 'Ошибка добавлена в архив'),
+      description: t('mistakeArchivedToastDescription', 'Вы сможете повторить это слово позже.'),
     });
   };
 
@@ -510,11 +601,10 @@ export function VocabularyModuleClient() {
     });
     setIsCurrentMcPracticeMistakeArchived(true);
     toast({
-      title: t('mistakeArchivedToastTitle'),
-      description: t('mistakeArchivedToastDescription'),
+      title: t('mistakeArchivedToastTitle', 'Ошибка добавлена в архив'),
+      description: t('mistakeArchivedToastDescription', 'Вы сможете повторить это слово позже.'),
     });
   };
-
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -527,6 +617,11 @@ export function VocabularyModuleClient() {
   const typeInScorePercentage = typeInPracticeScore.total > 0 ? (typeInPracticeScore.correct / typeInPracticeScore.total) * 100 : 0;
   const mcScorePercentage = mcPracticeScore.total > 0 ? (mcPracticeScore.correct / mcPracticeScore.total) * 100 : 0;
 
+  React.useEffect(() => {
+    if (typeInScorePercentage >= 70 || mcScorePercentage >= 70) {
+      goToNextSection('vocabulary', lessonIdFromParams || '', currentTopic, userData.settings?.proficiencyLevel || '', router);
+    }
+  }, [typeInScorePercentage, mcScorePercentage, lessonIdFromParams, currentTopic, userData.settings?.proficiencyLevel, router]);
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -538,21 +633,18 @@ export function VocabularyModuleClient() {
           </CardTitle>
           <CardDescription className="text-center">{t('description')}</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="topic">{t('topicLabel')}</Label>
-              <Input id="topic" placeholder={t('topicPlaceholder')} {...register("topic")} />
-              {errors.topic && <p className="text-sm text-destructive">{errors.topic.message}</p>}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
-              {t('getWordsButton')}
-            </Button>
-          </CardFooter>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex gap-3 mb-6">
+          <Input
+            {...register('topic')}
+            placeholder={t('topicPlaceholder')}
+            className="flex-1"
+            disabled={isAiLoading}
+          />
+          <Button type="submit" disabled={isAiLoading || !Boolean(errors.topic) && !currentTopic.trim()} className="min-w-[140px]">
+            {isAiLoading ? <LoadingSpinner size={16} /> : t('getWordsButton')}
+          </Button>
         </form>
+        {errors.topic && <div className="text-red-500 mb-4">{errors.topic.message}</div>}
       </Card>
 
       {isAiLoading && !vocabularyResult && (
@@ -646,7 +738,7 @@ export function VocabularyModuleClient() {
                         )}
                         <div className="flex gap-2 mt-4 justify-end">
                           <Button onClick={(e) => { e.stopPropagation(); handleWordRepetition(false); }} variant="outline" size="sm">
-                            <XCircle className="mr-2 h-4 w-4"/> {t('flashcardNotKnewItButton')}
+                            <XCircle className="mr-2 h-4"/> {t('flashcardNotKnewItButton')}
                           </Button>
                           <Button onClick={(e) => { e.stopPropagation(); handleWordRepetition(true); }} size="sm">
                              <CheckCircle2 className="mr-2 h-4 w-4"/> {t('flashcardKnewItButton')}
@@ -757,43 +849,52 @@ export function VocabularyModuleClient() {
                   )}
                 </div>
               ) : (
-                <div className="text-center p-4 flex flex-col items-center gap-3">
-                  <PartyPopper className="h-12 w-12 text-primary" />
-                  <p className="text-lg font-semibold text-primary">
-                    {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) ? t('typeInPracticeComplete') : typeInPracticeFeedback}
-                  </p>
-                  {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
-                    <p className="text-muted-foreground">
-                      {t('typeInPracticeScoreMessage')
-                        .replace('{correct}', typeInPracticeScore.correct.toString())
-                        .replace('{total}', typeInPracticeScore.total.toString())}
-                    </p>
+                <CardFooter className="flex-col items-center border-t mt-6 pt-6">
+                  <PartyPopper className="h-12 w-12 text-primary mb-2" />
+                  <div className="text-lg mb-3">Ваш результат: <b>{typeInPracticeScore.correct} из {typeInPracticeScore.total}</b> ({typeInScorePercentage}%)</div>
+                  {typeInScorePercentage > 70 ? (
+                    <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
+                  ) : (
+                    <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
                   )}
-                   {typeInPracticeFeedback.startsWith(t('typeInPracticeComplete')) && (
-                      <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                        {typeInScorePercentage <= 70 && (
-                           <Button onClick={handleRestartTypeInPractice} variant="default" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                        <Button 
-                          onClick={handleClearResults} 
-                          variant={typeInScorePercentage > 70 ? "default" : "outline"}
-                          className="w-full sm:w-auto"
-                        >
-                          <ArrowRight className="mr-2 h-4 w-4" />
-                          {t('nextPartButton')}
-                        </Button>
-                        {typeInScorePercentage > 70 && (
-                           <Button onClick={handleRestartTypeInPractice} variant="outline" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                </div>
+                  <Button onClick={handleRestartTypeInPractice} variant="default" className="w-full sm:w-auto mr-3">Пройти ещё раз</Button>
+                  {typeInScorePercentage > 70 && (
+                    <Button onClick={async () => {
+                      setIsNextLoading(true);
+                      setNextError('');
+                      try {
+                        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
+                        const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+                        const input = {
+                          interfaceLanguage: userData.settings.interfaceLanguage,
+                          currentLearningRoadmap: userData.progress.learningRoadmap,
+                          completedLessonIds: userData.progress.completedLessonIds || [],
+                          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
+                          currentProficiencyLevel: safeProficiencyLevel,
+                        };
+                        const rec = await getLessonRecommendation(input);
+                        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
+                          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
+                          if (lesson && lesson.topics && lesson.topics.length > 0) {
+                            window.location.href = `/learn/vocabulary?topic=${encodeURIComponent(lesson.topics[0])}&lessonId=${lesson.id}`;
+                            return;
+                          }
+                        }
+                        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
+                      } catch (e) {
+                        setNextError('Ошибка перехода к следующему уроку.');
+                      } finally {
+                        setIsNextLoading(false);
+                      }
+                    }} className="px-6 py-2 text-base" disabled={isNextLoading}>
+                      {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
+                  </Button>
+                  )}
+                  {typeInScorePercentage <= 70 && (
+                    <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
+                  )}
+                  {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+                </CardFooter>
               )}
             </CardFooter>
           )}
@@ -881,43 +982,52 @@ export function VocabularyModuleClient() {
                   )}
                 </div>
               ) : (
-                <div className="text-center p-4 flex flex-col items-center gap-3">
-                  <PartyPopper className="h-12 w-12 text-primary" />
-                  <p className="text-lg font-semibold text-primary">
-                    {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) ? t('mcPracticeComplete') : mcPracticeFeedback}
-                  </p>
-                  {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
-                    <p className="text-muted-foreground">
-                      {t('mcPracticeScoreMessage')
-                        .replace('{correct}', mcPracticeScore.correct.toString())
-                        .replace('{total}', mcPracticeScore.total.toString())}
-                    </p>
+                <CardFooter className="flex-col items-center border-t mt-6 pt-6">
+                  <PartyPopper className="h-12 w-12 text-primary mb-2" />
+                  <div className="text-lg mb-3">Ваш результат: <b>{mcPracticeScore.correct} из {practiceWords.length}</b> ({mcScorePercentage}%)</div>
+                  {mcScorePercentage > 70 ? (
+                    <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
+                  ) : (
+                    <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
                   )}
-                  {mcPracticeFeedback.startsWith(t('mcPracticeComplete')) && (
-                     <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                        {mcScorePercentage <= 70 && (
-                           <Button onClick={handleRestartMcPractice} variant="default" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                        <Button 
-                          onClick={handleClearResults} 
-                          variant={mcScorePercentage > 70 ? "default" : "outline"}
-                          className="w-full sm:w-auto"
-                        >
-                          <ArrowRight className="mr-2 h-4 w-4" />
-                          {t('nextPartButton')}
-                        </Button>
-                        {mcScorePercentage > 70 && (
-                           <Button onClick={handleRestartMcPractice} variant="outline" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                      </div>
+                  <Button onClick={handleRestartMcPractice} variant="default" className="w-full sm:w-auto mr-3">Пройти ещё раз</Button>
+                  {mcScorePercentage > 70 && (
+                    <Button onClick={async () => {
+                      setIsNextLoading(true);
+                      setNextError('');
+                      try {
+                        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
+                        const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+                        const input = {
+                          interfaceLanguage: userData.settings.interfaceLanguage,
+                          currentLearningRoadmap: userData.progress.learningRoadmap,
+                          completedLessonIds: userData.progress.completedLessonIds || [],
+                          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
+                          currentProficiencyLevel: safeProficiencyLevel,
+                        };
+                        const rec = await getLessonRecommendation(input);
+                        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
+                          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
+                          if (lesson && lesson.topics && lesson.topics.length > 0) {
+                            window.location.href = `/learn/vocabulary?topic=${encodeURIComponent(lesson.topics[0])}&lessonId=${lesson.id}`;
+                            return;
+                          }
+                        }
+                        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
+                      } catch (e) {
+                        setNextError('Ошибка перехода к следующему уроку.');
+                      } finally {
+                        setIsNextLoading(false);
+                      }
+                    }} className="px-6 py-2 text-base" disabled={isNextLoading}>
+                      {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
+                  </Button>
                   )}
-                </div>
+                  {mcScorePercentage <= 70 && (
+                    <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
+                  )}
+                  {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+                </CardFooter>
               )}
             </CardFooter>
           )}

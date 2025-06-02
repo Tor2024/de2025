@@ -95,7 +95,17 @@ const getLessonRecommendationFlow = ai.defineFlow(
       };
     }
 
-    const { output } = await getLessonRecommendationPrompt(input);
+    // Фильтрация уроков типа "Говорение"
+    const filteredLessons = input.currentLearningRoadmap.lessons.filter(lesson => {
+      const titleLower = lesson.title.toLowerCase();
+      const hasSpeakingInTitle = titleLower.includes('говорение') || titleLower.includes('speaking');
+      const hasSpeakingInTopics = lesson.topics.some(topic => topic.toLowerCase().includes('говорение') || topic.toLowerCase().includes('speaking'));
+      return !hasSpeakingInTitle && !hasSpeakingInTopics;
+    });
+    const filteredRoadmap = { ...input.currentLearningRoadmap, lessons: filteredLessons };
+    const filteredInput = { ...input, currentLearningRoadmap: filteredRoadmap };
+
+    const { output } = await getLessonRecommendationPrompt(filteredInput);
     if (!output) {
       throw new Error("AI failed to generate a lesson recommendation. Output was null.");
     }

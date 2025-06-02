@@ -1,669 +1,474 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { useUserData } from '@/contexts/UserDataContext';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Volume2, XCircle } from 'lucide-react';
+import type { GenerateListeningMaterialOutput } from '@/ai/flows/generate-listening-material-flow';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
 
-"use client";
+interface ResultItem {
+  correct: boolean;
+}
 
-import * as React from "react";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useForm, type SubmitHandler } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useUserData } from "@/contexts/UserDataContext";
-import { generateListeningMaterial } from "@/ai/flows/generate-listening-material-flow";
-import type { GenerateListeningMaterialInput, GenerateListeningMaterialOutput } from "@/ai/flows/generate-listening-material-flow";
-import { useToast } from "@/hooks/use-toast";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Headphones, Sparkles, HelpCircle, Info, CheckCircle2, XCircle, Target, XCircle as ClearIcon, Archive, Volume2, Ban, ArrowRight, RefreshCw } from "lucide-react";
-import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
-
-const listeningSchema = z.object({
-  topic: z.string().min(3, "Topic should be at least 3 characters"),
-});
-type ListeningFormData = z.infer<typeof listeningSchema>;
-
-const baseEnTranslations: Record<string, string> = {
-  title: "Listening Practice",
-  description: "Enter a topic. Our AI will generate a short script (dialogue or monologue) in your target language, adapted to your proficiency level, along with optional comprehension questions. Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
-  topicLabel: "Topic for Listening Material",
-  topicPlaceholder: "E.g., Weekend plans, Ordering at a cafe, A news report",
-  getMaterialButton: "Get Listening Material",
-  resultsTitlePrefix: "Listening Material on:",
-  scenarioHeader: "Scenario",
-  scriptHeader: "Script",
-  comprehensionQuestionsHeader: "Comprehension Questions",
-  toastSuccessTitle: "Listening Material Generated!",
-  toastSuccessDescriptionTemplate: "Listening material about \"{topic}\" is ready.",
-  toastErrorTitle: "Error",
-  toastErrorDescription: "Failed to generate listening material. Please try again.",
-  onboardingMissing: "Please complete onboarding first to set your languages and proficiency.",
-  loading: "Loading...",
-  noScenario: "No scenario description provided.",
-  noQuestions: "No comprehension questions were generated for this script.",
-  answerIndication: "Answer indication",
-  noScriptGenerated: "The AI did not generate a script for this topic. Please try a different topic or try again.",
-  checkAnswersButton: "Check Answers",
-  tryAgainButton: "Try Again",
-  clearResultsButton: "Clear Results",
-  scoreMessagePart1: "You answered",
-  scoreMessagePart2: "out of",
-  scoreMessagePart3: "questions correctly.",
-  scoreMessagePerfect: "Perfect! All {totalQuestions} questions correct.",
-  scoreMessageNone: "No correct answers this time. Try again!",
-  archiveMistakeButton: "Archive this mistake",
-  mistakeArchivedToastTitle: "Mistake Archived",
-  mistakeArchivedToastDescription: "This mistake has been added to your error archive.",
-  ttsPlayScript: "Play script",
-  ttsStopScript: "Stop script",
-  ttsExperimentalText: "Text-to-Speech (TTS) is experimental. Voice and language support depend on your browser/OS.",
-  ttsNotSupportedTitle: "TTS Not Supported",
-  ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
-  ttsUtteranceErrorTitle: "Speech Error",
-  ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
-  nextPartButton: "Next Part",
-  repeatLessonPartButton: "Repeat Lesson Part",
-};
-
-const baseRuTranslations: Record<string, string> = {
-  title: "Практика аудирования",
-  description: "Введите тему. Наш ИИ сгенерирует короткий сценарий (диалог или монолог) на изучаемом вами языке, адаптированный к вашему уровню, а также опциональные вопросы на понимание. Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
-  topicLabel: "Тема для аудирования",
-  topicPlaceholder: "Напр., Планы на выходные, Заказ в кафе, Новостной репортаж",
-  getMaterialButton: "Получить материал",
-  resultsTitlePrefix: "Материал для аудирования по теме:",
-  scenarioHeader: "Сценарий",
-  scriptHeader: "Скрипт",
-  comprehensionQuestionsHeader: "Вопросы на понимание",
-  toastSuccessTitle: "Материал для аудирования создан!",
-  toastSuccessDescriptionTemplate: "Материал по теме \"{topic}\" готов.",
-  toastErrorTitle: "Ошибка",
-  toastErrorDescription: "Не удалось создать материал для аудирования. Пожалуйста, попробуйте снова.",
-  onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
-  loading: "Загрузка...",
-  noScenario: "Описание сценария не предоставлено.",
-  noQuestions: "Для этого скрипта не было сгенерировано вопросов на понимание.",
-  answerIndication: "Указание на ответ",
-  noScriptGenerated: "ИИ не сгенерировал скрипт для этой темы. Пожалуйста, попробуйте другую тему или повторите попытку.",
-  checkAnswersButton: "Проверить ответы",
-  tryAgainButton: "Попробовать снова",
-  clearResultsButton: "Очистить результаты",
-  scoreMessagePart1: "Вы ответили правильно на",
-  scoreMessagePart2: "из",
-  scoreMessagePart3: "вопросов.",
-  scoreMessagePerfect: "Отлично! Все {totalQuestions} вопросов правильно.",
-  scoreMessageNone: "В этот раз нет правильных ответов. Попробуйте снова!",
-  archiveMistakeButton: "Добавить ошибку в архив",
-  mistakeArchivedToastTitle: "Ошибка добавлена в архив",
-  mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
-  ttsPlayScript: "Озвучить скрипт",
-  ttsStopScript: "Остановить озвучку",
-  ttsExperimentalText: "Функция озвучивания текста (TTS) экспериментальная. Голос и поддержка языков зависят от вашего браузера/ОС.",
-  ttsNotSupportedTitle: "TTS не поддерживается",
-  ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
-  ttsUtteranceErrorTitle: "Ошибка синтеза речи",
-  ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
-  nextPartButton: "Далее",
-  repeatLessonPartButton: "Повторить урок",
-};
-
-const generateTranslations = () => {
-  const translations: Record<string, Record<string, string>> = {};
-  interfaceLanguageCodes.forEach(code => {
-    if (code === 'ru') {
-      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
-    } else {
-      translations[code] = { ...baseEnTranslations };
-    }
-  });
-  return translations;
-};
-
-const componentTranslations = generateTranslations();
-
-export function ListeningModuleClient() {
-  const { userData, isLoading: isUserDataLoading, addErrorToArchive } = useUserData();
-  const { toast } = useToast();
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [listeningResult, setListeningResult] = useState<GenerateListeningMaterialOutput | null>(null);
-  const [currentTopic, setCurrentTopic] = useState<string>("");
-
-  const [currentlySpeakingTTSId, setCurrentlySpeakingTTSId] = useState<string | null>(null);
-  const utteranceQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
-  const currentUtteranceIndexRef = useRef<number>(0);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
-  const playTextInternalIdRef = React.useRef<number>(0);
-
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
-  const [isAnswersSubmitted, setIsAnswersSubmitted] = useState(false);
-  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
-  const [mistakeArchiveStatus, setMistakeArchiveStatus] = useState<Record<number, boolean>>({});
-
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ListeningFormData>({
-    resolver: zodResolver(listeningSchema),
-  });
-
-  const currentLang = isUserDataLoading || !userData.settings ? 'en' : userData.settings.interfaceLanguage;
-  const t = useCallback((key: string, defaultText?: string): string => {
-    const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
-    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
-  }, [currentLang]);
-
-  // TTS Logic
-   useEffect(() => {
-    const updateVoices = () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        voicesRef.current = window.speechSynthesis.getVoices();
+// parseTopicAndGetLink (локальная копия)
+const keywordsToModules = [
+  { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+  { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+  { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+  { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+  { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+  { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+];
+function parseTopicAndGetLink(
+  topicLine: string,
+  lessonContext?: { lessonId: string; lessonLevel: string }
+): { href: string | null } {
+  let href: string | null = null;
+  const cleanAndEncodeTopic = (rawTopic: string): string => {
+    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
+    cleaned = cleaned.replace(/^\"':\s+|\"':\s+$/g, "").trim();
+    return encodeURIComponent(cleaned);
+  };
+  const topicLineLower = topicLine.toLowerCase();
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      const keywordLower = keyword.toLowerCase();
+      if (topicLineLower.startsWith(keywordLower)) {
+        let theme = topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme.length > 0) {
+          href = `${mod.path}?topic=${theme}`;
+          if (lessonContext) {
+            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
+            if (mod.needsLevel && lessonContext.lessonLevel) {
+              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
+              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
+            }
+          }
+        }
+        break;
       }
-    };
+    }
+    if (href) break;
+  }
+  return { href };
+}
 
+// Добавляю утилиту для сопоставления языков TTS
+const mapTargetLanguageToBcp47: Record<string, string> = {
+  German: 'de-DE',
+  English: 'en-US',
+  French: 'fr-FR',
+  Spanish: 'es-ES',
+  Italian: 'it-IT',
+  Russian: 'ru-RU',
+  // Добавьте другие языки по необходимости
+};
+
+const lessonSections = ['theory', 'grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+
+function goToNextSection(
+  currentSection: string,
+  lessonId: string | null,
+  topic: string | null,
+  baseLevel: string | null,
+  router: ReturnType<typeof useRouter>
+) {
+  const currentIndex = lessonSections.indexOf(currentSection);
+  if (currentIndex < lessonSections.length - 1) {
+    const nextSection = lessonSections[currentIndex + 1];
+    let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+    if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+    if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+    router.push(href);
+  } else {
+    router.push('/dashboard?completedLesson=' + (lessonId || ''));
+  }
+}
+
+export default function ListeningModuleClient() {
+  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const lessonIdFromParams = searchParams.get('lessonId');
+  const topicParam = searchParams.get('topic');
+  const baseLevel = searchParams.get('baseLevel');
+  const [isLoading, setIsLoading] = useState(false);
+  const [material, setMaterial] = useState<GenerateListeningMaterialOutput | null>(null);
+  const [error, setError] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [results, setResults] = useState<ResultItem[]>([]);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isNextLoading, setIsNextLoading] = useState(false);
+  const [nextError, setNextError] = useState('');
+  const [topicInput, setTopicInput] = useState<string>("");
+
+  // useEffect для автозагрузки темы из topicParam
+  useEffect(() => {
+    if (topicParam && !material && !isLoading) {
+      setTopicInput(topicParam);
+      (async () => {
+        setIsLoading(true);
+        setError('');
+        setMaterial(null);
+        setCurrentQuestion(0);
+        setUserAnswer('');
+        setResults([]);
+        setShowExplanation(false);
+        setIsAnswered(false);
+        try {
+          if (!userData.settings) throw new Error('Нет настроек пользователя');
+          const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+          const response = await fetch('/api/ai/generate-listening-material', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              interfaceLanguage: userData.settings.interfaceLanguage,
+              targetLanguage: userData.settings.targetLanguage,
+              proficiencyLevel: safeProficiencyLevel,
+              topic: topicInput || topicParam || 'Повседневная ситуация',
+              goals: [],
+              interests: [],
+            }),
+          });
+          if (!response.ok) throw new Error('Ошибка генерации аудиоматериала');
+          const result: GenerateListeningMaterialOutput = await response.json();
+          setMaterial(result);
+        } catch (e) {
+          setError('Ошибка генерации аудиоматериала. Попробуйте другую тему.');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+  }, [topicParam, material, isLoading, userData.settings]);
+
+  // TTS (Text-to-Speech)
+  const playScript = useCallback(() => {
+    if (!material?.script) return;
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      updateVoices();
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
-    return () => {
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null;
-        if (window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-        }
-      }
-      setCurrentlySpeakingTTSId(null);
-    };
-  }, []);
-
-  const selectPreferredVoice = useCallback((langCode: string, availableVoices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined => {
-    if (typeof window === 'undefined' || !window.speechSynthesis || !availableVoices || !availableVoices.length) {
-      console.warn(`TTS: ListeningModuleClient - Voices not available or synthesis not supported for lang "${langCode}".`);
-      return undefined;
-    }
-  
-    let targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(langCode));
-    if (!targetLangVoices.length) {
-      const baseLang = langCode.split('-')[0];
-      targetLangVoices = availableVoices.filter(voice => voice.lang.startsWith(baseLang));
-    }
-  
-    if (!targetLangVoices.length) return undefined;
-  
-    if (langCode.startsWith('de')) {
-      const specificGermanVoice = targetLangVoices.find(voice =>
-        voice.name.toLowerCase().includes('german') || voice.name.toLowerCase().includes('deutsch')
-      );
-      if (specificGermanVoice) return specificGermanVoice;
-    }
-    
-    const googleVoice = targetLangVoices.find(voice => voice.name.toLowerCase().includes('google'));
-    if (googleVoice) return googleVoice;
-
-    const defaultVoice = targetLangVoices.find(voice => voice.default);
-    if (defaultVoice) return defaultVoice;
-    
-    const localServiceVoice = targetLangVoices.find(voice => voice.localService);
-    if (localServiceVoice) return localServiceVoice;
-    
-    return targetLangVoices[0];
-  }, []);
-
-  const sanitizeTextForTTS = useCallback((text: string | undefined): string => {
-    if (!text) return "";
-    let sanitizedText = text;
-    sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-    sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
-    sanitizedText = sanitizedText.replace(/'/g, '');
-    sanitizedText = sanitizedText.replace(/`/g, '');
-    sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
-    sanitizedText = sanitizedText.replace(/[()]/g, '');
-    sanitizedText = sanitizedText.replace(/\s+-\s+/g, ', '); 
-    sanitizedText = sanitizedText.replace(/#+/g, '');
-    sanitizedText = sanitizedText.replace(/\s\s+/g, ' ');
-    return sanitizedText.trim();
-  }, []);
-
-  const speakNext = useCallback((currentPlayId: number) => {
-    if (playTextInternalIdRef.current !== currentPlayId) {
-        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
-        setCurrentlySpeakingTTSId(null);
-        return;
-    }
-    if (currentUtteranceIndexRef.current < utteranceQueueRef.current.length) {
-      const utterance = utteranceQueueRef.current[currentUtteranceIndexRef.current];
-      utterance.onend = () => {
-        currentUtteranceIndexRef.current++;
-        speakNext(currentPlayId);
-      };
-      utterance.onerror = (event) => {
-        if (event.error === "interrupted") {
-          console.info('TTS: ListeningModuleClient - Speech synthesis interrupted.');
-        } else {
-          console.error('TTS: ListeningModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
-        }
-        setCurrentlySpeakingTTSId(null);
-      };
+      // Получаем BCP-47 код для TTS
+      const ttsLang = userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage] : 'de-DE';
+      const utterance = new window.SpeechSynthesisUtterance(material.script);
+      utterance.lang = ttsLang;
+      utterance.onstart = () => setIsPlaying(true);
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);
-    } else {
-      setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t]);
+  }, [material, userData]);
 
-  const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
-    playTextInternalIdRef.current += 1;
-    const currentPlayId = playTextInternalIdRef.current;
-
-    if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
-      toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
-      return;
-    }
-    if (window.speechSynthesis.speaking) {
+  const stopScript = useCallback(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
+      setIsPlaying(false);
     }
-    utteranceQueueRef.current = [];
-    currentUtteranceIndexRef.current = 0;
+  }, []);
 
-    const fullText = textToSpeak || "";
-    if (!fullText.trim()) {
-      setCurrentlySpeakingTTSId(null);
-      return;
-    }
-    
-    const interfaceLangBcp47 = mapInterfaceLanguageToBcp47(userData.settings.interfaceLanguage);
-    
-    const startSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    startSignalUtterance.lang = interfaceLangBcp47;
-    const startVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (startVoice) startSignalUtterance.voice = startVoice;
-    startSignalUtterance.rate = 0.95;
-    startSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(startSignalUtterance);
-
-    const sanitizedText = sanitizeTextForTTS(fullText);
-    const sentences = sanitizedText.match(/[^.!?\n]+[.!?\n]*|[^.!?\n]+$/g) || [sanitizedText];
-    sentences.forEach(sentenceText => {
-      if (sentenceText.trim()) {
-        const utterance = new SpeechSynthesisUtterance(sentenceText.trim());
-        utterance.lang = langCode;
-        const voice = selectPreferredVoice(langCode, voicesRef.current || []);
-        if (voice) utterance.voice = voice;
-        utterance.rate = 0.95;
-        utterance.pitch = 1.1;
-        utteranceQueueRef.current.push(utterance);
-      }
-    });
-    
-    const endSignalUtterance = new SpeechSynthesisUtterance("Пииип");
-    endSignalUtterance.lang = interfaceLangBcp47;
-    const endVoice = selectPreferredVoice(interfaceLangBcp47, voicesRef.current || []);
-    if (endVoice) endSignalUtterance.voice = endVoice;
-    endSignalUtterance.rate = 0.95;
-    endSignalUtterance.pitch = 1.1;
-    utteranceQueueRef.current.push(endSignalUtterance);
-    
-    setCurrentlySpeakingTTSId(textId);
-    speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings]);
-
-  const stopSpeech = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-    setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]);
-
-
-  const fetchListeningMaterial = useCallback(async (formData: ListeningFormData) => {
-    if (!userData.settings) {
-      toast({ title: t('onboardingMissing'), variant: "destructive" });
-      return;
-    }
-    setIsAiLoading(true);
-    setListeningResult(null);
-    setSelectedAnswers({});
-    setIsAnswersSubmitted(false);
-    setCorrectAnswersCount(0);
-    setMistakeArchiveStatus({});
-    stopSpeech();
-    setCurrentTopic(formData.topic);
+  const handleGetMaterial = async () => {
+    setIsLoading(true);
+    setError('');
+    setMaterial(null);
+    setCurrentQuestion(0);
+    setUserAnswer('');
+    setResults([]);
+    setShowExplanation(false);
+    setIsAnswered(false);
     try {
-      const flowInput: GenerateListeningMaterialInput = {
-        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
-        targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
-        proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
-        topic: formData.topic,
-      };
-      const result = await generateListeningMaterial(flowInput);
-      setListeningResult(result);
-      toast({
-        title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescriptionTemplate').replace('{topic}', formData.topic),
+      if (!userData.settings) throw new Error('Нет настроек пользователя');
+      const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+      const response = await fetch('/api/ai/generate-listening-material', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          targetLanguage: userData.settings.targetLanguage,
+          proficiencyLevel: safeProficiencyLevel,
+          topic: topicInput || topicParam || 'Повседневная ситуация',
+          goals: [],
+          interests: [],
+        }),
       });
-    } catch (error) {
-      console.error("Listening material generation error:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
-        variant: "destructive",
-      });
+      if (!response.ok) throw new Error('Ошибка генерации аудиоматериала');
+      const result: GenerateListeningMaterialOutput = await response.json();
+      setMaterial(result);
+    } catch (e) {
+      setError('Ошибка генерации аудиоматериала. Попробуйте другую тему.');
     } finally {
-      setIsAiLoading(false);
+      setIsLoading(false);
     }
-  }, [userData.settings, toast, t, stopSpeech]);
-
-  const onSubmit: SubmitHandler<ListeningFormData> = async (data) => {
-    await fetchListeningMaterial(data);
-    reset();
   };
 
-  const handleClearResults = () => {
-    setListeningResult(null);
-    setCurrentTopic("");
-    setSelectedAnswers({});
-    setIsAnswersSubmitted(false);
-    setCorrectAnswersCount(0);
-    setMistakeArchiveStatus({});
-    stopSpeech();
-    reset();
-  };
-
-  const handleAnswerChange = (questionIndex: number, value: string) => {
-    setSelectedAnswers(prev => ({ ...prev, [questionIndex]: value }));
-  };
-
-  const handleCheckAnswers = () => {
-    if (!listeningResult || !listeningResult.comprehensionQuestions) return;
-    let correctCount = 0;
-    listeningResult.comprehensionQuestions.forEach((q, index) => {
-      if (q.answer && selectedAnswers[index] === q.answer) {
-        correctCount++;
+  // useEffect для автоматического перехода к следующему разделу
+  useEffect(() => {
+    if (
+      material &&
+      material.comprehensionQuestions &&
+      currentQuestion >= (material.comprehensionQuestions?.length || 0)
+    ) {
+      const correctCount = results.filter(r => r.correct).length;
+      const totalQuestions = material.comprehensionQuestions?.length || 1;
+      const percent = Math.round((correctCount / totalQuestions) * 100);
+      const canGoNext = percent >= 70;
+      if (canGoNext) {
+        goToNextSection('listening', lessonIdFromParams, topicParam || '', baseLevel, router);
       }
-    });
-    setCorrectAnswersCount(correctCount);
-    setIsAnswersSubmitted(true);
-  };
-
-  const handleTryAgain = () => {
-    setSelectedAnswers({});
-    setIsAnswersSubmitted(false);
-    setCorrectAnswersCount(0);
-    setMistakeArchiveStatus({});
-  };
-
-  const handleArchiveMistake = (questionIndex: number) => {
-    if (!listeningResult || !listeningResult.comprehensionQuestions || !userData.settings) return;
-    const question = listeningResult.comprehensionQuestions[questionIndex];
-    const userAnswer = selectedAnswers[questionIndex];
-    if (question && userAnswer && question.answer !== userAnswer) {
-      addErrorToArchive({
-        module: "Listening Practice",
-        context: question.question,
-        userAttempt: userAnswer,
-        correctAnswer: question.answer || "N/A",
-      });
-      setMistakeArchiveStatus(prev => ({ ...prev, [questionIndex]: true }));
-      toast({
-        title: t('mistakeArchivedToastTitle'),
-        description: t('mistakeArchivedToastDescription'),
-      });
     }
-  };
+  }, [material, currentQuestion, results, lessonIdFromParams, topicParam, baseLevel, router]);
 
   if (isUserDataLoading) {
-    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+    return <div className="flex h-full items-center justify-center p-4"><LoadingSpinner size={32} /><p className="ml-2">Загрузка...</p></div>;
   }
   if (!userData.settings) {
-    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+    return <div className="p-4">Пожалуйста, завершите онбординг.</div>;
   }
 
-  const hasScriptText = !!(listeningResult && listeningResult.script && listeningResult.script.trim().length > 0);
-  const hasQuestions = !!(listeningResult && listeningResult.comprehensionQuestions && listeningResult.comprehensionQuestions.length > 0);
-  const totalQuestions = listeningResult?.comprehensionQuestions?.length || 0;
-  const ttsPlayButtonId = `tts-listening-${listeningResult?.title?.replace(/\s+/g, '-') || currentTopic.replace(/\s+/g, '-') || 'script'}`;
-  const isCurrentlySpeakingThisScript = currentlySpeakingTTSId === ttsPlayButtonId;
-  const scorePercentage = totalQuestions > 0 ? (correctAnswersCount / totalQuestions) * 100 : 0;
+  // Итоговый анализ
+  if (material && material.comprehensionQuestions && currentQuestion >= material.comprehensionQuestions.length) {
+    const correctCount = results.filter(r => r.correct).length;
+    const percent = Math.round((correctCount / material.comprehensionQuestions.length) * 100);
+    const canGoNext = percent >= 70;
 
-  const getScoreMessage = () => {
-    if (!isAnswersSubmitted || !hasQuestions) return null;
-    if (correctAnswersCount === totalQuestions && totalQuestions > 0) {
-      return t('scoreMessagePerfect').replace('{totalQuestions}', totalQuestions.toString());
-    }
-    if (correctAnswersCount === 0 && totalQuestions > 0) {
-      return t('scoreMessageNone');
-    }
-    if (totalQuestions > 0) {
-      return `${t('scoreMessagePart1')} ${correctAnswersCount} ${t('scoreMessagePart2')} ${totalQuestions} ${t('scoreMessagePart3')}`;
-    }
-    return null;
-  };
+    const handleNextLesson = async () => {
+      setIsNextLoading(true);
+      setNextError('');
+      try {
+        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
+        const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+        const input = {
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          currentLearningRoadmap: userData.progress.learningRoadmap,
+          completedLessonIds: userData.progress.completedLessonIds || [],
+          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
+          currentProficiencyLevel: safeProficiencyLevel,
+        };
+        const rec = await getLessonRecommendation(input);
+        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
+          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
+          if (lesson && lesson.topics && lesson.topics.length > 0) {
+            const { href } = parseTopicAndGetLink(lesson.topics[0], { lessonId: lesson.id, lessonLevel: lesson.level });
+            if (href) {
+              router.push(href);
+              return;
+            }
+          }
+        }
+        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
+      } catch (e) {
+        setNextError('Ошибка перехода к следующему уроку.');
+      } finally {
+        setIsNextLoading(false);
+      }
+    };
+
+    return (
+      <div className="max-w-xl mx-auto p-8 text-center">
+        <h2 className="text-2xl mb-3">Аудирование завершено</h2>
+        <p className="text-lg mb-4">Ваш результат: <b>{correctCount} из {material.comprehensionQuestions.length}</b> ({percent}%)</p>
+        {canGoNext ? (
+          <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
+        ) : (
+          <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
+        )}
+        <Button onClick={() => setMaterial(null)} className="px-6 py-2 text-base mr-3">Пройти ещё раз</Button>
+        {canGoNext && (
+          <Button onClick={handleNextLesson} className="px-6 py-2 text-base" disabled={isNextLoading}>
+            {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
+          </Button>
+        )}
+        {!canGoNext && (
+          <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
+        )}
+        {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: 32 }}>
+      <h2 style={{ fontSize: 24, marginBottom: 12 }}>Аудирование</h2>
+      <p style={{ color: '#666', marginBottom: 24 }}>Введите тему или ситуацию, по которой хотите получить аудиоматериал и вопросы для понимания.</p>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        <Input
+          value={topicInput || ''}
+          onChange={e => setTopicInput(e.target.value)}
+          placeholder="Например: В магазине, На вокзале, Заказ еды..."
+          style={{ flex: 1 }}
+        />
+        <Button onClick={handleGetMaterial} disabled={isLoading || !topicInput.trim()}>
+          {isLoading ? <LoadingSpinner size={16} /> : 'Получить аудиоматериал'}
+        </Button>
+      </div>
+      {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
+      {material && (
+        <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight flex items-center justify-center gap-2">
-            <Headphones className="h-8 w-8 text-primary" />
-            {t('title')}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {t('description')}
-             {typeof window !== 'undefined' && window.speechSynthesis && (
-                <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
-            )}
-          </CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <CardTitle style={{ marginBottom: 0 }}>{material.title || 'Скрипт для аудирования'}</CardTitle>
+              <PlayAudioButton
+                text={material.script}
+                lang={userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage] : 'de-DE'}
+                tooltipPlay="Прослушать"
+                tooltipStop="Остановить"
+                className="ml-3"
+              />
+            </div>
+            {material.scenario && <CardDescription>{material.scenario}</CardDescription>}
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="topic">{t('topicLabel')}</Label>
-              <Input id="topic" placeholder={t('topicPlaceholder')} {...register("topic")} />
-              {errors.topic && <p className="text-sm text-destructive">{errors.topic.message}</p>}
-            </div>
+          <CardContent>
+            <div style={{ fontSize: 18, marginBottom: 16, whiteSpace: 'pre-line' }}>{material.script}</div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
-              {t('getMaterialButton')}
-            </Button>
-          </CardFooter>
-        </form>
       </Card>
-
-      {isAiLoading && !listeningResult && (
-        <div className="flex justify-center items-center p-10">
-          <LoadingSpinner size={32} />
-          <p className="ml-2">{t('loading')}</p>
-        </div>
       )}
-
-      {listeningResult && (
-        <Card className="shadow-lg">
+      {material && material.comprehensionQuestions && material.comprehensionQuestions.length > 0 && (
+        <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                {t('resultsTitlePrefix')} {currentTopic}
-                {listeningResult.title && <span className="block text-lg text-muted-foreground mt-1">({listeningResult.title})</span>}
-              </CardTitle>
-               {listeningResult && (
-                <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
-                    <ClearIcon className="mr-2 h-4 w-4" />
-                    {t('clearResultsButton')}
-                </Button>
-               )}
-            </div>
+            <CardTitle>Вопрос {currentQuestion + 1} из {material.comprehensionQuestions.length}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {listeningResult.scenario && (
-              <div>
-                <h3 className="font-semibold text-lg mb-1 flex items-center gap-2"><Info className="h-5 w-5 text-primary/80"/>{t('scenarioHeader')}</h3>
-                <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md">{listeningResult.scenario}</p>
+          <CardContent>
+            <div style={{ fontSize: 18, marginBottom: 16 }}>{material.comprehensionQuestions[currentQuestion].question}</div>
+            {material.comprehensionQuestions[currentQuestion].options ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                {material.comprehensionQuestions[currentQuestion].options!.map((opt, idx) => {
+                  // Улучшенная проверка правильного варианта
+                  const rawAnswer = (material.comprehensionQuestions![currentQuestion].answer || '').trim();
+                  let isCorrect = false;
+                  // 1. Сравнение по индексу (если answer — число или строка-номер)
+                  if (rawAnswer === String(idx + 1) || rawAnswer === String(idx)) {
+                    isCorrect = true;
+                  }
+                  // 2. Сравнение по тексту (без учёта регистра и пробелов)
+                  const normOpt = opt.trim().toLowerCase();
+                  const normAnswer = rawAnswer.trim().toLowerCase();
+                  if (normOpt === normAnswer) {
+                    isCorrect = true;
+                  }
+                  // 3. Если answer — список через запятую
+                  const answerList = rawAnswer.split(',').map(a => a.trim().toLowerCase());
+                  if (answerList.includes(normOpt)) {
+                    isCorrect = true;
+                  }
+                  return (
+                    <Button
+                      key={idx}
+                      variant={userAnswer === opt ? 'default' : 'outline'}
+                      onClick={() => setUserAnswer(opt)}
+                      disabled={isAnswered}
+                      style={isAnswered && isCorrect ? { borderColor: '#0070f3', background: '#e6f0fa' } : {}}
+                    >
+                      {opt}
+                    </Button>
+                  );
+                })}
               </div>
+            ) : (
+              <Input
+                value={userAnswer}
+                onChange={e => setUserAnswer(e.target.value)}
+                placeholder="Ваш ответ..."
+                disabled={isAnswered}
+                style={{ marginBottom: 16 }}
+              />
             )}
-             {!listeningResult.scenario && !isAiLoading && (
-                 <div className="p-3 bg-muted/30 rounded-md">
-                    <p className="text-sm text-muted-foreground italic">{t('noScenario')}</p>
-                 </div>
-            )}
-
-            <div>
-                <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-semibold text-lg">{t('scriptHeader')} ({userData.settings!.targetLanguage})</h3>
-                     {typeof window !== 'undefined' && window.speechSynthesis && hasScriptText && (
-                       <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => {
-                                if (isCurrentlySpeakingThisScript) {
-                                  stopSpeech();
-                                } else {
-                                   if (userData.settings?.targetLanguage) {
-                                    const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage as AppTargetLanguage);
-                                    playText(ttsPlayButtonId, listeningResult.script, langCode);
-                                  }
-                                }
-                              }}
-                              aria-label={isCurrentlySpeakingThisScript ? t('ttsStopScript') : t('ttsPlayScript')}
-                              className="ml-2 p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-                              disabled={!hasScriptText}
-                            >
-                              {isCurrentlySpeakingThisScript ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{isCurrentlySpeakingThisScript ? t('ttsStopScript') : t('ttsPlayScript')}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-                {hasScriptText ? (
-                    <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                        <p className="whitespace-pre-wrap text-base leading-relaxed">{listeningResult.script}</p>
-                    </ScrollArea>
-                ) : (
-                  <div className="h-[250px] rounded-md border p-3 bg-muted/30 flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground italic">{t('noScriptGenerated')}</p>
+            {!isAnswered ? (
+              <Button
+                onClick={() => {
+                  let correct = false;
+                  const rawAnswer = (material.comprehensionQuestions![currentQuestion].answer || '').trim();
+                  if (material.comprehensionQuestions![currentQuestion].options) {
+                    // 1. Сравнение по индексу
+                    const idx = material.comprehensionQuestions![currentQuestion].options!.findIndex(opt => opt === userAnswer);
+                    if (rawAnswer === String(idx + 1) || rawAnswer === String(idx)) {
+                      correct = true;
+                    }
+                    // 2. Сравнение по тексту
+                    const normUser = userAnswer.trim().toLowerCase();
+                    const normAnswer = rawAnswer.trim().toLowerCase();
+                    if (normUser === normAnswer) {
+                      correct = true;
+                    }
+                    // 3. Сравнение по списку
+                    const answerList = rawAnswer.split(',').map(a => a.trim().toLowerCase());
+                    if (answerList.includes(normUser)) {
+                      correct = true;
+                    }
+                  } else {
+                    // Текстовый ответ: поддержка синонимов через запятую
+                    const user = userAnswer.trim().toLowerCase();
+                    const answerList = rawAnswer.split(',').map(a => a.trim().toLowerCase());
+                    correct = answerList.some(a => a === user);
+                  }
+                  setResults([...results, { correct }]);
+                  setShowExplanation(true);
+                  setIsAnswered(true);
+                }}
+                disabled={!userAnswer.trim()}
+              >
+                Проверить
+              </Button>
+            ) :
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button
+                  onClick={() => {
+                    setCurrentQuestion(currentQuestion + 1);
+                    setUserAnswer('');
+                    setShowExplanation(false);
+                    setIsAnswered(false);
+                  }}
+                >
+                  Следующий вопрос
+                </Button>
+                {!results[results.length - 1]?.correct && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsAnswered(false);
+                      setShowExplanation(false);
+                      setUserAnswer('');
+                    }}
+                  >
+                    Попробовать ещё раз
+                  </Button>
+                )}
+                {!results[results.length - 1]?.correct && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowExplanation(true);
+                    }}
+                  >
+                    Показать ответ
+                  </Button>
+                )}
+              </div>
+            }
+            {showExplanation && (
+              <div style={{ marginTop: 24, fontSize: 18, color: isAnswered && results[results.length - 1]?.correct ? 'green' : 'red' }}>
+                {results[results.length - 1]?.correct ? '✅ Правильно!' : '❌ Ошибка'}
+                {material.comprehensionQuestions && material.comprehensionQuestions[currentQuestion].answer && (
+                  <div style={{ marginTop: 8, color: '#0070f3' }}>
+                    Правильный ответ: {material.comprehensionQuestions[currentQuestion].answer}
                   </div>
                 )}
-            </div>
-
-            {hasQuestions && (
-              <div>
-                <h3 className="font-semibold text-lg mt-4 mb-1">{t('comprehensionQuestionsHeader')}</h3>
-                <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-                  <ul className="space-y-3">
-                    {listeningResult.comprehensionQuestions!.map((q, index) => {
-                      const userAnswer = selectedAnswers[index];
-                      const isCorrect = q.answer && userAnswer === q.answer;
-                      const hasSubmitted = isAnswersSubmitted;
-
-                      return (
-                        <li key={index} className="text-sm p-2 rounded-md bg-card border">
-                          <p className="font-medium mb-2 flex items-center"><HelpCircle className="h-4 w-4 mr-2 text-primary/80" />{q.question}</p>
-                          {q.options && q.options.length > 0 ? (
-                            <RadioGroup
-                              value={userAnswer}
-                              onValueChange={(value) => handleAnswerChange(index, value)}
-                              disabled={hasSubmitted}
-                              className="ml-4 space-y-1"
-                            >
-                              {q.options.map((opt, optIndex) => {
-                                const isSelectedOption = userAnswer === opt;
-                                const isActualCorrectAnswer = q.answer === opt;
-                                let labelClassName = "text-sm";
-                                if (hasSubmitted) {
-                                  if (isActualCorrectAnswer) {
-                                    labelClassName = cn(labelClassName, "font-semibold text-green-600 dark:text-green-400");
-                                  } else if (isSelectedOption && !isActualCorrectAnswer) {
-                                    labelClassName = cn(labelClassName, "font-semibold text-red-600 dark:text-red-400");
-                                  }
-                                }
-
-                                return (
-                                  <div key={optIndex} className="flex items-center space-x-2">
-                                    <RadioGroupItem value={opt} id={`q${index}-opt${optIndex}`} />
-                                    <Label htmlFor={`q${index}-opt${optIndex}`} className={labelClassName}>
-                                      {opt}
-                                    </Label>
-                                    {hasSubmitted && isSelectedOption && isCorrect && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                                    {hasSubmitted && isSelectedOption && !isCorrect && <XCircle className="h-4 w-4 text-red-600" />}
-                                    {hasSubmitted && !isSelectedOption && isActualCorrectAnswer && <Target className={cn("h-4 w-4 text-green-600 dark:text-green-400 opacity-70", isSelectedOption && !isCorrect && "text-green-700 dark:text-green-500")} />}
-                                  </div>
-                                );
-                              })}
-                            </RadioGroup>
-                          ) : (
-                            q.answer && hasSubmitted && (
-                               <p className="text-xs text-muted-foreground mt-1 ml-4"><em>{t('answerIndication')}: {q.answer}</em></p>
-                            )
-                          )}
-                           {q.answer && !q.options && !hasSubmitted && (
-                              <p className="text-xs text-muted-foreground mt-1 ml-4 italic">Open question - input field coming soon.</p>
-                          )}
-                           {hasSubmitted && !isCorrect && q.answer && !mistakeArchiveStatus[index] && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 text-xs"
-                              onClick={() => handleArchiveMistake(index)}
-                              disabled={isAiLoading || mistakeArchiveStatus[index]}
-                            >
-                              <Archive className="mr-1.5 h-3.5 w-3.5" />
-                              {t('archiveMistakeButton')}
-                            </Button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </ScrollArea>
-                {hasQuestions && (
-                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
-                    {!isAnswersSubmitted ? (
-                      <Button onClick={handleCheckAnswers} disabled={Object.keys(selectedAnswers).length === 0 || isAiLoading}>
-                         {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
-                        {t('checkAnswersButton')}
-                      </Button>
-                    ) : (
-                       <>
-                        {scorePercentage <= 70 && (
-                          <Button onClick={handleTryAgain} variant="default" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                        <Button 
-                          onClick={handleClearResults} 
-                          variant={scorePercentage > 70 ? "default" : "outline"} 
-                          className="w-full sm:w-auto"
-                        >
-                           <ArrowRight className="mr-2 h-4 w-4" />
-                           {t('nextPartButton')}
-                        </Button>
-                         {scorePercentage > 70 && (
-                           <Button onClick={handleTryAgain} variant="outline" className="w-full sm:w-auto">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {t('repeatLessonPartButton')}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    {isAnswersSubmitted && (
-                      <p className="text-sm mt-2 sm:mt-0 sm:ml-4">{getScoreMessage()}</p>
-                    )}
+                {material.comprehensionQuestions && material.comprehensionQuestions[currentQuestion].options &&
+                  !material.comprehensionQuestions[currentQuestion].options.some(opt => {
+                    const normOpt = opt.trim().toLowerCase();
+                    const normAnswer = (material.comprehensionQuestions[currentQuestion].answer || '').trim().toLowerCase();
+                    return normOpt === normAnswer;
+                  }) && (
+                  <div style={{ marginTop: 8, color: 'red' }}>
+                    <b>Внимание:</b> Проверьте правильный ответ в настройках генерации. Raw answer: {material.comprehensionQuestions[currentQuestion].answer}
                   </div>
                 )}
               </div>
-            )}
-            {listeningResult && (!listeningResult.comprehensionQuestions || listeningResult.comprehensionQuestions.length === 0) && !isAiLoading && (
-                 <div className="p-3 bg-muted/30 rounded-md mt-4">
-                    <p className="text-sm text-muted-foreground italic">{t('noQuestions')}</p>
-                 </div>
             )}
           </CardContent>
         </Card>

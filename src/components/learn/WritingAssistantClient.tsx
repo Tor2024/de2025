@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks } from "lucide-react"; 
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -110,14 +111,63 @@ const generateTranslations = () => {
 
 const componentTranslations = generateTranslations();
 
+// parseTopicAndGetLink (локальная копия)
+const keywordsToModules = [
+  { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+  { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+  { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+  { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+  { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+  { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+];
+function parseTopicAndGetLink(
+  topicLine: string,
+  lessonContext?: { lessonId: string; lessonLevel: string }
+): { href: string | null } {
+  let href: string | null = null;
+  const cleanAndEncodeTopic = (rawTopic: string): string => {
+    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
+    cleaned = cleaned.replace(/^\"':\s+|\"':\s+$/g, "").trim();
+    return encodeURIComponent(cleaned);
+  };
+  const topicLineLower = topicLine.toLowerCase();
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      const keywordLower = keyword.toLowerCase();
+      if (topicLineLower.startsWith(keywordLower)) {
+        let theme = topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme.length > 0) {
+          href = `${mod.path}?topic=${theme}`;
+          if (lessonContext) {
+            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
+            if (mod.needsLevel && lessonContext.lessonLevel) {
+              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
+              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
+            }
+          }
+        }
+        break;
+      }
+    }
+    if (href) break;
+  }
+  return { href };
+}
+
 export function WritingAssistantClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, toggleLessonCompletion } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
   const [submittedUserText, setSubmittedUserText] = useState<string | null>(null);
+  const router = useRouter();
+  const [isNextLoading, setIsNextLoading] = useState(false);
+  const [nextError, setNextError] = useState('');
+  const searchParams = useSearchParams();
 
-  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<WritingFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset, setValue } = useForm<WritingFormData>({
     resolver: zodResolver(writingSchema),
   });
 
@@ -135,6 +185,13 @@ export function WritingAssistantClient() {
     }
   }, [userData.settings, reset]);
 
+  // Автоматически подставлять тему из query-параметра topic
+  useEffect(() => {
+    const topicParam = searchParams.get('topic');
+    if (topicParam) {
+      setValue('writingPrompt', topicParam);
+    }
+  }, [searchParams, setValue]);
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -150,30 +207,32 @@ export function WritingAssistantClient() {
     setSubmittedUserText(data.userText); 
     try {
       if (!userData.settings) {
-         toast({ title: t('onboardingMissing'), variant: "destructive" });
-         setIsAiLoading(false);
-         return;
+        toast({ title: t('onboardingMissing', 'Пожалуйста, завершите ввод данных для начала работы.'), variant: "destructive" });
+        setIsAiLoading(false);
+        return;
       }
       const writingInput: AIPoweredWritingAssistanceInput = {
         prompt: data.writingPrompt,
         text: data.userText,
         interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
         writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
-        proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
+        proficiencyLevel: (userData.settings.proficiencyLevel || 'A1-A2') as AppProficiencyLevel,
+        goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : (userData.settings.goal ? [userData.settings.goal] : []),
+        interests: Array.isArray(userData.settings.interests) ? userData.settings.interests : (userData.settings.interests ? [userData.settings.interests] : []),
       };
       
       const result = await aiPoweredWritingAssistance(writingInput);
       setAssistanceResult(result);
       toast({
-        title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescription'),
+        title: t('toastSuccessTitle', 'Проверка завершена!'),
+        description: t('toastSuccessDescription', 'Получите обратную связь ниже.'),
       });
     } catch (error) {
       console.error("Writing assistance error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: t('toastErrorTitle', 'Ошибка при проверке текста'),
+        description: `${t('toastErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -192,6 +251,117 @@ export function WritingAssistantClient() {
     label: t(taskType.labelKey, taskType.defaultLabel),
   }));
 
+  // Финальный экран — если есть результат и пользователь завершил задание
+  if (assistanceResult && submittedUserText) {
+    const handleNextLesson = async () => {
+      setIsNextLoading(true);
+      setNextError('');
+      try {
+        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
+        const lessonIdFromParams = searchParams.get('lessonId');
+        if (lessonIdFromParams && typeof toggleLessonCompletion === 'function') {
+          toggleLessonCompletion(lessonIdFromParams);
+        }
+        const completedLessonIds = userData.progress.completedLessonIds
+          ? [...userData.progress.completedLessonIds, lessonIdFromParams].filter((id): id is string => typeof id === 'string' && !!id)
+          : lessonIdFromParams && typeof lessonIdFromParams === 'string' ? [lessonIdFromParams] : [];
+        const input = {
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          currentLearningRoadmap: userData.progress.learningRoadmap,
+          completedLessonIds,
+          userGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
+          currentProficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
+        };
+        const rec = await getLessonRecommendation(input);
+        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
+          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
+          if (lesson && lesson.topics && lesson.topics.length > 0) {
+            const { href } = parseTopicAndGetLink(lesson.topics[0], { lessonId: lesson.id, lessonLevel: lesson.level });
+            if (href) {
+              router.push(href);
+              return;
+            }
+          }
+        }
+        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
+      } catch (e) {
+        setNextError('Ошибка перехода к следующему уроку.');
+      } finally {
+        setIsNextLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6 p-4 md:p-6 lg:p-8" style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
+        <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              {t('resultsCardTitle')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
+                </ScrollArea>
+              </div>
+
+              {assistanceResult.errorCategories && assistanceResult.errorCategories.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <ListChecks className="h-5 w-5 text-orange-500" />
+                    {t('errorCategoriesHeader')}
+                  </h3>
+                  <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                    <ul className="space-y-3">
+                      {assistanceResult.errorCategories.map((errCat, index) => (
+                        <li key={index} className="text-sm p-2 rounded-md bg-card border border-border/50">
+                          <p><strong>{t('errorCategoryLabel', 'Category')}:</strong> {errCat.category}</p>
+                          <p><strong>{t('errorSpecificErrorLabel', 'Error')}:</strong> {errCat.specificError}</p>
+                          {errCat.comment && <p><em>{t('errorCommentLabel', 'Comment')}: {errCat.comment}</em></p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+            
+            {submittedUserText && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  {t('yourOriginalTextSectionTitle')}
+                </h3>
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
+                </ScrollArea>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
+              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                <div 
+                  className="whitespace-pre-wrap text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
+                />
+              </ScrollArea>
+            </div>
+            <div style={{ marginTop: 24 }}>
+              <Button onClick={handleClearResults} style={{ marginRight: 12 }}>{t('clearResultsButton')}</Button>
+              <Button onClick={handleNextLesson} disabled={isNextLoading}>
+                {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
+              </Button>
+            </div>
+            {nextError && <div style={{ color: 'red', marginTop: 16 }}>{nextError}</div>}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -248,75 +418,6 @@ export function WritingAssistantClient() {
           </CardFooter>
         </form>
       </Card>
-
-      {assistanceResult && (
-        <Card className="shadow-lg">
-           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                  {t('resultsCardTitle')}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
-                <XCircle className="mr-2 h-4 w-4" />
-                {t('clearResultsButton')}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
-                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
-                </ScrollArea>
-              </div>
-
-              {assistanceResult.errorCategories && assistanceResult.errorCategories.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <ListChecks className="h-5 w-5 text-orange-500" />
-                    {t('errorCategoriesHeader')}
-                  </h3>
-                  <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                    <ul className="space-y-3">
-                      {assistanceResult.errorCategories.map((errCat, index) => (
-                        <li key={index} className="text-sm p-2 rounded-md bg-card border border-border/50">
-                          <p><strong>{t('errorCategoryLabel', 'Category')}:</strong> {errCat.category}</p>
-                          <p><strong>{t('errorSpecificErrorLabel', 'Error')}:</strong> {errCat.specificError}</p>
-                          {errCat.comment && <p><em>{t('errorCommentLabel', 'Comment')}: {errCat.comment}</em></p>}
-                        </li>
-                      ))}
-                    </ul>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-            
-            {submittedUserText && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-500" />
-                  {t('yourOriginalTextSectionTitle')}
-                </h3>
-                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
-                </ScrollArea>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
-              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
-                <div 
-                  className="whitespace-pre-wrap text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
-                />
-              </ScrollArea>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

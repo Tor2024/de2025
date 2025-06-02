@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export type InterfaceLanguage =
@@ -19,9 +18,10 @@ export type ProficiencyLevel = typeof proficiencyLevels[number];
 export interface UserSettings {
   interfaceLanguage: InterfaceLanguage;
   targetLanguage: TargetLanguage;
-  proficiencyLevel: ProficiencyLevel;
-  goal: string;
+  goal: string[];
+  interests: string[];
   userName?: string;
+  proficiencyLevel?: ProficiencyLevel;
 }
 
 export interface Lesson {
@@ -74,6 +74,9 @@ export interface UserProgress {
   completedLessonIds: string[]; // IDs of lessons from LearningRoadmap
   learnedWords: UserLearnedWord[]; // For SRS
   practiceSetsCompleted: number; // Counter for completed practice sets
+  topicMistakes?: Record<string, number>; // ошибки по темам
+  grammarMistakes?: Record<string, number>; // ошибки по грамматике
+  vocabMistakes?: Record<string, number>; // ошибки по лексике
 }
 
 export const initialUserProgress: UserProgress = {

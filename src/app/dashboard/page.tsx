@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -298,7 +297,7 @@ export default function DashboardPage() {
         interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
         targetLanguage: userData.settings.targetLanguage as TargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
-        learningGoal: userData.settings.goal,
+        learningGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
       });
       setAiTutorTip(response.tip);
       if (cooldownTimeoutRef.current) {
@@ -311,8 +310,8 @@ export default function DashboardPage() {
       setAiTutorTip(t('aiTutorTipStatic')); 
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: t('aiTutorTipErrorTitle'),
-        description: `${t('aiTutorTipErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: t('aiTutorTipErrorTitle', 'Ошибка генерации подсказки'),
+        description: `${t('aiTutorTipErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
         variant: "destructive",
       });
       const cooldownDuration = 120 * 1000; 
@@ -370,7 +369,7 @@ export default function DashboardPage() {
   const handleRecommendLessonClick = async () => {
     if (!userData.settings || !userData.progress?.learningRoadmap?.lessons || userData.progress.learningRoadmap.lessons.length === 0) {
         toast({
-            title: t('recommendLessonErrorTitle'),
+            title: t('recommendLessonErrorTitle', 'Ошибка рекомендации'),
             description: "User data or learning roadmap not available.",
             variant: "destructive",
         });
@@ -393,9 +392,8 @@ export default function DashboardPage() {
             interfaceLanguage: userData.settings.interfaceLanguage,
             currentLearningRoadmap: userData.progress.learningRoadmap,
             completedLessonIds: userData.progress.completedLessonIds || [],
-            userGoal: userData.settings.goal,
-            currentProficiencyLevel: userData.settings.proficiencyLevel,
-            userPastErrors: pastErrorsSummary, 
+            userGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
+            currentProficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
         };
         const recommendation = await getLessonRecommendation(input);
         setLastRecommendation(recommendation);
@@ -411,14 +409,14 @@ export default function DashboardPage() {
 
                 if (href) {
                     toast({
-                        title: t('aiRecommendationTitle', undefined, {lessonTitle}),
-                        description: recommendation.reasoning || "",
+                        title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
+                        description: recommendation.reasoning || '',
                     });
                     router.push(href);
                 } else {
                     toast({
-                        title: t('aiRecommendationTitle', undefined, {lessonTitle}),
-                        description: (recommendation.reasoning || "") + " " + t('aiRecommendationNavFailed'),
+                        title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
+                        description: (recommendation.reasoning || '') + ' ' + t('aiRecommendationNavFailed', 'Не удалось перейти к уроку.'),
                     });
                     if (roadmapDisplayRef.current) {
                         roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -426,8 +424,8 @@ export default function DashboardPage() {
                 }
             } else {
                  toast({ 
-                    title: t('aiRecommendationTitle', undefined, {lessonTitle}),
-                    description: (recommendation.reasoning || "") + (lesson ? " (This lesson has no topics defined yet)." : ""),
+                    title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
+                    description: (recommendation.reasoning || '') + (lesson ? ' (В этом уроке пока нет тем.)' : ''),
                 });
                  if (roadmapDisplayRef.current) {
                     roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -435,8 +433,8 @@ export default function DashboardPage() {
             }
         } else { 
             toast({
-                title: t('aiRecommendationInfoTitle'),
-                description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning'),
+                title: t('aiRecommendationInfoTitle', 'Рекомендация'),
+                description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning', 'Нет подходящего урока для рекомендации.'),
                 variant: "default",
             });
              if (roadmapDisplayRef.current) {
@@ -448,8 +446,8 @@ export default function DashboardPage() {
         console.error("Failed to get lesson recommendation:", error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         toast({
-            title: t('recommendLessonErrorTitle'),
-            description: `${t('recommendLessonErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+            title: t('recommendLessonErrorTitle', 'Ошибка рекомендации'),
+            description: `${t('recommendLessonErrorDescription', 'Не удалось получить рекомендацию.')}${errorMessage ? ` (${errorMessage})` : ''}`,
             variant: "destructive",
         });
     } finally {
@@ -486,7 +484,7 @@ export default function DashboardPage() {
   };
 
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
-  const userGoalText = userData.settings.goal || t('noGoalSet');
+  const userGoalText = (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || t('noGoalSet');
   const isRefreshButtonDisabled = isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime);
 
   const completedLessons = userData.progress.completedLessonIds?.length || 0;
@@ -643,20 +641,11 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <BarChartHorizontalBig className="h-4 w-4 text-primary/70" />
-                    </TooltipTrigger>
-                    <TooltipContent><p>{t('tooltipProficiency')}</p></TooltipContent>
-                  </Tooltip>
-                  <span>{t('proficiencyLabel')}: {userData.settings.proficiencyLevel}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
                       <Flag className="h-4 w-4 text-primary/70" />
                     </TooltipTrigger>
                     <TooltipContent><p>{t('tooltipGoal')}</p></TooltipContent>
                   </Tooltip>
-                  <span className="whitespace-pre-wrap">{t('currentGoalLabel')}: <span className="font-medium text-foreground">{userData.settings.goal || t('noGoalSet')}</span></span>
+                  <span className="whitespace-pre-wrap">{t('currentGoalLabel')}: <span className="font-medium text-foreground">{userGoalText}</span></span>
                 </div>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/settings')}>
                   {t('goToSettings')} <ArrowRight className="ml-2 h-4 w-4" />

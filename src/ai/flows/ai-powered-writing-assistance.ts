@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI-powered writing assistance flow.
@@ -23,6 +22,11 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru). ALL FEEDBACK MUST BE IN THIS LANGUAGE.'),
   writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
   proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
+  goals: z.array(z.string()).describe('User learning goals.'),
+  interests: z.array(z.string()).describe('User interests.'),
+  topicMistakes: z.record(z.number()).optional().describe('User mistakes by topic.'),
+  grammarMistakes: z.record(z.number()).optional().describe('User mistakes by grammar point.'),
+  vocabMistakes: z.record(z.number()).optional().describe('User mistakes by vocabulary.'),
 });
 export type AIPoweredWritingAssistanceInput = z.infer<typeof AIPoweredWritingAssistanceInputSchema>;
 
@@ -52,11 +56,19 @@ const writingAssistantPrompt = ai.definePrompt({
   prompt: `You are an AI writing assistant that provides feedback and corrections on user-submitted text.
 CRITICAL: All explanations and feedback in the 'feedback' field and 'errorCategories' field (including category names, specific errors, and comments) MUST be in the language specified by the ISO 639-1 code: {{{interfaceLanguage}}}.
 
+User Profile:
+- Goals: {{{goalsString}}}
+- Interests: {{{interestsString}}}
+- Mistakes by topic: {{{topicMistakesString}}}
+- Mistakes by grammar: {{{grammarMistakesString}}}
+- Mistakes by vocabulary: {{{vocabMistakesString}}}
+
 The user's proficiency level in the target language is: {{{proficiencyLevel}}}.
 Tailor your feedback, corrections, and error categorization to this level:
 - For lower levels (e.g., A1-A2), focus on fundamental errors, use simpler language in your feedback and error descriptions, and suggest simpler corrections.
 - For intermediate levels (e.g., B1-B2), address more complex grammatical structures and vocabulary, and provide more detailed explanations.
 - For higher levels (e.g., C1-C2), provide nuanced feedback on style, advanced grammar, idiomatic expressions, and overall coherence. Corrected text can be more sophisticated. Error categories can be more specific.
+- Where possible, учитывай интересы, цели и слабые места пользователя (ошибки, темы, грамматика, лексика) — делай обратную связь и рекомендации более релевантными и полезными для проработки этих аспектов.
 
 The user is writing based on the following prompt:
 Prompt: {{{prompt}}}
@@ -154,16 +166,7 @@ CRITICAL: When providing feedback, you MUST pay close attention to the conventio
 Your tasks:
 1.  Provide feedback on the structure, grammar, and tone of the user's text. This feedback MUST be in the {{{interfaceLanguage}}} and be appropriate for the user's {{{proficiencyLevel}}}. Ensure it is clear, concise, and well-suited for text-to-speech.
 2.  Provide a corrected version of the user's text in the 'markedCorrectedText' field. In this field, you MUST highlight the changes you made compared to the original user's text.
-    Use ONLY the HTML tags \`<ins>inserted or changed text</ins>\` for any text you add or modify, and \`<del>deleted text</del>\` for any text you remove from the original.
-    For example, if the original was "I go to store" and you correct it to "I went to the store.", your markedCorrectedText should be "I <ins>went</ins> to <ins>the </ins>store<del>go</del>."
-    If the original was "I like apples bananas and oranges" and you correct it to "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges.", your markedCorrectedText should be "I like apples<ins>,</ins> bananas<ins>,</ins> and oranges."
-    Do NOT use any other HTML tags, attributes, or styles in 'markedCorrectedText'. The corrected text should also be appropriate for the user's {{{proficiencyLevel}}}.
-3.  Analyze the errors in the user's text and provide a list of identified error categories in the 'errorCategories' field.
-    For each identified error, specify:
-    *   'category': The general type of error (e.g., "Grammar", "Vocabulary", "Punctuation", "Style").
-    *   'specificError': A more specific description of the error (e.g., "Incorrect verb tense", "Word choice", "Missing comma").
-    *   'comment' (optional): A brief, constructive comment or suggestion related to this specific error type.
-    All text in 'errorCategories' (category, specificError, comment) MUST be in the {{{interfaceLanguage}}}.
+    Use ONLY the HTML tags \`
 
 Output the feedback, the marked corrected text, and the error categories as a JSON object matching the defined output schema.
   `,
@@ -176,12 +179,17 @@ const aiPoweredWritingAssistanceFlow = ai.defineFlow(
     outputSchema: AIPoweredWritingAssistanceOutputSchema,
   },
   async (input) => {
-    const {output} = await writingAssistantPrompt(input);
+    // Формируем строки для целей и интересов
+    const goalsString = Array.isArray(input.goals) && input.goals.length > 0 ? input.goals.join(', ') : 'не указаны';
+    const interestsString = Array.isArray(input.interests) && input.interests.length > 0 ? input.interests.join(', ') : 'не указаны';
+    const topicMistakesString = input.topicMistakes ? JSON.stringify(input.topicMistakes) : 'нет данных';
+    const grammarMistakesString = input.grammarMistakes ? JSON.stringify(input.grammarMistakes) : 'нет данных';
+    const vocabMistakesString = input.vocabMistakes ? JSON.stringify(input.vocabMistakes) : 'нет данных';
+    const promptInput = { ...input, goalsString, interestsString, topicMistakesString, grammarMistakesString, vocabMistakesString };
+    const {output} = await writingAssistantPrompt(promptInput);
     if (!output) {
         throw new Error("AI failed to generate writing assistance. Output was null.");
     }
     return output;
   }
 );
-
-    

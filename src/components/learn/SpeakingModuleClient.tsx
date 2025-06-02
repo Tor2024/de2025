@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -19,6 +18,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Mic, Sparkles, Lightbulb, MessageSquare, XCircle, HelpCircle, FileText, Volume2, Ban, MessageCircleQuestion } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel, mapInterfaceLanguageToBcp47, mapTargetLanguageToBcp47 } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 
 const speakingSchema = z.object({
   generalTopic: z.string().min(3).optional().or(z.literal('')),
@@ -103,6 +103,30 @@ const generateTranslations = () => {
 };
 
 const componentTranslations = generateTranslations();
+
+interface SpeakingTask {
+  prompt: string;
+  answer: string;
+  explanation: string;
+}
+
+const staticTasks: SpeakingTask[] = [
+  {
+    prompt: 'Расскажите о себе: как вас зовут, откуда вы, чем занимаетесь?',
+    answer: 'Меня зовут Анна, я из Москвы, работаю инженером. В свободное время люблю читать и путешествовать.',
+    explanation: 'В ответе должны быть: имя, город, профессия, хобби.'
+  },
+  {
+    prompt: 'Опишите ситуацию: вы в ресторане и хотите заказать еду. Что вы скажете официанту?',
+    answer: 'Здравствуйте! Я бы хотел заказать суп и салат. Можно также стакан воды, пожалуйста?',
+    explanation: 'В ответе должны быть: приветствие, заказ блюда, вежливая форма.'
+  },
+  {
+    prompt: 'Повторите вслух и запишите фразу: "Ich lerne Deutsch, потому что хочу путешествовать по Германии."',
+    answer: 'Ich lerne Deutsch, потому что хочу путешествовать по Германии.',
+    explanation: 'Проверьте произношение немецкой части и плавность перехода между языками.'
+  }
+];
 
 export function SpeakingModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -214,7 +238,7 @@ export function SpeakingModuleClient() {
     if (!text) return "";
     let sanitizedText = text;
     sanitizedText = sanitizedText.replace(/(\*{1,2}|_{1,2})(.+?)\1/g, '$2');
-    sanitizedText = sanitizedText.replace(/["«»„“]/g, '');
+    sanitizedText = sanitizedText.replace(/["«»„"“]/g, '');
     sanitizedText = sanitizedText.replace(/'/g, '');
     sanitizedText = sanitizedText.replace(/`/g, '');
     sanitizedText = sanitizedText.replace(/^-\s+/gm, '');
@@ -245,7 +269,7 @@ export function SpeakingModuleClient() {
           console.info('TTS: SpeakingModuleClient - Speech synthesis interrupted by user or new call.');
         } else {
           console.error('TTS: SpeakingModuleClient - SpeechSynthesisUtterance.onerror - Error type:', event.error);
-          toast({ title: t('ttsUtteranceErrorTitle'), description: t('ttsUtteranceErrorDescription'), variant: 'destructive' });
+          toast({ title: t('ttsUtteranceErrorTitle', 'Ошибка синтеза речи'), description: t('ttsUtteranceErrorDescription', 'Попробуйте ещё раз.'), variant: 'destructive' });
         }
         setCurrentlySpeakingTTSId(null);
       };
@@ -253,14 +277,14 @@ export function SpeakingModuleClient() {
     } else {
       setCurrentlySpeakingTTSId(null);
     }
-  }, [setCurrentlySpeakingTTSId, toast, t, ttsUtteranceErrorTitle, ttsUtteranceErrorDescription]); // Added dependencies
+  }, [setCurrentlySpeakingTTSId, toast, t]);
 
   const playText = useCallback((textId: string, textToSpeak: string | undefined, langCode: string) => {
     playTextInternalIdRef.current += 1;
     const currentPlayId = playTextInternalIdRef.current;
     
     if (typeof window === 'undefined' || !window.speechSynthesis || !userData.settings) {
-      toast({ title: t('ttsNotSupportedTitle'), description: t('ttsNotSupportedDescription'), variant: "destructive" });
+      toast({ title: t('ttsNotSupportedTitle', 'Синтез речи не поддерживается'), description: t('ttsNotSupportedDescription', 'Ваш браузер не поддерживает синтез речи.'), variant: "destructive" });
       return;
     }
     if (window.speechSynthesis.speaking) {
@@ -308,14 +332,14 @@ export function SpeakingModuleClient() {
 
     setCurrentlySpeakingTTSId(textId);
     speakNext(currentPlayId);
-  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings, ttsNotSupportedTitle, ttsNotSupportedDescription]); // Added dependencies
+  }, [sanitizeTextForTTS, speakNext, toast, t, selectPreferredVoice, userData.settings]);
 
   const stopSpeech = useCallback(() => {
     if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
     setCurrentlySpeakingTTSId(null);
-  }, [setCurrentlySpeakingTTSId]); // Added dependencies
+  }, [setCurrentlySpeakingTTSId]);
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -330,7 +354,7 @@ export function SpeakingModuleClient() {
     stopSpeech();
     try {
       if (!userData.settings) {
-         toast({ title: t('onboardingMissing'), variant: "destructive" });
+        toast({ title: t('onboardingMissing', 'Пожалуйста, завершите ввод данных для начала работы.'), variant: "destructive" });
          setIsAiLoading(false);
          return;
       }
@@ -339,20 +363,22 @@ export function SpeakingModuleClient() {
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         generalTopic: data.generalTopic || undefined,
+        goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : (userData.settings.goal ? [userData.settings.goal] : []),
+        interests: Array.isArray(userData.settings.interests) ? userData.settings.interests : (userData.settings.interests ? [userData.settings.interests] : []),
       };
       const result = await generateSpeakingTopic(flowInput);
       setSpeakingResult(result);
       toast({
-        title: t('toastSuccessTitle'),
-        description: t('toastSuccessDescription'),
+        title: t('toastSuccessTitle', 'Тема для устного задания сгенерирована!'),
+        description: t('toastSuccessDescription', 'Проверьте детали ниже.'),
       });
       reset(); 
     } catch (error) {
       console.error("Speaking topic generation error:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
-        title: t('toastErrorTitle'),
-        description: `${t('toastErrorDescription')} ${errorMessage ? `(${errorMessage})` : ''}`,
+        title: t('toastErrorTitle', 'Ошибка при генерации задания'),
+        description: `${t('toastErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
         variant: "destructive",
       });
     } finally {
@@ -370,182 +396,126 @@ export function SpeakingModuleClient() {
   const practiceScriptTTSId = `tts-speaking-${speakingResult?.speakingTopic?.substring(0,10).replace(/\s+/g, '-') || 'practiceScript'}`;
   const isCurrentlySpeakingThisScript = currentlySpeakingTTSId === practiceScriptTTSId;
 
+  const [currentTask, setCurrentTask] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [results, setResults] = useState<{ correct: boolean; explanation: string }[]>([]);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [isAnswered, setIsAnswered] = useState(false);
+
+  const task = staticTasks[currentTask];
+
+  const handleCheck = () => {
+    // Примитивная проверка: если ответ не пустой, считаем выполненным
+    const isCorrect = userAnswer.trim().length > 0;
+    setResults([...results, { correct: isCorrect, explanation: task.explanation }]);
+    setShowExplanation(true);
+    setIsAnswered(true);
+  };
+
+  const handleNext = () => {
+    setUserAnswer('');
+    setShowExplanation(false);
+    setIsAnswered(false);
+    setCurrentTask(currentTask + 1);
+  };
+
+  const handleRepeat = () => {
+    setCurrentTask(0);
+    setUserAnswer('');
+    setResults([]);
+    setShowExplanation(false);
+    setIsAnswered(false);
+  };
+
+  const [isNextLoading, setIsNextLoading] = useState(false);
+  const [nextError, setNextError] = useState('');
+
+  // Итоговый анализ
+  if (currentTask >= staticTasks.length) {
+    const correctCount = results.filter(r => r.correct).length;
+    const percent = Math.round((correctCount / staticTasks.length) * 100);
+    const canGoNext = percent >= 70;
+    const handleNextLesson = async () => {
+      setIsNextLoading(true);
+      setNextError('');
+      try {
+        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
+        const input = {
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          currentLearningRoadmap: userData.progress.learningRoadmap,
+          completedLessonIds: userData.progress.completedLessonIds || [],
+          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
+          currentProficiencyLevel: (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2',
+        };
+        const rec = await getLessonRecommendation(input);
+        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
+          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
+          if (lesson && lesson.topics && lesson.topics.length > 0) {
+            window.location.href = `/learn/speaking?topic=${encodeURIComponent(lesson.topics[0])}&lessonId=${lesson.id}`;
+            return;
+          }
+        }
+        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
+      } catch (e) {
+        setNextError('Ошибка перехода к следующему уроку.');
+      } finally {
+        setIsNextLoading(false);
+      }
+    };
+    return (
+      <div className="max-w-xl mx-auto p-8 text-center">
+        <h2 className="text-2xl mb-3">Устный тест завершён</h2>
+        <p className="text-lg mb-4">Ваш результат: <b>{correctCount} из {staticTasks.length}</b> ({percent}%)</p>
+        {canGoNext ? (
+          <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
+        ) : (
+          <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
+        )}
+        <Button onClick={handleRepeat} className="px-6 py-2 text-base mr-3">Пройти ещё раз</Button>
+        {canGoNext && (
+          <Button onClick={handleNextLesson} className="px-6 py-2 text-base" disabled={isNextLoading}>
+            {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
+          </Button>
+        )}
+        {!canGoNext && (
+          <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
+        )}
+        {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 p-4 md:p-6 lg:p-8">
-      <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Mic className="h-8 w-8 text-primary" />
-            {t('title')}
-          </CardTitle>
-          <CardDescription>
-            {t('description')}
-             {typeof window !== 'undefined' && window.speechSynthesis && (
-                <span className="block mt-1 text-xs italic">{t('ttsExperimentalText')}</span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="generalTopic">{t('generalTopicLabel')}</Label>
-              <Input id="generalTopic" placeholder={t('generalTopicPlaceholder')} {...register("generalTopic")} />
-              {errors.generalTopic && <p className="text-sm text-destructive">{errors.generalTopic.message}</p>}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
-              {t('getTopicButton')}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-
-      {isAiLoading && !speakingResult && (
-        <div className="flex justify-center items-center p-10">
-          <LoadingSpinner size={32} />
-          <p className="ml-2">{t('loading')}</p>
-        </div>
-      )}
-
-      {speakingResult && (
-        <Card className="shadow-lg">
-          <CardHeader>
-             <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                {t('resultsTitlePrefix')}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleClearResults} aria-label={t('clearResultsButton')}>
-                <XCircle className="mr-2 h-4 w-4" />
-                {t('clearResultsButton')}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: 32 }}>
+      <h2 style={{ fontSize: 24, marginBottom: 12 }}>Устное задание</h2>
+      <div style={{ fontSize: 18, marginBottom: 16 }}>Задание {currentTask + 1} из {staticTasks.length}:</div>
+      <div style={{ fontSize: 18, marginBottom: 16 }}>{task.prompt}</div>
+      <textarea
+        value={userAnswer}
+        onChange={e => setUserAnswer(e.target.value)}
+        placeholder="Введите кратко, что вы сказали/или отметьте выполнение..."
+        rows={3}
+        style={{ width: '100%', padding: 8, fontSize: 16, marginBottom: 16 }}
+        disabled={isAnswered}
+      />
             <div>
-              <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary/80" />
-                {t('speakingTopicHeader')}
-              </h3>
-              <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                <p className="whitespace-pre-wrap text-base leading-relaxed">{speakingResult.speakingTopic}</p>
-              </ScrollArea>
-            </div>
-
-            <div>
-                <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                    <HelpCircle className="h-5 w-5 text-primary/80" />
-                    {t('guidingQuestionsHeader')}
-                </h3>
-                 <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                    {(speakingResult.guidingQuestions && speakingResult.guidingQuestions.length > 0) ? (
-                        <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
-                        {speakingResult.guidingQuestions.map((question, index) => (
-                            <li key={index} className="flex items-start gap-2">
-                                <HelpCircle className="h-4 w-4 text-primary/70 shrink-0 mt-1" />
-                                <span>{question}</span>
-                            </li>
-                        ))}
-                        </ul>
-                    ) : (
-                        <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
-                            {t('noGuidingQuestions')}
-                        </div>
-                    )}
-                </ScrollArea>
-            </div>
-            
-            <div>
-                <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                    <MessageCircleQuestion className="h-5 w-5 text-primary/80" />
-                    {t('followUpQuestionsHeader')}
-                </h3>
-                 <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                    {(speakingResult.followUpQuestions && speakingResult.followUpQuestions.length > 0) ? (
-                        <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
-                        {speakingResult.followUpQuestions.map((question, index) => (
-                           <li key={index} className="flex items-start gap-2">
-                                <MessageCircleQuestion className="h-4 w-4 text-primary/70 shrink-0 mt-1" />
-                                <span>{question}</span>
-                            </li>
-                        ))}
-                        </ul>
-                    ) : (
-                        <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
-                            {t('noFollowUpQuestions')}
-                        </div>
-                    )}
-                </ScrollArea>
-            </div>
-
-            <div>
-                <div className="flex justify-between items-center mt-4 mb-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary/80" />
-                    {t('practiceScriptHeader')} ({userData.settings!.targetLanguage})
-                  </h3>
-                   {typeof window !== 'undefined' && window.speechSynthesis && hasPracticeScript && (
-                       <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => {
-                                if (isCurrentlySpeakingThisScript) {
-                                  stopSpeech();
-                                } else {
-                                  if(userData.settings?.targetLanguage){
-                                      const langCode = mapTargetLanguageToBcp47(userData.settings.targetLanguage);
-                                      playText(practiceScriptTTSId, speakingResult.practiceScript, langCode);
-                                  }
-                                }
-                              }}
-                              aria-label={isCurrentlySpeakingThisScript ? t('ttsStopScript') : t('ttsPlayScript')}
-                              className="ml-2 p-1.5 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-                              disabled={!hasPracticeScript}
-                            >
-                              {isCurrentlySpeakingThisScript ? <Ban className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{isCurrentlySpeakingThisScript ? t('ttsStopScript') : t('ttsPlayScript')}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
-                <ScrollArea className="h-auto max-h-[150px] rounded-md border p-3 bg-muted/30">
-                   {hasPracticeScript ? (
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{speakingResult.practiceScript}</p>
-                    ) : (
-                      <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
-                          {t('noPracticeScript')}
-                      </div>
-                    )}
-                </ScrollArea>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold text-lg mt-4 mb-2 flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-primary/80" />
-                {t('tipsHeader')}
-              </h3>
-              <ScrollArea className="h-auto max-h-[100px] rounded-md border p-3 bg-muted/30">
-                {(speakingResult.tips && speakingResult.tips.length > 0) ? (
-                  <ul className="list-disc pl-5 space-y-1 text-sm whitespace-pre-wrap">
-                    {speakingResult.tips.map((tip, index) => (
-                      <li key={index}>{tip}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="flex items-center justify-center h-full min-h-[50px] text-muted-foreground italic">
-                    {t('noTipsGenerated')}
+        {!isAnswered ? (
+          <Button onClick={handleCheck} disabled={!userAnswer.trim()} style={{ marginRight: 12 }}>
+            Выполнил
+          </Button>
+        ) : (
+          <Button onClick={handleNext} style={{ marginRight: 12 }}>
+            Следующее задание
+          </Button>
+        )}
+        {showExplanation && (
+          <div style={{ marginTop: 24, fontSize: 17, color: isAnswered && results[results.length - 1]?.correct ? 'green' : 'red' }}>
+            {results[results.length - 1]?.correct ? '✅ Хорошо!' : '❌ Нужно доработать'}
+            <div style={{ marginTop: 8, color: '#0070f3' }}>Пояснение: {task.explanation}</div>
+            <div style={{ marginTop: 8, color: '#888' }}><b>Пример ответа:</b> {task.answer}</div>
                   </div>
                 )}
-              </ScrollArea>
             </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

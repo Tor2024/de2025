@@ -1,10 +1,9 @@
-
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { GrammarModuleClient } from "@/components/learn/GrammarModuleClient";
+import GrammarModuleClient from "@/components/learn/GrammarModuleClient";
 import { useUserData } from "@/contexts/UserDataContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import * as React from 'react';
@@ -37,6 +36,11 @@ const pageTranslations = generateTranslations();
 export default function GrammarPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData(); 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const topic = searchParams.get('topic');
+  const lessonId = searchParams.get('lessonId');
+  const lessonTitle = searchParams.get('lessonTitle');
+  const lessonDescription = searchParams.get('lessonDescription');
 
   useEffect(() => {
     if (!isUserDataLoading && userData.settings === null) {
@@ -81,7 +85,12 @@ export default function GrammarPage() {
   
   return (
     <AppShell>
-      <GrammarModuleClient />
+      <GrammarModuleClient
+        grammarTopic={topic || undefined}
+        lessonId={lessonId || undefined}
+        lessonTitle={lessonTitle || undefined}
+        lessonDescription={lessonDescription || undefined}
+      />
     </AppShell>
   );
 }

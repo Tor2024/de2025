@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI-powered tutor tip generator.
@@ -16,7 +15,7 @@ import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from 
 const GenerateTutorTipInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for the tip (e.g., en, ru).'),
   targetLanguage: z.enum(targetLanguageNames).describe('The target language the user is learning (e.g., German, English).'),
-  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).'),
+  proficiencyLevel: z.enum(proficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2).').optional(),
   learningGoal: z.string().optional().describe('The user-defined learning goal, if available, to make the tip more relevant.'),
 });
 export type GenerateTutorTipInput = z.infer<typeof GenerateTutorTipInputSchema>;

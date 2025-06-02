@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -113,7 +112,7 @@ const pageTranslations = generateTranslations();
 
 
 export function OnboardingFlow() {
-  const { userData, setUserData, checkAndAwardBadges } = useUserData(); 
+  const { userData, setUserData } = useUserData(); 
   const { toast } = useToast();
   const [isLoadingAi, setIsLoadingAi] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
@@ -123,7 +122,6 @@ export function OnboardingFlow() {
     mode: "onChange", 
     defaultValues: {
       interfaceLanguage: 'en', 
-      proficiencyLevel: 'A1-A2',
       userName: '',
       targetLanguage: undefined,
       goal: ''
@@ -158,15 +156,17 @@ export function OnboardingFlow() {
         userName: data.userName,
         interfaceLanguage: data.interfaceLanguage,
         targetLanguage: data.targetLanguage,
+        goal: [data.goal],
         proficiencyLevel: data.proficiencyLevel,
-        goal: data.goal,
+        interests: [],
       };
 
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage,
         targetLanguage: data.targetLanguage,
+        goals: [data.goal],
+        interests: [],
         proficiencyLevel: data.proficiencyLevel,
-        personalGoal: data.goal,
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
@@ -269,20 +269,27 @@ export function OnboardingFlow() {
         {stepConfig.fields.includes("proficiencyLevel") && (
           <div className="space-y-2">
             <Label htmlFor="proficiencyLevel">{currentTranslations.proficiencyLevelLabel}</Label>
-            <Controller name="proficiencyLevel" control={control} render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger id="proficiencyLevel">
-                  <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  {proficiencyLevels.map(level => (
-                    <SelectItem key={level} value={level}>
-                      {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )} />
+            <Controller
+              name="proficiencyLevel"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value} 
+                >
+                  <SelectTrigger id="proficiencyLevel">
+                    <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {proficiencyLevels.map(level => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
           </div>
         )}

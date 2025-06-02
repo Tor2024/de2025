@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // The GeistSans and GeistMono imports from 'geist/font' are already configured.
 // No need for further instantiation like GeistSans({ ... })
@@ -26,10 +27,12 @@ export default function RootLayout({
         globals.css already uses var(--font-geist-sans).
       */}
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-        <UserDataProvider>
-          {children}
-          <Toaster />
-        </UserDataProvider>
+        <ThemeProvider>
+          <UserDataProvider>
+            {children}
+            <Toaster />
+          </UserDataProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
