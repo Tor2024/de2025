@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateListeningMaterial } from '@/ai/flows/generate-listening-material-flow';
 import { ai } from '@/ai/genkit';
+import { generateListeningMaterial } from '../../../ai/flows/generate-listening-material-flow';
 
 export async function POST(req: NextRequest) {
   try {
