@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { useUserData } from '@/contexts/UserDataContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import type { UserLearnedWord } from '@/lib/types';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import { generateNewWordsTasksFlow, type NewWordsTask } from '@/ai/flows/generate-new-words-tasks-flow';
+import { useUserData } from '../../contexts/UserDataContext';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { LoadingSpinner } from '../ui/loading-spinner';
+import type { UserLearnedWord } from '../../lib/types';
+import { getLessonRecommendation } from '../../ai/flows/get-lesson-recommendation-flow';
+import { generateNewWordsTasksFlow, type NewWordsTask } from '../../ai/flows/generate-new-words-tasks-flow';
 
 export default function NewWordsModuleClient() {
   const { userData, isLoading: isUserDataLoading, processWordRepetition } = useUserData();

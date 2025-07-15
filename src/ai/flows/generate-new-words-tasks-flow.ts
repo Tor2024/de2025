@@ -1,6 +1,6 @@
-import { ai } from '@/ai/genkit';
+import { ai } from '../genkit';
 import { z } from 'genkit';
-import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '@/lib/types';
+import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '../../lib/types';
 
 // Типы заданий для новых слов
 const newWordsTaskTypes = [

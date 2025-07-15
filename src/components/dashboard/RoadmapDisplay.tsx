@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -54,7 +55,12 @@ const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean
     { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
   ];
 
-const parseTopicAndGetLink = (topicLine: string, lessonContext?: { lessonId: string; lessonLevel: string }): { href: string | null; displayText: string } => {
+const parseTopicAndGetLink = (topicLine: any, lessonContext?: { lessonId: string; lessonLevel: string }): { href: string | null; displayText: string } => {
+  if (typeof topicLine !== 'string') {
+    console.warn('parseTopicAndGetLink received a non-string topicLine:', topicLine);
+    return { href: null, displayText: String(topicLine || '') };
+  }
+
   let href: string | null = null;
   const displayText = topicLine; 
 
@@ -542,4 +548,3 @@ export function RoadmapDisplay({
     </Card>
   );
 }
-
