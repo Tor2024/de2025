@@ -27,8 +27,6 @@ const moduleComponents = {
 export default function LessonPageClient({ lessonType, lessonId, displayName }: LessonPageClientProps) {
   // Get the component based on the lesson type from the map
   const ModuleComponent = moduleComponents[lessonType as keyof typeof moduleComponents] || null;
-    ModuleComponent = null;
-  }
   return (
     <div style={{ padding: 32, textAlign: 'center' }}>
       <h1 style={{ fontSize: 28, marginBottom: 16 }}>
