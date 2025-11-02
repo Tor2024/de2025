@@ -38,8 +38,4 @@ export const lessonTypes = {
     displayName: 'Изучение новых слов',
     componentPath: '@/components/learn/NewWordsModuleClient',
   },
-  theory: {
-    displayName: 'Теория',
-    componentPath: '@/components/learn/TheoryModuleClient',
-  },
-}; 
+};

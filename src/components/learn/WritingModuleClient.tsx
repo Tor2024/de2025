@@ -29,7 +29,7 @@ const staticTasks: WritingTask[] = [
   }
 ];
 
-const lessonSections = ['theory', 'grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
 
 function goToNextSection(
   currentSection: string,
@@ -260,4 +260,4 @@ export default function WritingModuleClient() {
       </div>
     </div>
   );
-} 
+}

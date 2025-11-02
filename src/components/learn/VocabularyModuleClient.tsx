@@ -233,7 +233,7 @@ const staticVocabTasks: StaticVocabTask[] = [
   },
 ];
 
-const lessonSections = ['theory', 'grammar', 'vocabulary', 'practice', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'practice', 'reading', 'listening', 'writing'];
 
 function goToNextSection(
   currentSection: string,
@@ -633,18 +633,20 @@ export function VocabularyModuleClient() {
           </CardTitle>
           <CardDescription className="text-center">{t('description')}</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex gap-3 mb-6">
-          <Input
-            {...register('topic')}
-            placeholder={t('topicPlaceholder')}
-            className="flex-1"
-            disabled={isAiLoading}
-          />
-          <Button type="submit" disabled={isAiLoading || !Boolean(errors.topic) && !currentTopic.trim()} className="min-w-[140px]">
-            {isAiLoading ? <LoadingSpinner size={16} /> : t('getWordsButton')}
-          </Button>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="topic">{t('topicLabel')}</Label>
+              <Input id="topic" placeholder={t('topicPlaceholder')} {...register('topic')} />
+              {errors.topic && <p className="text-sm text-destructive">{errors.topic.message}</p>}
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={isAiLoading || !Boolean(errors.topic) && !currentTopic.trim()} className="min-w-[140px]">
+              {isAiLoading ? <LoadingSpinner size={16} /> : t('getWordsButton')}
+            </Button>
+          </CardFooter>
         </form>
-        {errors.topic && <div className="text-red-500 mb-4">{errors.topic.message}</div>}
       </Card>
 
       {isAiLoading && !vocabularyResult && (
@@ -1036,6 +1038,3 @@ export function VocabularyModuleClient() {
     </div>
   );
 }
-
-
-    

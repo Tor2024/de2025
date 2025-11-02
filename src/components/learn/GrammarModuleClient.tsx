@@ -93,7 +93,7 @@ function GrammarExplanation({ explanation }: { explanation: string }) {
 }
 
 // Универсальный массив разделов
-const lessonSections = ['theory', 'grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
 
 function goToNextSection(
   currentSection: string,
@@ -411,4 +411,3 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
     </div>
   );
 }
-

@@ -70,7 +70,7 @@ const mapTargetLanguageToBcp47: Record<string, string> = {
   // Добавьте другие языки по необходимости
 };
 
-const lessonSections = ['theory', 'grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
 
 function goToNextSection(
   currentSection: string,
@@ -476,6 +476,3 @@ export default function ListeningModuleClient() {
     </div>
   );
 }
-
-    
-  
