@@ -21,7 +21,7 @@ const keywordsToModules = [
   { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
   { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
   { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
 ];
 function parseTopicAndGetLink(
   topicLine: string,

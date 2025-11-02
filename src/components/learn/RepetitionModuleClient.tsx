@@ -4,10 +4,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useUserData } from '@/contexts/UserDataContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import type { UserLearnedWord } from '@/lib/types';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import type { RepetitionTask } from '@/ai/flows/generate-repetition-tasks-flow';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
@@ -43,7 +42,12 @@ export default function RepetitionModuleClient() {
     now.setHours(0, 0, 0, 0); 
     return userData.progress.learnedWords.filter(word => {
       if (!word.nextReviewDate) return false;
-      return new Date(word.nextReviewDate) <= now;
+      try {
+        const reviewDate = new Date(word.nextReviewDate);
+        return !isNaN(reviewDate.getTime()) && reviewDate <= now;
+      } catch (e) {
+        return false;
+      }
     });
   }, [userData.progress?.learnedWords]);
 
@@ -62,7 +66,7 @@ export default function RepetitionModuleClient() {
 
     try {
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
-      const response = await fetch('/api/ai/generate-repetition-tasks', {
+      const response = await fetch('/api/ai/generate-repetition-tasks/route.ts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,7 +159,7 @@ export default function RepetitionModuleClient() {
     );
   }
 
-  if (wordsToReview.length === 0) {
+  if (wordsToReview.length === 0 && !isAiLoading) {
     return (
       <div className="max-w-xl mx-auto p-8 text-center flex flex-col items-center">
         <PartyPopper className="h-16 w-16 text-primary mb-4" />
@@ -209,13 +213,24 @@ export default function RepetitionModuleClient() {
     );
   }
   
-  if (!currentTask) {
+  if (!currentTask && !isAiLoading) {
      return (
       <div className="flex h-full items-center justify-center p-4">
-        <p className="text-muted-foreground">Нет доступных заданий.</p>
+        <p className="text-muted-foreground">Нет доступных заданий. Возможно, ИИ не смог их сгенерировать.</p>
       </div>
     );
   }
+  
+  if (!currentTask) {
+    // This will show a loading state while tasks are being fetched for the first time
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-4">
+        <LoadingSpinner size={32} />
+        <p className="ml-2 mt-2 text-muted-foreground">Генерация упражнений...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8">
@@ -267,6 +282,7 @@ export default function RepetitionModuleClient() {
                     onChange={(e) => setUserAnswer(e.target.value)}
                     placeholder="Введите ваш ответ..."
                     disabled={isAnswered}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !isAnswered && userAnswer.trim()) handleCheck(); }}
                     className={cn(
                         "text-lg",
                         isAnswered && (isCorrect ? "border-green-500 bg-green-100/50" : "border-red-500 bg-red-100/50")
@@ -309,5 +325,3 @@ export default function RepetitionModuleClient() {
     </div>
   );
 }
-
-    

@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
     const result = await generateRepetitionTasksFlow(input);
     return NextResponse.json(result);
   } catch (error: any) {
+    console.error(`[generate-repetition-tasks] Error: ${error.message}`, { error });
     return NextResponse.json({ error: error?.message || 'Ошибка генерации заданий на повторение' }, { status: 500 });
   }
-} 
+}

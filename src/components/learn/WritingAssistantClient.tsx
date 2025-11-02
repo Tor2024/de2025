@@ -62,6 +62,7 @@ const baseEnTranslations: Record<string, string> = {
   chatSmsNote: "Chat/SMS/Short Note",
   essayArgumentative: "Essay/Argumentative Text",
   clearResultsButton: "Clear Results",
+  nextLessonButton: "Next Lesson",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -95,6 +96,7 @@ const baseRuTranslations: Record<string, string> = {
   chatSmsNote: "Сообщение в чате/SMS",
   essayArgumentative: "Эссе/Аргументативный текст",
   clearResultsButton: "Очистить результаты",
+  nextLessonButton: "Следующий урок",
 };
 
 const generateTranslations = () => {
@@ -119,7 +121,7 @@ const keywordsToModules = [
   { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
   { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
   { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
 ];
 function parseTopicAndGetLink(
   topicLine: string,
@@ -292,17 +294,18 @@ export function WritingAssistantClient() {
     };
 
     return (
-      <div className="space-y-6 p-4 md:p-6 lg:p-8" style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
+      <div className="space-y-6 p-4 md:p-6 lg:p-8">
         <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
             <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <CheckCircle className="h-8 w-8 text-green-500" />
               {t('resultsCardTitle')}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('feedbackSectionTitle')}</h3>
+                <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>{t('feedbackSectionTitle')}</h3>
                 <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
                 </ScrollArea>
@@ -335,7 +338,7 @@ export function WritingAssistantClient() {
                   <FileText className="h-5 w-5 text-blue-500" />
                   {t('yourOriginalTextSectionTitle')}
                 </h3>
-                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
                 </ScrollArea>
               </div>
@@ -343,21 +346,22 @@ export function WritingAssistantClient() {
 
             <div className="space-y-2">
               <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
-              <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                 <div 
                   className="whitespace-pre-wrap text-sm leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
                 />
               </ScrollArea>
             </div>
-            <div style={{ marginTop: 24 }}>
-              <Button onClick={handleClearResults} style={{ marginRight: 12 }}>{t('clearResultsButton')}</Button>
-              <Button onClick={handleNextLesson} disabled={isNextLoading}>
-                {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
-              </Button>
-            </div>
-            {nextError && <div style={{ color: 'red', marginTop: 16 }}>{nextError}</div>}
           </CardContent>
+          <CardFooter className="flex justify-between">
+              <Button onClick={handleClearResults} variant="outline">{t('clearResultsButton')}</Button>
+              <Button onClick={handleNextLesson} disabled={isNextLoading}>
+                {isNextLoading ? <LoadingSpinner size={16} className="mr-2"/> : null}
+                {t('nextLessonButton')}
+              </Button>
+          </CardFooter>
+           {nextError && <p className="text-sm text-destructive text-center p-4">{nextError}</p>}
         </Card>
       </div>
     );
@@ -421,4 +425,3 @@ export function WritingAssistantClient() {
     </div>
   );
 }
-

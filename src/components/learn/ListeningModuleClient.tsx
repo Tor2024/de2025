@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useUserData } from '@/contexts/UserDataContext';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Volume2, XCircle } from 'lucide-react';
+import { Volume2, XCircle, RefreshCw } from 'lucide-react';
 import type { GenerateListeningMaterialOutput } from '@/ai/flows/generate-listening-material-flow';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
@@ -22,7 +22,7 @@ const keywordsToModules = [
   { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
   { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
   { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
 ];
 function parseTopicAndGetLink(
   topicLine: string,
@@ -111,69 +111,7 @@ export default function ListeningModuleClient() {
   const [nextError, setNextError] = useState('');
   const [topicInput, setTopicInput] = useState<string>("");
 
-  // useEffect для автозагрузки темы из topicParam
-  useEffect(() => {
-    if (topicParam && !material && !isLoading) {
-      setTopicInput(topicParam);
-      (async () => {
-        setIsLoading(true);
-        setError('');
-        setMaterial(null);
-        setCurrentQuestion(0);
-        setUserAnswer('');
-        setResults([]);
-        setShowExplanation(false);
-        setIsAnswered(false);
-        try {
-          if (!userData.settings) throw new Error('Нет настроек пользователя');
-          const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
-          const response = await fetch('/api/ai/generate-listening-material', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              interfaceLanguage: userData.settings.interfaceLanguage,
-              targetLanguage: userData.settings.targetLanguage,
-              proficiencyLevel: safeProficiencyLevel,
-              topic: topicInput || topicParam || 'Повседневная ситуация',
-              goals: [],
-              interests: [],
-            }),
-          });
-          if (!response.ok) throw new Error('Ошибка генерации аудиоматериала');
-          const result: GenerateListeningMaterialOutput = await response.json();
-          setMaterial(result);
-        } catch (e) {
-          setError('Ошибка генерации аудиоматериала. Попробуйте другую тему.');
-        } finally {
-          setIsLoading(false);
-        }
-      })();
-    }
-  }, [topicParam, material, isLoading, userData.settings]);
-
-  // TTS (Text-to-Speech)
-  const playScript = useCallback(() => {
-    if (!material?.script) return;
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      // Получаем BCP-47 код для TTS
-      const ttsLang = userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage] : 'de-DE';
-      const utterance = new window.SpeechSynthesisUtterance(material.script);
-      utterance.lang = ttsLang;
-      utterance.onstart = () => setIsPlaying(true);
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => setIsPlaying(false);
-      window.speechSynthesis.speak(utterance);
-    }
-  }, [material, userData]);
-
-  const stopScript = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      setIsPlaying(false);
-    }
-  }, []);
-
-  const handleGetMaterial = async () => {
+  const handleGetMaterial = useCallback(async () => {
     setIsLoading(true);
     setError('');
     setMaterial(null);
@@ -205,7 +143,15 @@ export default function ListeningModuleClient() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userData.settings, topicInput, topicParam]);
+
+  // useEffect для автозагрузки темы из topicParam
+  useEffect(() => {
+    if (topicParam && !material && !isLoading) {
+      setTopicInput(topicParam);
+      handleGetMaterial();
+    }
+  }, [topicParam, material, isLoading, handleGetMaterial]);
 
   // useEffect для автоматического перехода к следующему разделу
   useEffect(() => {
@@ -302,12 +248,13 @@ export default function ListeningModuleClient() {
           onChange={e => setTopicInput(e.target.value)}
           placeholder="Например: В магазине, На вокзале, Заказ еды..."
           style={{ flex: 1 }}
+          disabled={isLoading}
         />
         <Button onClick={handleGetMaterial} disabled={isLoading || !topicInput.trim()}>
           {isLoading ? <LoadingSpinner size={16} /> : 'Получить аудиоматериал'}
         </Button>
       </div>
-      {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
+      {error && <div className="text-red-500 mb-4 flex items-center gap-2">{error} <Button onClick={handleGetMaterial} size="sm" variant="outline"><RefreshCw className="h-4 w-4 mr-2" /> Повторить</Button></div>}
       {material && (
         <Card className="mb-6">
         <CardHeader>
