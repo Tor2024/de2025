@@ -29,6 +29,7 @@ const ComprehensionQuestionSchema = z.object({
   question: z.string().describe('The comprehension question text in the interfaceLanguage.'),
   options: z.array(z.string()).optional().describe('An array of options for multiple-choice questions, in the interfaceLanguage.'),
   answer: z.string().optional().describe('The correct answer or an indication of the correct option for multiple-choice questions, in the interfaceLanguage.'),
+  explanation: z.string().optional().describe('A detailed explanation in interfaceLanguage about why the answer is correct, with examples if possible.')
 });
 
 const GenerateReadingMaterialOutputSchema = z.object({
@@ -68,9 +69,10 @@ CRITICAL Instructions:
     *   The complexity of the text, questions, и особенно примеры ДОЛЖНЫ строго соответствовать уровню {{{proficiencyLevel}}}.
     *   Where possible, учитывай интересы, цели и слабые места пользователя (ошибки, темы, грамматика, лексика) — делай текст более релевантным и полезным для проработки этих аспектов.
     *   Ensure that the selected text is commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
-2.  **Comprehension Questions:** Generate 2-4 questions to check understanding. Для каждого вопроса: формулируй его максимально понятно для новичка, всегда указывай, что именно должен сделать пользователь (например: выбрать правильный вариант, вписать слово, ответить на вопрос по содержанию и т.д.). Если есть риск неоднозначности, добавь короткую подсказку или пример. Избегай слишком кратких и абстрактных формулировок. Для каждого вопроса указывай правильный ответ и, если возможно, варианты (для multiple choice). Если даёшь объяснение к ответу — оно должно быть подробным, с разъяснением, почему правильный ответ именно такой, а другие — нет, с примерами, если это поможет. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.
-3.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
-The 'comprehensionQuestions' array should contain objects, each with 'question', 'answer', and optionally 'options'.
+2.  **Comprehension Questions:** Generate 2-4 questions to check understanding. Для каждого вопроса: формулируй его максимально понятно для новичка, всегда указывай, что именно должен сделать пользователь (например: выбрать правильный вариант, вписать слово, ответить на вопрос по содержанию и т.д.). Если есть риск неоднозначности, добавь короткую подсказку или пример. Избегай слишком кратких и абстрактных формулировок. Для каждого вопроса указывай правильный ответ и, если возможно, варианты (для multiple choice).
+3.  **Detailed Explanations:** For each question, you MUST provide a detailed explanation in the 'explanation' field. This explanation should clarify why the correct answer is right and, if applicable, why the other options are wrong, citing evidence from the reading text. The explanation MUST be in the {{{interfaceLanguage}}} and be friendly and supportive.
+4.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
+The 'comprehensionQuestions' array should contain objects, each with 'question', 'answer', 'explanation', and optionally 'options'.
 `,
 });
 

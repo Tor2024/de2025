@@ -17,7 +17,7 @@ const NewWordsTaskSchema = z.object({
   word: z.string().describe('Новое слово или фраза (на targetLanguage)'),
   options: z.array(z.string()).optional().describe('Варианты ответа (на interfaceLanguage или targetLanguage)'),
   correctAnswer: z.string().describe('Правильный ответ (на interfaceLanguage или targetLanguage)'),
-  explanation: z.string().optional().describe('Пояснение для пользователя (на interfaceLanguage)'),
+  explanation: z.string().optional().describe('Подробное объяснение на interfaceLanguage. Объясни, почему правильный ответ именно такой, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.'),
 });
 
 export type NewWordsTask = z.infer<typeof NewWordsTaskSchema>;
@@ -60,7 +60,7 @@ const generateNewWordsTasksPrompt = ai.definePrompt({
 - word: новое слово/фраза (на {{targetLanguage}})
 - options: если есть варианты (на interfaceLanguage или targetLanguage)
 - correctAnswer: правильный ответ
-- explanation: подробное пояснение на {{interfaceLanguage}}. Объясни, почему правильный ответ именно такой, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.
+- explanation: подробное объяснение на {{interfaceLanguage}}. Объясни, почему правильный ответ именно такой, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.
 
 Учитывай цели и интересы пользователя: {{goals}}, {{interests}}.
 Темы и примеры должны быть релевантны уровню {{proficiencyLevel}}.
@@ -77,4 +77,4 @@ export const generateNewWordsTasksFlow = ai.defineFlow({
   const { output } = await generateNewWordsTasksPrompt(input);
   if (!output) throw new Error('AI не сгенерировал упражнения по новым словам.');
   return output;
-}); 
+});

@@ -96,11 +96,12 @@ CRITICAL INSTRUCTIONS FOR LANGUAGE AND FORMATTING:
     *   'correctAnswer': The correct word(s) for the blank. This MUST be in the target language.
 
 Your task:
-1.  Provide a clear and concise **Explanation** of the {{{grammarTopic}}}.
+1.  Provide a very **Detailed Explanation** of the {{{grammarTopic}}}.
     *   This explanation must be in the {{{interfaceLanguage}}}.
     *   Make sure the explanation is well-suited for text-to-speech conversion (clear, simple sentences).
     *   Embed target language examples using ##TARGET_LANG_START## and ##TARGET_LANG_END## delimiters as specified above.
-    *   Объяснение должно быть подробным, с разъяснением, почему правильный ответ именно такой, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.
+    *   The explanation must be very detailed. Explain *why* the rule is the way it is, not just what the rule is. Use analogies, comparisons to the user's interface language if possible, and provide at least 2-3 different examples for each key aspect of the rule.
+    *   Объяснение должно быть подробным, с разъяснением, почему правило работает именно так, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Стиль объяснения — дружелюбный, поддерживающий, но обстоятельный, без сложных терминов без объяснения.
 2.  If the {{{userPastErrors}}} or mistakes are provided and contain errors relevant to the current {{{grammarTopic}}}, subtly tailor parts of your explanation and some practice tasks to help address these specific past weaknesses. Не говори явно "вы ошибались", а просто усиливай проработку этих мест.
 3.  Generate a list of **at least 10 Practice Tasks**. These tasks should:
     *   Follow the structured format described in "Practice Task Structure" above.
@@ -164,4 +165,3 @@ const adaptiveGrammarExplanationsFlow = ai.defineFlow(
     return output;
   }
 );
-

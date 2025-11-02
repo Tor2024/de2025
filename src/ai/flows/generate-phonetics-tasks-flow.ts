@@ -18,7 +18,7 @@ const PhoneticsTaskSchema = z.object({
   audioText: z.string().optional().describe('Текст для озвучивания (на targetLanguage)'),
   options: z.array(z.string()).optional().describe('Варианты ответа (на targetLanguage)'),
   correctAnswer: z.string().describe('Правильный ответ (или эталонная фраза)'),
-  explanation: z.string().optional().describe('Объяснение/комментарий (на interfaceLanguage)'),
+  explanation: z.string().optional().describe('Подробное объяснение на interfaceLanguage. Объясни, почему правильный ответ именно такой, а другие варианты неверны. Приводи примеры, сравнения, аналогии, если это поможет лучше понять материал. Если задание связано с фонетикой, обязательно поясни, какой звук имеется в виду и как он образуется. Стиль объяснения — дружелюбный, поддерживающий, без сложных терминов без объяснения.'),
 });
 
 export type PhoneticsTask = z.infer<typeof PhoneticsTaskSchema>;
@@ -81,4 +81,4 @@ export const generatePhoneticsTasksFlow = ai.defineFlow(
     }
     return output;
   }
-); 
+);
