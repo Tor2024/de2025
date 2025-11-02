@@ -82,6 +82,8 @@ const baseEnTranslations: Record<string, string> = {
   speakingTooltip: "Speaking",
   wordPractice: "Word Practice",
   wordPracticeTooltip: "Word Practice",
+  repetition: "Repetition",
+  repetitionTooltip: "Spaced Repetition",
   progress: "Progress",
   progressTooltip: "Progress",
   achievements: "Achievements",
@@ -108,6 +110,8 @@ const baseRuTranslations: Record<string, string> = {
   speakingTooltip: "Говорение",
   wordPractice: "Практика слов",
   wordPracticeTooltip: "Практика слов",
+  repetition: "Повторение",
+  repetitionTooltip: "Интервальное повторение",
   progress: "Прогресс",
   progressTooltip: "Прогресс",
   achievements: "Достижения",
@@ -243,3 +247,4 @@ export function AppSidebar() {
   );
 }
 
+    

@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat } from "lucide-react";
+import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, Brain } from "lucide-react";
 
 export interface AppModuleConfig {
   id: string;
@@ -52,6 +52,18 @@ export const appModulesConfig: AppModuleConfig[] = [
     defaultTooltip: "Vocabulary",
     disabled: false,
   },
+    {
+    id: "repetition",
+    href: "/learn/repetition",
+    icon: Brain,
+    titleKey: "repetition",
+    defaultTitle: "Repetition",
+    descriptionKey: "repetitionDescription",
+    defaultDescription: "Review words with spaced repetition.",
+    tooltipKey: "repetitionTooltip",
+    defaultTooltip: "Spaced Repetition",
+    disabled: false,
+  },
   {
     id: "reading",
     href: "/learn/reading",
@@ -101,3 +113,5 @@ export const appModulesConfig: AppModuleConfig[] = [
     disabled: false, // Enabled this module
   },
 ];
+
+    
