@@ -13,10 +13,11 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isFirebaseLoading && userData.settings && typeof userData.settings === 'object') {
+    // Redirect only when data is fully loaded and a learning roadmap exists.
+    if (!isLoading && !isFirebaseLoading && userData.settings && userData.progress?.learningRoadmap) {
       router.replace('/dashboard');
     }
-  }, [userData.settings, isLoading, isFirebaseLoading, router]);
+  }, [userData, isLoading, isFirebaseLoading, router]);
 
   const getLoadingMessage = () => {
     const langToUse = userData.settings?.interfaceLanguage || 'en';
@@ -39,12 +40,13 @@ export default function HomePage() {
     );
   }
 
-  // If user data is loaded but there are no settings, show onboarding
-  if (!userData.settings) {
+  // If user data is loaded but there are no settings, show onboarding.
+  // Also show if settings exist but somehow the roadmap is missing (e.g., failed generation).
+  if (!userData.settings || !userData.progress?.learningRoadmap) {
     return <OnboardingFlow />;
   }
 
-  // If user data is loaded and settings exist, it means we are about to redirect.
+  // If user data is loaded and settings/roadmap exist, we are about to redirect.
   return (
     <div className="flex h-screen items-center justify-center">
       <LoadingSpinner size={48} />
