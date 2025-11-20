@@ -53,17 +53,18 @@ User Profile:
 - Their interests: {{{interests}}}
 
 Your Task:
-1.  Based on the user's general "{{{topic}}}", create a concrete and clear **writingPrompt**. 
+1.  Based on the user's general "{{{topic}}}", create a concrete and clear **writingPrompt**.
     *   The prompt must be in the specified **{{{interfaceLanguage}}}**.
     *   The complexity and nature of the task must be appropriate for the **{{{proficiencyLevel}}}**.
+        *   **For A1-A2:** The task should be very simple and direct. Avoid complex scenarios. Focus on basic descriptions. For example, if the topic is "Family", a good prompt is "Опиши свою семью. Напиши 3-5 предложений." (Describe your family. Write 3-5 sentences). If the topic is "My Room", a good prompt is "Опиши свою комнату. Что в ней находится? Напиши 5 предложений." (Describe your room. What is in it? Write 5 sentences). DO NOT ask them to write letters or emails at this level.
+        *   **For B1-B2:** The task can be more complex, involving informal letters, describing experiences, or giving opinions on familiar topics. Example for "Work": "You received an email from a colleague asking for help with a project. Write a formal email response. In your email, you should: 1. Acknowledge their request. 2. Politely explain that you are busy but can help later. 3. Suggest a specific time to meet and discuss the project."
+        *   **For C1-C2:** The task should require argumentation, detailed description, or formal writing, like an essay or a formal complaint.
     *   Make it engaging by considering the user's **goals** and **interests** if possible. For example, if their interest is 'technology' and topic is 'hobbies', you could ask them to write about their favorite tech-related hobby.
-    *   Example for A2 level, topic "Holidays": "Опишите свой лучший отпуск. Куда вы ездили? Что вы делали? Что вам понравилось больше всего? Напишите 5-7 предложений."
-    *   Example for B2 level, topic "Work": "You received an email from a colleague asking for help with a project. Write a formal email response. In your email, you should: 1. Acknowledge their request. 2. Politely explain that you are busy but can help later. 3. Suggest a specific time to meet and discuss the project."
 
 2.  Determine the most appropriate **taskType** for the prompt you created.
     *   Select one of the following values: "Informal Letter/Email", "Formal Letter/Email", "Complaint Letter", "Announcement/Notice", "Chat/SMS/Short Note", "Essay/Argumentative Text".
-    *   For the A2 example above, the taskType would be "Informal Letter/Email" (or a simpler description).
-    *   For the B2 example, it would be "Formal Letter/Email".
+    *   For the A1 example "Describe your family", the taskType would be "Chat/SMS/Short Note" or a similar simple descriptive task.
+    *   For the B2 example about the email, it would be "Formal Letter/Email".
 
 Output the result as a JSON object matching the defined output schema.
 `,
