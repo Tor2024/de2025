@@ -28,7 +28,7 @@ export type GenerateWritingTaskInput = z.infer<typeof GenerateWritingTaskInputSc
 
 const GenerateWritingTaskOutputSchema = z.object({
   writingPrompt: z.string().describe('A clear, specific, and engaging writing prompt for the user, in the specified interfaceLanguage. It should clearly state what the user needs to do.'),
-  taskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Essay") that the prompt corresponds to. This helps in providing targeted feedback later.'),
+  taskType: z.enum(writingTaskTypeValues).describe('The specific type of writing task (e.g., "Informal Letter/Email", "Essay") that the prompt corresponds to. This helps in providing targeted feedback later.'),
 });
 export type GenerateWritingTaskOutput = z.infer<typeof GenerateWritingTaskOutputSchema>;
 
