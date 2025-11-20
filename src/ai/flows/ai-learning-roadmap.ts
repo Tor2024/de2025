@@ -98,7 +98,7 @@ You are an AI language tutor responsible for creating a complete and personalize
 Your output MUST be a JSON object that strictly adheres to the provided schema.
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Full & Detailed Curriculum (A1-C2):** You MUST generate a comprehensive learning roadmap covering ALL levels from A1 to C2 for the '{{{targetLanguage}}}'. Create at least 3-4 detailed lessons for EACH CEFR level (A1, A2, B1, B2, C1, C2), for a total of at least 18 lessons. Do NOT create a partial plan. The user wants to see the entire path.
+1.  **Full & Detailed Curriculum (A0-C2):** You MUST generate a comprehensive learning roadmap covering ALL levels from A0 to C2 for the '{{{targetLanguage}}}'. Create at least 3-4 detailed lessons for EACH CEFR level (A0, A1, A2, B1, B2, C1, C2), for a total of at least 18-20 lessons. Do NOT create a partial plan. The user wants to see the entire path.
 2.  **Use Provided Curriculum:** You MUST use the provided JSON curriculum as the primary source for topics. For each lesson you create, you MUST pull relevant topics from the corresponding level in the curriculum JSON.
 3.  **Language of Output:**
     *   All user-facing text in the output JSON ('introduction', 'lessons.level', 'lessons.title', 'lessons.description', 'lessons.topics', 'lessons.estimatedDuration', 'conclusion') MUST be in the specified '{{{interfaceLanguage}}}'.
@@ -108,7 +108,7 @@ Your output MUST be a JSON object that strictly adheres to the provided schema.
     *   Each topic string MUST start with a category prefix, like 'Грамматика:', 'Лексика:', 'Чтение:', 'Письмо:', 'Аудирование:', or 'Говорение:'.
     *   **Crucially, every single lesson MUST contain at least one 'Лексика:' (Vocabulary) topic.** This is non-negotiable.
 5.  **Personalization:**
-    *   If a 'proficiencyLevel' is provided, acknowledge it in the introduction but generate the full A1-C2 plan.
+    *   If a 'proficiencyLevel' is provided, acknowledge it in the introduction but generate the full A0-C2 plan.
     *   Subtly integrate the user's 'goals' and 'interests' into the lesson descriptions and topic choices to make the plan more engaging.
     *   If mistake data is provided, create more practice opportunities or slightly more detailed explanations for those "weak spots" in the relevant lessons. Do this subtly.
 6.  **TTS-Friendly:** All descriptive text must be clear, concise, and suitable for text-to-speech conversion. Avoid complex sentences and do NOT use markdown (like asterisks or underscores).
@@ -130,7 +130,7 @@ Your output MUST be a JSON object that strictly adheres to the provided schema.
 {{{curriculum}}}
 \`\`\`
 
-Now, generate the complete, detailed, and personalized learning roadmap from A1 to C2 with at least 18 lessons in total.
+Now, generate the complete, detailed, and personalized learning roadmap from A0 to C2 with at least 18 lessons in total.
 `,
 });
 
