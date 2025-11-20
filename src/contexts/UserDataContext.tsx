@@ -61,7 +61,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   // Mutation to update user data in Firestore
   const { mutate: updateUserDataInFirestore } = useMutation({
     mutationFn: async (newUserData: UserData) => {
-      if (!firestore || !userId) throw new Error("User or Firestore not available");
+      // This check is crucial. We should not even attempt to mutate if these are not available.
+      if (!firestore || !userId) {
+        console.warn("Update attempt skipped: User or Firestore not available.");
+        // We throw an error to be caught by onError, but it shouldn't be a generic error.
+        // Or better, we avoid throwing and just don't proceed.
+        // For robustness with TanStack Query, throwing is fine as long as it's handled.
+        throw new Error("User or Firestore not available for mutation.");
+      }
       const docRef = doc(firestore, 'users', userId);
       await setDoc(docRef, newUserData, { merge: true });
       return newUserData;
@@ -78,7 +85,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   // Mutation to delete user document (on clearUserData)
   const { mutate: deleteUserDataInFirestore } = useMutation({
      mutationFn: async () => {
-      if (!firestore || !userId) throw new Error("User or Firestore not available");
+      if (!firestore || !userId) {
+        console.warn("Delete attempt skipped: User or Firestore not available.");
+        return;
+      };
       const docRef = doc(firestore, 'users', userId);
       await deleteDoc(docRef);
     },
@@ -90,10 +100,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   // This function is now for optimistic UI updates before Firestore sync
   const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
+    // Only proceed if firestore and user are ready.
+    if (!firestore || !userId) {
+        return;
+    }
     const newData = typeof dataOrFn === 'function' ? dataOrFn(userData) : dataOrFn;
     queryClient.setQueryData(['userData', userId], newData); // Optimistic update
     updateUserDataInFirestore(newData); // Sync with Firestore
-  }, [userData, queryClient, userId, updateUserDataInFirestore]);
+  }, [userData, queryClient, userId, updateUserDataInFirestore, firestore]);
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
