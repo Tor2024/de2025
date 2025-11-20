@@ -34,12 +34,11 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, ArrowRight, PartyPopper } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
-// The proficiency level is now optional in the schema.
+// The proficiency level is now removed from the schema.
 const onboardingSchema = z.object({
   userName: z.string().min(1, "Nickname is required"),
   interfaceLanguage: z.enum(interfaceLanguageCodes, { required_error: "Interface language is required" }),
   targetLanguage: z.enum(targetLanguageNames, { required_error: "Target language is required" }),
-  proficiencyLevel: z.enum(proficiencyLevels).optional(),
   goal: z.string().min(10, "Goal should be at least 10 characters").max(200, "Goal should be at most 200 characters"),
 });
 
@@ -55,8 +54,6 @@ const baseEnTranslations: Record<string, string> = {
   interfaceLanguagePlaceholder: "Select language",
   targetLanguageLabel: "Target Language",
   targetLanguagePlaceholder: "Select language to learn",
-  proficiencyLevelLabel: "Your Current Proficiency Level (Optional)",
-  proficiencyLevelPlaceholder: "Select your level",
   goalLabel: "Your Personal Goal",
   goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
   previousButton: "Previous",
@@ -83,8 +80,6 @@ const baseRuTranslations: Record<string, string> = {
   interfaceLanguagePlaceholder: "Выберите язык",
   targetLanguageLabel: "Изучаемый язык",
   targetLanguagePlaceholder: "Выберите язык для изучения",
-  proficiencyLevelLabel: "Ваш текущий уровень (необязательно)",
-  proficiencyLevelPlaceholder: "Выберите ваш уровень",
   goalLabel: "Ваша личная цель",
   goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
   previousButton: "Назад",
@@ -131,7 +126,6 @@ export function OnboardingFlow() {
       interfaceLanguage: 'ru', 
       userName: '',
       targetLanguage: 'German',
-      proficiencyLevel: 'B1-B2',
       goal: 'свободное общение, письмо, чтение для жизни в германии и сдать экзамен уровня B2'
     },
   });
@@ -141,7 +135,7 @@ export function OnboardingFlow() {
 
   const steps = [
     { id: 1, titleKey: "step1Title", fields: ["userName", "interfaceLanguage"] },
-    { id: 2, titleKey: "step2Title", fields: ["targetLanguage", "proficiencyLevel"] },
+    { id: 2, titleKey: "step2Title", fields: ["targetLanguage"] },
     { id: 3, titleKey: "step3Title", fields: ["goal"] },
   ];
 
@@ -165,7 +159,7 @@ export function OnboardingFlow() {
         interfaceLanguage: data.interfaceLanguage,
         targetLanguage: data.targetLanguage!, // schema ensures it's defined
         goal: [data.goal],
-        proficiencyLevel: data.proficiencyLevel, // Can be undefined
+        // proficiencyLevel is no longer collected
         interests: [],
       };
 
@@ -174,7 +168,7 @@ export function OnboardingFlow() {
         targetLanguage: data.targetLanguage!, // schema ensures it's defined
         goals: [data.goal],
         interests: [],
-        proficiencyLevel: data.proficiencyLevel, // Pass it to AI if provided
+        // proficiencyLevel is no longer passed to AI
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
@@ -314,33 +308,6 @@ export function OnboardingFlow() {
                 {errors.targetLanguage && <p className="text-sm text-destructive">{errors.targetLanguage.message}</p>}
               </div>
             )}
-            {steps[currentStep].fields.includes("proficiencyLevel") && (
-              <div className="space-y-2">
-                <Label htmlFor="proficiencyLevel">{currentTranslations.proficiencyLevelLabel}</Label>
-                <Controller
-                  name="proficiencyLevel"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value} 
-                    >
-                      <SelectTrigger id="proficiencyLevel">
-                        <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {proficiencyLevels.map(level => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
-              </div>
-            )}
             {steps[currentStep].fields.includes("goal") && (
               <div className="space-y-2">
                 <Label htmlFor="goal">{currentTranslations.goalLabel}</Label>
@@ -392,5 +359,3 @@ export function OnboardingFlow() {
     </div>
   );
 }
-
-    
