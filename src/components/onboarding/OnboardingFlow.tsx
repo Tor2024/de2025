@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -122,10 +123,11 @@ export function OnboardingFlow() {
     resolver: zodResolver(onboardingSchema),
     mode: "onChange", 
     defaultValues: {
-      interfaceLanguage: 'en', 
+      interfaceLanguage: 'ru', 
       userName: '',
-      targetLanguage: undefined,
-      goal: ''
+      targetLanguage: 'German',
+      proficiencyLevel: 'B1-B2',
+      goal: 'свободное общение, письмо, чтение для жизни в германии и сдать экзамен уровня B2'
     },
   });
   
