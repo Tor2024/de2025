@@ -14,7 +14,6 @@ import '@/ai/flows/ai-powered-writing-assistance.ts';
 import '@/ai/flows/generate-vocabulary-flow.ts';
 import '@/ai/flows/generate-reading-material-flow.ts';
 import '@/ai/flows/generate-listening-material-flow.ts';
-import '@/ai/flows/generate-speaking-topic-flow.ts';
 import '@/ai/flows/generate-fill-in-the-blank-flow.ts';
 import '@/ai/flows/get-lesson-recommendation-flow.ts';
 import '@/ai/flows/generate-repetition-tasks-flow.ts';

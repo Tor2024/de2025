@@ -2,32 +2,22 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Award, Star, Zap } from "lucide-react"; // Added Star and Zap for XP and Streak
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Award } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const baseEnTranslations = {
-  title: "Your Achievements",
-  description: "Track your XP, streaks, and earned badges here. More gamification features and detailed badge information are on the way!",
-  loading: "Loading achievements...",
-  currentXP: "Your Experience Points (XP):",
-  currentStreak: "Current Learning Streak:",
-  days: "days",
-  earnedBadges: "Earned Badges:",
-  noBadgesYet: "You haven't earned any badges yet. Keep learning!",
+  title: "Achievements",
+  description: "This section is currently under construction as we simplify the app.",
+  loading: "Loading page...",
 };
 
 const baseRuTranslations = {
-  title: "Ваши достижения",
-  description: "Отслеживайте свой опыт, серии и заработанные значки здесь. Больше игровых функций и подробная информация о значках в разработке!",
-  loading: "Загрузка достижений...",
-  currentXP: "Ваши очки опыта (XP):",
-  currentStreak: "Текущая учебная серия:",
-  days: "дней",
-  earnedBadges: "Заработанные значки:",
-  noBadgesYet: "У вас пока нет значков. Продолжайте учиться, чтобы заработать их!",
+  title: "Достижения",
+  description: "Этот раздел находится на реконструкции в рамках упрощения приложения.",
+  loading: "Загрузка страницы...",
 };
 
 const generateTranslations = () => {
@@ -73,7 +63,7 @@ export default function AchievementsPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-center justify-center h-full">
+      <div className="flex flex-col items-center justify-center h-full p-4">
         <Card className="w-full max-w-lg text-center p-6 shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
           <CardHeader>
             <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
@@ -81,35 +71,10 @@ export default function AchievementsPage() {
             </div>
             <CardTitle className="mt-4 text-2xl">{t('title')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-left">
-            <div className="p-4 bg-muted/50 rounded-md shadow-sm">
-              <h3 className="font-semibold text-lg mb-2 flex items-center"><Star className="h-5 w-5 mr-2 text-yellow-500"/>{t('currentXP')}</h3>
-              <p className="text-2xl font-bold text-primary">{userData.progress?.xp || 0}</p>
-            </div>
-
-            <div className="p-4 bg-muted/50 rounded-md shadow-sm">
-              <h3 className="font-semibold text-lg mb-2 flex items-center"><Zap className="h-5 w-5 mr-2 text-orange-500"/>{t('currentStreak')}</h3>
-              <p className="text-2xl font-bold text-primary">{userData.progress?.streak || 0} <span className="text-base font-normal text-muted-foreground">{t('days')}</span></p>
-            </div>
-
-            <div className="p-4 bg-muted/50 rounded-md shadow-sm">
-              <h3 className="font-semibold text-lg mb-2 flex items-center"><Award className="h-5 w-5 mr-2 text-green-500"/>{t('earnedBadges')}</h3>
-              {(userData.progress?.badges && userData.progress.badges.length > 0) ? (
-                <div className="flex flex-wrap gap-2">
-                  {userData.progress.badges.map((badge, index) => (
-                    <span key={index} className="px-3 py-1 bg-primary/20 text-primary text-sm rounded-full font-medium">
-                      {badge}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground italic">{t('noBadgesYet')}</p>
-              )}
-            </div>
-            
-            <p className="text-sm text-muted-foreground mt-6 text-center">
+          <CardContent>
+            <CardDescription>
               {t('description')}
-            </p>
+            </CardDescription>
           </CardContent>
         </Card>
       </div>

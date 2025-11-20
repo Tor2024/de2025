@@ -60,7 +60,7 @@ const mainNavItemDefinitions: NavItemDef[] = [
 
 const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/progress", icon: BarChart3, labelKey: "progress", defaultLabel: "Progress", tooltipKey: "progressTooltip", defaultTooltip: "Progress" },
-  { href: "/achievements", icon: Award, labelKey: "achievements", defaultLabel: "Achievements", tooltipKey: "achievementsTooltip", defaultTooltip: "Achievements" },
+  { href: "/errors", icon: Award, labelKey: "errors", defaultLabel: "Error Archive", tooltipKey: "errorsTooltip", defaultTooltip: "Error Archive" },
   { href: "/settings", icon: SettingsIconLucide, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
 ];
 
@@ -78,16 +78,14 @@ const baseEnTranslations: Record<string, string> = {
   readingTooltip: "Reading", 
   writingAssistant: "Writing Assistant", // Use titleKey from config
   writingTooltip: "Writing Assistant", // Use tooltipKey from config
-  speaking: "Speaking",
-  speakingTooltip: "Speaking",
   wordPractice: "Word Practice",
   wordPracticeTooltip: "Word Practice",
   repetition: "Repetition",
   repetitionTooltip: "Spaced Repetition",
   progress: "Progress",
   progressTooltip: "Progress",
-  achievements: "Achievements",
-  achievementsTooltip: "Achievements",
+  errors: "Error Archive",
+  errorsTooltip: "Error Archive",
   settings: "Settings",
   settingsTooltip: "Settings",
 };
@@ -106,16 +104,14 @@ const baseRuTranslations: Record<string, string> = {
   readingTooltip: "Чтение", 
   writingAssistant: "Помощник по письму", 
   writingTooltip: "Помощник по письму",
-  speaking: "Говорение",
-  speakingTooltip: "Говорение",
   wordPractice: "Практика слов",
   wordPracticeTooltip: "Практика слов",
   repetition: "Повторение",
   repetitionTooltip: "Интервальное повторение",
   progress: "Прогресс",
   progressTooltip: "Прогресс",
-  achievements: "Достижения",
-  achievementsTooltip: "Достижения",
+  errors: "Архив ошибок",
+  errorsTooltip: "Архив ошибок",
   settings: "Настройки",
   settingsTooltip: "Настройки",
 };
@@ -246,5 +242,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-
-    

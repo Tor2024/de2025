@@ -30,57 +30,6 @@ const initialUserData: UserData = {
   progress: { ...initialUserProgress },
 };
 
-// Badge Constants
-const BADGE_FIRST_LESSON_COMPLETED = "First Lesson Completed";
-const BADGE_XP_100 = "100 XP Earned";
-const BADGE_STREAK_3_DAYS = "3-Day Streak";
-const BADGE_XP_500 = "500 XP Milestone";
-const BADGE_STREAK_7_DAYS = "7-Day Learning Habit";
-const BADGE_LESSONS_5_COMPLETED = "5 Lessons Conquered";
-const BADGE_XP_1000 = "1000 XP Power Up!";
-const BADGE_STREAK_14_DAYS = "14-Day Dedication!";
-const BADGE_XP_2000 = "2000 XP Grandmaster!";
-const BADGE_STREAK_30_DAYS = "30-Day Consistency King/Queen!";
-const BADGE_FIRST_PRACTICE_SET_COMPLETED = "First Practice Set Aced!";
-const BADGE_PRACTICE_SETS_5_COMPLETED = "5 Practice Sets Mastered!";
-
-
-const checkAndAwardBadges = (currentProgress: UserProgress): UserProgress => {
-  let newBadges = [...(currentProgress.badges || [])];
-  const { xp, streak, completedLessonIds, practiceSetsCompleted } = currentProgress;
-
-  // Lesson Badges
-  if (completedLessonIds && completedLessonIds.length >= 1 && !newBadges.includes(BADGE_FIRST_LESSON_COMPLETED)) {
-    newBadges.push(BADGE_FIRST_LESSON_COMPLETED);
-  }
-  if (completedLessonIds && completedLessonIds.length >= 5 && !newBadges.includes(BADGE_LESSONS_5_COMPLETED)) {
-    newBadges.push(BADGE_LESSONS_5_COMPLETED);
-  }
-
-  // XP Badges
-  if (xp >= 100 && !newBadges.includes(BADGE_XP_100)) newBadges.push(BADGE_XP_100);
-  if (xp >= 500 && !newBadges.includes(BADGE_XP_500)) newBadges.push(BADGE_XP_500);
-  if (xp >= 1000 && !newBadges.includes(BADGE_XP_1000)) newBadges.push(BADGE_XP_1000);
-  if (xp >= 2000 && !newBadges.includes(BADGE_XP_2000)) newBadges.push(BADGE_XP_2000);
-
-  // Streak Badges
-  if (streak >= 3 && !newBadges.includes(BADGE_STREAK_3_DAYS)) newBadges.push(BADGE_STREAK_3_DAYS);
-  if (streak >= 7 && !newBadges.includes(BADGE_STREAK_7_DAYS)) newBadges.push(BADGE_STREAK_7_DAYS);
-  if (streak >= 14 && !newBadges.includes(BADGE_STREAK_14_DAYS)) newBadges.push(BADGE_STREAK_14_DAYS);
-  if (streak >= 30 && !newBadges.includes(BADGE_STREAK_30_DAYS)) newBadges.push(BADGE_STREAK_30_DAYS);
-
-  // Practice Set Badges
-  if (practiceSetsCompleted >= 1 && !newBadges.includes(BADGE_FIRST_PRACTICE_SET_COMPLETED)) {
-    newBadges.push(BADGE_FIRST_PRACTICE_SET_COMPLETED);
-  }
-  if (practiceSetsCompleted >= 5 && !newBadges.includes(BADGE_PRACTICE_SETS_5_COMPLETED)) {
-    newBadges.push(BADGE_PRACTICE_SETS_5_COMPLETED);
-  }
-  
-  return { ...currentProgress, badges: newBadges };
-};
-
-
 export function UserDataProvider({ children }: { children: ReactNode }) {
   const [userDataState, setUserDataState, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
 
@@ -104,7 +53,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       } as UserProgress;
       return {
         ...prev,
-        progress: checkAndAwardBadges(updatedProgress),
+        progress: updatedProgress,
       };
     });
   }, [setUserData]);
@@ -120,27 +69,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const isCompleted = currentCompletedIds.includes(lessonId);
       
       let newCompletedLessonIds: string[];
-      let newXp = currentProgress.xp || 0;
-      let newStreak = currentProgress.streak || 0;
       
       if (isCompleted) {
         newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
-        newXp = Math.max(0, newXp - 25); 
-        // Streak is not removed when un-completing a lesson
       } else {
         newCompletedLessonIds = [...currentCompletedIds, lessonId];
-        newXp += 25; 
-        newStreak += 1; 
       }
 
       let updatedProgress: UserProgress = {
         ...currentProgress,
         completedLessonIds: newCompletedLessonIds,
-        xp: newXp,
-        streak: newStreak,
       };
-
-      updatedProgress = checkAndAwardBadges(updatedProgress);
 
       return {
         ...prev,
@@ -237,15 +176,11 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     setUserData(prev => {
       const currentProgress = prev.progress;
       const newPracticeSetsCompleted = (currentProgress.practiceSetsCompleted || 0) + 1;
-      const newXp = (currentProgress.xp || 0) + 10; 
       
       let updatedProgress: UserProgress = {
         ...currentProgress,
         practiceSetsCompleted: newPracticeSetsCompleted,
-        xp: newXp,
       };
-
-      updatedProgress = checkAndAwardBadges(updatedProgress);
       
       return {
         ...prev,

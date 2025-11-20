@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Edit3, Headphones, Mic, FileText, Repeat, Brain } from "lucide-react";
+import { BookOpen, Edit3, Headphones, FileText, Repeat, Brain } from "lucide-react";
 
 export interface AppModuleConfig {
   id: string;
@@ -89,18 +89,6 @@ export const appModulesConfig: AppModuleConfig[] = [
     disabled: false,
   },
   {
-    id: "speaking",
-    href: "/learn/speaking",
-    icon: Mic,
-    titleKey: "speaking",
-    defaultTitle: "Speaking",
-    descriptionKey: "speakingDescription",
-    defaultDescription: "Practice your pronunciation.",
-    tooltipKey: "speakingTooltip",
-    defaultTooltip: "Speaking",
-    disabled: false,
-  },
-  {
     id: "wordPractice",
     href: "/learn/practice",
     icon: Repeat,
@@ -113,5 +101,3 @@ export const appModulesConfig: AppModuleConfig[] = [
     disabled: false, // Enabled this module
   },
 ];
-
-    

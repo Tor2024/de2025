@@ -10,14 +10,11 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { LayoutGrid, BarChart3, Award, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, BarChartHorizontalBig, Flag, Sparkles as SparklesIcon } from "lucide-react";
+import { LayoutGrid, BarChart3, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, Flag, Archive } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel, type ErrorRecord } from "@/lib/types";
-import { generateTutorTip } from '@/ai/flows/generate-tutor-tip-flow';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import type { GetLessonRecommendationInput, GetLessonRecommendationOutput } from '@/ai/flows/get-lesson-recommendation-flow';
 import { useToast } from "@/hooks/use-toast";
 import { appModulesConfig } from "@/lib/modulesConfig";
 
@@ -26,7 +23,7 @@ const baseEnTranslations: Record<string, string> = {
     redirecting: "Redirecting...",
     exploreLearningModules: "Explore Learning Modules",
     progressOverview: "Progress Overview",
-    achievements: "Achievements",
+    errorArchive: "Error Archive",
     quickSettings: "Quick Settings",
     aiTutorTipsTitle: "AI Tutor Tips",
     aiTutorTipStatic: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
@@ -34,18 +31,14 @@ const baseEnTranslations: Record<string, string> = {
     aiTutorTipErrorTitle: "AI Tip Error",
     aiTutorTipErrorDescription: "Could not load a new tip from the AI tutor at this time.",
     refreshTipButton: "Refresh Tip",
-    xp: "XP",
-    streak: "Streak",
-    days: "days",
-    badges: "Badges",
-    noneYet: "None yet",
+    lessonsCompleted: "Lessons Completed",
     interface: "Interface",
     learning: "Learning",
     proficiencyLabel: "Proficiency:",
     currentGoalLabel: "Current Goal:",
     goToSettings: "Go to Settings",
     viewFullProgress: "View Full Progress",
-    viewAllAchievements: "View All Achievements",
+    viewErrorArchive: "View Error Archive",
     grammar: "Grammar",
     grammarDescription: "Master sentence structures.",
     writingAssistant: "Writing Assistant",
@@ -56,8 +49,6 @@ const baseEnTranslations: Record<string, string> = {
     listeningDescription: "Sharpen your comprehension.",
     reading: "Reading",
     readingDescription: "Understand written texts.",
-    speaking: "Speaking",
-    speakingDescription: "Practice your pronunciation.",
     wordPractice: "Word Practice",
     wordPracticeDescription: "Reinforce with fun drills.",
     yourGoalPrefix: "Your Goal:",
@@ -88,16 +79,8 @@ const baseEnTranslations: Record<string, string> = {
     ttsNotSupportedDescription: "Text-to-Speech is not supported by your browser.",
     ttsUtteranceErrorTitle: "Speech Error",
     ttsUtteranceErrorDescription: "Could not play audio for the current text segment.",
-    recommendLessonButton: "AI Recommended Lesson",
-    recommendLessonErrorTitle: "Recommendation Error",
-    recommendLessonErrorDescription: "Could not get a lesson recommendation at this time.",
-    aiRecommendationTitle: "AI Recommendation: {lessonTitle}",
-    aiRecommendationInfoTitle: "Lesson Recommendation",
-    aiRecommendationNoLessonReasoning: "AI could not find a specific lesson to recommend right now.",
-    aiRecommendationNavFailed: "(Could not auto-navigate, please find the lesson in your roadmap).",
-    // New toast keys for RoadmapDisplay
     lessonMarkedCompleteToastTitle: "Lesson Complete!",
-    lessonMarkedCompleteToastDescription: "Lesson '{lessonTitle}' marked as complete. +25 XP",
+    lessonMarkedCompleteToastDescription: "Lesson '{lessonTitle}' marked as complete.",
     lessonMarkedIncompleteToastTitle: "Lesson Status Updated",
     lessonMarkedIncompleteToastDescription: "Lesson '{lessonTitle}' marked as incomplete.",
 };
@@ -107,7 +90,7 @@ const baseRuTranslations: Record<string, string> = {
     redirecting: "Перенаправление...",
     exploreLearningModules: "Исследуйте учебные модули",
     progressOverview: "Обзор прогресса",
-    achievements: "Достижения",
+    errorArchive: "Архив ошибок",
     quickSettings: "Быстрые настройки",
     aiTutorTipsTitle: "Советы от AI-Репетитора",
     aiTutorTipStatic: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
@@ -115,18 +98,14 @@ const baseRuTranslations: Record<string, string> = {
     aiTutorTipErrorTitle: "Ошибка совета ИИ",
     aiTutorTipErrorDescription: "В данный момент не удалось загрузить новый совет от AI-репетитора.",
     refreshTipButton: "Обновить совет",
-    xp: "ОП",
-    streak: "Серия",
-    days: "дней",
-    badges: "Значки",
-    noneYet: "Пока нет",
+    lessonsCompleted: "Завершено уроков",
     interface: "Интерфейс",
     learning: "Изучение",
     proficiencyLabel: "Уровень:",
     currentGoalLabel: "Текущая цель:",
     goToSettings: "Перейти к настройкам",
     viewFullProgress: "Посмотреть весь прогресс",
-    viewAllAchievements: "Посмотреть все достижения",
+    viewErrorArchive: "Перейти в архив ошибок",
     grammar: "Грамматика",
     grammarDescription: "Освойте структуры предложений.",
     writingAssistant: "Помощник по письму",
@@ -137,8 +116,6 @@ const baseRuTranslations: Record<string, string> = {
     listeningDescription: "Оттачивайте понимание на слух.",
     reading: "Чтение",
     readingDescription: "Понимайте письменные тексты.",
-    speaking: "Говорение",
-    speakingDescription: "Практикуйте произношение.",
     wordPractice: "Практика слов",
     wordPracticeDescription: "Закрепляйте знания с помощью увлекательных упражнений.",
     yourGoalPrefix: "Ваша цель:",
@@ -169,16 +146,8 @@ const baseRuTranslations: Record<string, string> = {
     ttsNotSupportedDescription: "Функция озвучивания текста не поддерживается вашим браузером.",
     ttsUtteranceErrorTitle: "Ошибка синтеза речи",
     ttsUtteranceErrorDescription: "Не удалось воспроизвести аудио для текущего фрагмента текста.",
-    recommendLessonButton: "Рекомендованный ИИ урок",
-    recommendLessonErrorTitle: "Ошибка рекомендации",
-    recommendLessonErrorDescription: "Не удалось получить рекомендацию урока в данный момент.",
-    aiRecommendationTitle: "AI Рекомендует: {lessonTitle}",
-    aiRecommendationInfoTitle: "Рекомендация урока",
-    aiRecommendationNoLessonReasoning: "ИИ не смог найти конкретный урок для рекомендации в данный момент.",
-    aiRecommendationNavFailed: "(Автоматический переход не удался, пожалуйста, найдите урок в вашем плане).",
-    // New toast keys for RoadmapDisplay
     lessonMarkedCompleteToastTitle: "Урок завершен!",
-    lessonMarkedCompleteToastDescription: "Урок '{lessonTitle}' отмечен как пройденный. +25 XP",
+    lessonMarkedCompleteToastDescription: "Урок '{lessonTitle}' отмечен как пройденный.",
     lessonMarkedIncompleteToastTitle: "Статус урока обновлен",
     lessonMarkedIncompleteToastDescription: "Урок '{lessonTitle}' отмечен как не пройденный.",
 };
@@ -197,74 +166,13 @@ const generateTranslations = () => {
 
 const pageTranslations = generateTranslations();
 
-const keywordsToModules: {keywords: string[], path: string, needsLevel?: boolean, topicExtractor?: (line: string, keyword: string) => string}[] = [
-    { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
-    { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
-    { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
-    { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
-    { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
-    { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing", topicExtractor: (line, keyword) => line.substring(keyword.length).replace(/на тему/i, "").replace(/["':]/g, "").trim() },
-    { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
-  ];
-
-const parseTopicAndGetLink = (topicLine: any, lessonContext?: { lessonId: string; lessonLevel: string }): { href: string | null; displayText: string } => {
-  if (typeof topicLine !== 'string') {
-    console.warn('parseTopicAndGetLink received a non-string topicLine:', topicLine);
-    return { href: null, displayText: String(topicLine || '') };
-  }
-
-  let href: string | null = null;
-  const displayText = topicLine; 
-
-  const cleanAndEncodeTopic = (rawTopic: string): string => {
-    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
-    cleaned = cleaned.replace(/^["':\s]+|["':\s]+$/g, "").trim();
-    return encodeURIComponent(cleaned);
-  };
-  
-  const topicLineLower = topicLine.toLowerCase();
-
-  for (const mod of keywordsToModules) {
-    for (const keyword of mod.keywords) {
-      const keywordLower = keyword.toLowerCase();
-      if (topicLineLower.startsWith(keywordLower)) {
-        let theme = mod.topicExtractor 
-          ? mod.topicExtractor(topicLine, keyword) 
-          : topicLine.substring(keyword.length).trim();
-
-        theme = cleanAndEncodeTopic(theme);
-        if (theme.length > 0) {
-          href = `${mod.path}?topic=${theme}`;
-          if (lessonContext) {
-            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
-            if (mod.needsLevel && lessonContext.lessonLevel) {
-              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
-              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
-            }
-          }
-        }
-        break;
-      }
-    }
-    if (href) break;
-  }
-  console.log(`parseTopicAndGetLink for "${topicLine}" with lessonLevel "${lessonContext?.lessonLevel}" -> href: "${href}"`);
-  return { href, displayText };
-};
-
-
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
   const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
   const [isTipLoading, setIsTipLoading] = useState(false);
   const { toast } = useToast();
-  const [tipCooldownEndTime, setTipCooldownEndTime] = useState<number | null>(null);
-  const cooldownTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const roadmapDisplayRef = useRef<HTMLDivElement>(null);
-
-  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
-  const [lastRecommendation, setLastRecommendation] = useState<GetLessonRecommendationOutput | null>(null);
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = useCallback((key: string, defaultText?: string, params?: Record<string, string>): string => {
@@ -288,75 +196,6 @@ export default function DashboardPage() {
     return textToReturn;
   }, [currentLang]);
 
-  const fetchTutorTip = useCallback(async () => {
-    if (!userData.settings) {
-        console.warn("fetchTutorTip: User settings not available.");
-        setAiTutorTip(t('aiTutorTipStatic'));
-        return;
-    }
-    if (isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime)) {
-      return;
-    }
-    setIsTipLoading(true);
-    try {
-      const response = await generateTutorTip({
-        interfaceLanguage: userData.settings.interfaceLanguage as InterfaceLanguage,
-        targetLanguage: userData.settings.targetLanguage as TargetLanguage,
-        proficiencyLevel: userData.settings.proficiencyLevel as ProficiencyLevel,
-        learningGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
-      });
-      setAiTutorTip(response.tip);
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-        cooldownTimeoutRef.current = null;
-      }
-      setTipCooldownEndTime(null); 
-    } catch (error) {
-      console.error("Failed to generate tutor tip:", error);
-      setAiTutorTip(t('aiTutorTipStatic')); 
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: t('aiTutorTipErrorTitle', 'Ошибка генерации подсказки'),
-        description: `${t('aiTutorTipErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
-        variant: "destructive",
-      });
-      const cooldownDuration = 120 * 1000; 
-      setTipCooldownEndTime(Date.now() + cooldownDuration);
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-      }
-      cooldownTimeoutRef.current = setTimeout(() => {
-        setTipCooldownEndTime(null);
-        cooldownTimeoutRef.current = null;
-      }, cooldownDuration);
-    } finally {
-      setIsTipLoading(false);
-    }
-  }, [
-    isTipLoading,
-    tipCooldownEndTime,
-    userData.settings?.interfaceLanguage,
-    userData.settings?.targetLanguage,
-    userData.settings?.proficiencyLevel,
-    userData.settings?.goal,
-    t, 
-    toast
-  ]);
-
-  useEffect(() => {
-     if (!isUserDataLoading && userData.settings && (tipCooldownEndTime === null || Date.now() >= tipCooldownEndTime)) {
-       fetchTutorTip();
-     }
-  }, [
-      isUserDataLoading,
-      userData.settings?.interfaceLanguage, 
-      userData.settings?.targetLanguage,
-      userData.settings?.proficiencyLevel,
-      userData.settings?.goal,
-      tipCooldownEndTime,
-      // fetchTutorTip should not be in dependencies if it itself depends on these, to avoid loop
-      // it's memoized by useCallback, so its reference changes only when its own deps change
-  ]);
 
   useEffect(() => {
     if (userData.settings === null && !isUserDataLoading) {
@@ -364,102 +203,6 @@ export default function DashboardPage() {
     }
   }, [userData, isUserDataLoading, router]); 
 
-  useEffect(() => {
-    return () => {
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleRecommendLessonClick = async () => {
-    if (!userData.settings || !userData.progress?.learningRoadmap?.lessons || userData.progress.learningRoadmap.lessons.length === 0) {
-        toast({
-            title: t('recommendLessonErrorTitle', 'Ошибка рекомендации'),
-            description: "User data or learning roadmap not available.",
-            variant: "destructive",
-        });
-        return;
-    }
-
-    setIsRecommendationLoading(true);
-    setLastRecommendation(null);
-
-    try {
-        let pastErrorsSummary = "No specific past errors noted for recommendation.";
-        if (userData.progress.errorArchive && userData.progress.errorArchive.length > 0) {
-            pastErrorsSummary = userData.progress.errorArchive
-                .slice(-5) 
-                .map((err: ErrorRecord) => `Module: ${err.module}, Context: ${err.context || 'N/A'}, User attempt: ${err.userAttempt}, Correct: ${err.correctAnswer || 'N/A'}`)
-                .join('; ');
-        }
-
-        const input: GetLessonRecommendationInput = {
-            interfaceLanguage: userData.settings.interfaceLanguage,
-            currentLearningRoadmap: userData.progress.learningRoadmap,
-            completedLessonIds: userData.progress.completedLessonIds || [],
-            userGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
-            currentProficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
-        };
-        const recommendation = await getLessonRecommendation(input);
-        setLastRecommendation(recommendation);
-
-        if (recommendation.recommendedLessonId && userData.progress.learningRoadmap?.lessons) {
-            const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === recommendation.recommendedLessonId);
-            const lessonTitle = lesson ? lesson.title : "a recommended lesson";
-            
-            if (lesson && lesson.topics && lesson.topics.length > 0) {
-                const firstTopicString = lesson.topics[0];
-                const { href } = parseTopicAndGetLink(firstTopicString, { lessonId: lesson.id, lessonLevel: lesson.level });
-
-
-                if (href) {
-                    toast({
-                        title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
-                        description: recommendation.reasoning || '',
-                    });
-                    router.push(href);
-                } else {
-                    toast({
-                        title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
-                        description: (recommendation.reasoning || '') + ' ' + t('aiRecommendationNavFailed', 'Не удалось перейти к уроку.'),
-                    });
-                    if (roadmapDisplayRef.current) {
-                        roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }
-            } else {
-                 toast({ 
-                    title: t('aiRecommendationTitle', 'Рекомендован следующий урок'),
-                    description: (recommendation.reasoning || '') + (lesson ? ' (В этом уроке пока нет тем.)' : ''),
-                });
-                 if (roadmapDisplayRef.current) {
-                    roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-        } else { 
-            toast({
-                title: t('aiRecommendationInfoTitle', 'Рекомендация'),
-                description: recommendation.reasoning || t('aiRecommendationNoLessonReasoning', 'Нет подходящего урока для рекомендации.'),
-                variant: "default",
-            });
-             if (roadmapDisplayRef.current) {
-                roadmapDisplayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-    } catch (error) {
-        console.error("Failed to get lesson recommendation:", error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        toast({
-            title: t('recommendLessonErrorTitle', 'Ошибка рекомендации'),
-            description: `${t('recommendLessonErrorDescription', 'Не удалось получить рекомендацию.')}${errorMessage ? ` (${errorMessage})` : ''}`,
-            variant: "destructive",
-        });
-    } finally {
-        setIsRecommendationLoading(false);
-    }
-  };
 
   if (isUserDataLoading) {
     return (
@@ -491,7 +234,6 @@ export default function DashboardPage() {
 
   const targetLanguageDisplayName = getLanguageDisplayName(userData.settings.targetLanguage, 'target');
   const userGoalText = (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || t('noGoalSet');
-  const isRefreshButtonDisabled = isTipLoading || (tipCooldownEndTime !== null && Date.now() < tipCooldownEndTime);
 
   const completedLessons = userData.progress.completedLessonIds?.length || 0;
   const totalLessons = userData.progress.learningRoadmap?.lessons?.length || 0;
@@ -499,17 +241,6 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
-
-        <Button
-          onClick={handleRecommendLessonClick}
-          disabled={isRecommendationLoading || !userData.progress?.learningRoadmap?.lessons || userData.progress.learningRoadmap.lessons.length === 0}
-          className="w-full md:w-auto mb-6 py-6 text-lg"
-          variant="default"
-        >
-          {isRecommendationLoading && <LoadingSpinner size={20} className="mr-2"/>}
-          <SparklesIcon className="mr-2 h-5 w-5"/>
-          {t('recommendLessonButton')}
-        </Button>
 
         <div className="flex flex-col md:flex-row gap-6">
           <div className="md:w-2/3" ref={roadmapDisplayRef}>
@@ -553,24 +284,7 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><Bot className="text-primary h-6 w-6"/>{t('aiTutorTipsTitle')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {isTipLoading && !aiTutorTip ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <LoadingSpinner size={16}/> {t('aiTutorTipLoading')}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{aiTutorTip || t('aiTutorTipStatic')}</p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full"
-                  onClick={fetchTutorTip}
-                  disabled={isRefreshButtonDisabled}
-                >
-                  {isTipLoading && <LoadingSpinner size={16} className="mr-2" />}
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {t('refreshTipButton')}
-                </Button>
+                  <p className="text-sm text-muted-foreground">{t('aiTutorTipStatic')}</p>
               </CardContent>
             </Card>
           </div>
@@ -603,8 +317,7 @@ export default function DashboardPage() {
                 <CardTitle className="flex items-center gap-2"><BarChart3 className="text-primary"/>{t('progressOverview')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground">{t('xp')}: {userData.progress?.xp || 0}</p>
-                <p className="text-sm text-muted-foreground">{t('streak')}: {userData.progress?.streak || 0} {t('days')}</p>
+                <p className="text-sm text-muted-foreground">{t('lessonsCompleted')}: {userData.progress?.completedLessonIds?.length || 0} / {userData.progress?.learningRoadmap?.lessons?.length || 0}</p>
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/progress')}>
                   {t('viewFullProgress')} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -612,12 +325,12 @@ export default function DashboardPage() {
             </Card>
              <Card className="shadow-md">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Award className="text-primary"/>{t('achievements')}</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Archive className="text-primary"/>{t('errorArchive')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                 <p className="text-sm text-muted-foreground">{t('badges')}: {(userData.progress?.badges || []).join(', ') || t('noneYet')}</p>
-                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/achievements')}>
-                   {t('viewAllAchievements')} <ArrowRight className="ml-2 h-4 w-4" />
+                 <p className="text-sm text-muted-foreground">You have {userData.progress?.errorArchive?.length || 0} saved errors.</p>
+                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => router.push('/errors')}>
+                   {t('viewErrorArchive')} <ArrowRight className="ml-2 h-4 w-4" />
                  </Button>
               </CardContent>
             </Card>
