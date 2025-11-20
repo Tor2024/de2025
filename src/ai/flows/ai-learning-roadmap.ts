@@ -26,6 +26,7 @@ import { japaneseCurriculum } from '@/curriculums/japanese';
 import { koreanCurriculum } from '@/curriculums/korean';
 import { turkishCurriculum } from '@/curriculums/turkish';
 import { arabicCurriculum } from '@/curriculums/arabic';
+import { englishCurriculum } from '@/curriculums/english';
 
 const GeneratePersonalizedLearningRoadmapInputSchema = z.object({
   interfaceLanguage: InterfaceLanguageSchema
@@ -84,6 +85,7 @@ const getCurriculum = (targetLanguage: string) => {
     case 'Korean': return koreanCurriculum;
     case 'Turkish': return turkishCurriculum;
     case 'Arabic': return arabicCurriculum;
+    case 'English': return englishCurriculum;
     default: return [];
   }
 };
@@ -92,26 +94,41 @@ const generatePersonalizedLearningRoadmapPrompt = ai.definePrompt({
   name: 'generatePersonalizedLearningRoadmapPrompt',
   input: {schema: GeneratePersonalizedLearningRoadmapInputSchema},
   output: {schema: GeneratePersonalizedLearningRoadmapOutputSchema},
-  prompt: ({ interfaceLanguage, targetLanguage, proficiencyLevel, goals, interests, topicMistakes, grammarMistakes, vocabMistakes, userName }) => ([
-    {
-      text: `
-Сгенерируй индивидуальный учебный план для пользователя:
-- Уровень: ${proficiencyLevel}
-- Цели: ${goals?.join(', ') || 'не указаны'}
-- Интересы: ${interests?.join(', ') || 'не указаны'}
-- Частые ошибки по темам: ${topicMistakes ? JSON.stringify(topicMistakes) : 'нет данных'}
-- Частые ошибки по грамматике: ${grammarMistakes ? JSON.stringify(grammarMistakes) : 'нет данных'}
-- Частые ошибки по лексике: ${vocabMistakes ? JSON.stringify(vocabMistakes) : 'нет данных'}
+  prompt: `
+You are an AI language tutor responsible for creating a complete and personalized learning plan.
+Your output MUST be a JSON object that strictly adheres to the provided schema.
 
-В качестве основы для структуры учебного плана используй следующий curriculum для языка ${targetLanguage}:
-${JSON.stringify(getCurriculum(targetLanguage))}
+**CRITICAL INSTRUCTIONS:**
+1.  **Full Curriculum (A1-C2):** You MUST generate a complete learning roadmap covering ALL levels from A1 to C2 for the \`{{{targetLanguage}}}\`. Do NOT create a partial plan based on the user's \`proficiencyLevel\`. The user wants to see the entire path and choose any topic.
+2.  **Use Provided Curriculum:** You MUST use the provided JSON curriculum as the primary source for topics. For each level (A1, A2, etc.), you MUST include at least one grammar and one vocabulary topic from the corresponding level in the curriculum JSON.
+3.  **Language of Output:**
+    *   All user-facing text in the output JSON ('introduction', 'lessons.level', 'lessons.title', 'lessons.description', 'lessons.topics', 'lessons.estimatedDuration', 'conclusion') MUST be in the specified \`{{{interfaceLanguage}}}\`.
+    *   The learning concepts themselves (grammar rules, vocabulary themes) should be for the \`{{{targetLanguage}}}\`.
+4.  **Personalization:**
+    *   If a \`proficiencyLevel\` is provided by the user, use it as a hint to potentially add more detail or focus to that section, but do NOT omit other levels. Acknowledge their starting point in the introduction.
+    *   Subtly integrate the user's \`goals\` and \`interests\` into the lesson descriptions and topic choices to make the plan more engaging.
+    *   If the user has provided mistake data (\`topicMistakes\`, \`grammarMistakes\`, \`vocabMistakes\`), create more practice opportunities or slightly more detailed explanations for those "weak spots" in the relevant lessons. Do this subtly, without explicitly saying "you made a mistake here."
+5.  **TTS-Friendly:** All descriptive text must be clear, concise, and suitable for text-to-speech conversion. Avoid complex sentence structures and do NOT use markdown (like asterisks or underscores).
 
-Важное правило: для каждого уровня CEFR (A1, A2, B1, B2, C1, C2) обязательно включай как минимум одну грамматическую и одну лексическую тему из curriculum. Не допускается, чтобы в каком-либо уровне отсутствовала одна из этих категорий.
+**User Profile:**
+*   **User Name:** {{{userName}}} (if available)
+*   **Interface Language:** {{{interfaceLanguage}}}
+*   **Target Language:** {{{targetLanguage}}}
+*   **Stated Proficiency (for context only):** {{{proficiencyLevel}}}
+*   **Goals:** {{{goals}}}
+*   **Interests:** {{{interests}}}
+*   **Common Mistakes (if any):**
+    *   Topics: {{{topicMistakes}}}
+    *   Grammar: {{{grammarMistakes}}}
+    *   Vocabulary: {{{vocabMistakes}}}
 
-Уделяй больше внимания темам и заданиям, связанным с интересами и целями пользователя. Включай больше упражнений на "слабые места" (темы/грамматика/лексика, где были ошибки). Длина и сложность заданий должны соответствовать уровню пользователя.
-`  
-    }
-  ]),
+**Reference Curriculum for {{{targetLanguage}}}:**
+\`\`\`json
+{{{curriculum}}}
+\`\`\`
+
+Now, generate the complete, personalized learning roadmap from A1 to C2.
+`,
 });
 
 // Define the flow using the AI prompt
@@ -122,7 +139,13 @@ const generatePersonalizedLearningRoadmapFlow = ai.defineFlow(
     outputSchema: GeneratePersonalizedLearningRoadmapOutputSchema,
   },
   async (input: GeneratePersonalizedLearningRoadmapInput) => {
-    const {output} = await generatePersonalizedLearningRoadmapPrompt(input);
+    // Add the curriculum to the prompt data
+    const promptData = {
+      ...input,
+      curriculum: JSON.stringify(getCurriculum(input.targetLanguage), null, 2),
+    };
+
+    const {output} = await generatePersonalizedLearningRoadmapPrompt(promptData);
     // Ensure output is not null or undefined before returning
     if (!output) {
         throw new Error("AI failed to generate a learning roadmap. Output was null.");

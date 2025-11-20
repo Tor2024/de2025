@@ -88,7 +88,7 @@ export const englishCurriculum: CurriculumStage[] = [
     grammar: [
       { title: 'Past Perfect', description: 'I had done...' },
       { title: 'Third conditional', description: 'If I had known...' },
-      { title: 'Modal verbs for deduction', description: 'must have, can't have.' },
+      { title: 'Modal verbs for deduction', description: 'must have, can\'t have.' },
       { title: 'Causative', description: 'have/get something done.' },
       { title: 'Wish/If only', description: 'I wish I had...' },
       { title: 'Inversion', description: 'Never have I seen...' },

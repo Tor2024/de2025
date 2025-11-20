@@ -32,11 +32,12 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
+// The proficiency level is now optional in the schema.
 const onboardingSchema = z.object({
   userName: z.string().min(1, "Nickname is required"),
   interfaceLanguage: z.enum(interfaceLanguageCodes, { required_error: "Interface language is required" }),
   targetLanguage: z.enum(targetLanguageNames, { required_error: "Target language is required" }),
-  proficiencyLevel: z.enum(proficiencyLevels, { required_error: "Proficiency level is required" }),
+  proficiencyLevel: z.enum(proficiencyLevels).optional(),
   goal: z.string().min(10, "Goal should be at least 10 characters").max(200, "Goal should be at most 200 characters"),
 });
 
@@ -52,7 +53,7 @@ const baseEnTranslations: Record<string, string> = {
   interfaceLanguagePlaceholder: "Select language",
   targetLanguageLabel: "Target Language",
   targetLanguagePlaceholder: "Select language to learn",
-  proficiencyLevelLabel: "Your Current Proficiency Level",
+  proficiencyLevelLabel: "Your Current Proficiency Level (Optional)",
   proficiencyLevelPlaceholder: "Select your level",
   goalLabel: "Your Personal Goal",
   goalPlaceholder: "E.g., Pass B2 TELC exam, Speak fluently with colleagues...",
@@ -79,7 +80,7 @@ const baseRuTranslations: Record<string, string> = {
   interfaceLanguagePlaceholder: "Выберите язык",
   targetLanguageLabel: "Изучаемый язык",
   targetLanguagePlaceholder: "Выберите язык для изучения",
-  proficiencyLevelLabel: "Ваш текущий уровень владения",
+  proficiencyLevelLabel: "Ваш текущий уровень (необязательно)",
   proficiencyLevelPlaceholder: "Выберите ваш уровень",
   goalLabel: "Ваша личная цель",
   goalPlaceholder: "Напр., Сдать экзамен B2 TELC, Свободно говорить с коллегами...",
@@ -155,18 +156,18 @@ export function OnboardingFlow() {
       const settingsData: UserSettings = {
         userName: data.userName,
         interfaceLanguage: data.interfaceLanguage,
-        targetLanguage: data.targetLanguage,
+        targetLanguage: data.targetLanguage!, // schema ensures it's defined
         goal: [data.goal],
-        proficiencyLevel: data.proficiencyLevel,
+        proficiencyLevel: data.proficiencyLevel, // Can be undefined
         interests: [],
       };
 
       const roadmapInput: GeneratePersonalizedLearningRoadmapInput = {
         interfaceLanguage: data.interfaceLanguage,
-        targetLanguage: data.targetLanguage,
+        targetLanguage: data.targetLanguage!, // schema ensures it's defined
         goals: [data.goal],
         interests: [],
-        proficiencyLevel: data.proficiencyLevel,
+        proficiencyLevel: data.proficiencyLevel, // Pass it to AI if provided
       };
       const roadmapOutput: GeneratePersonalizedLearningRoadmapOutput = 
         await generatePersonalizedLearningRoadmap(roadmapInput);
@@ -370,6 +371,3 @@ export function OnboardingFlow() {
     </div>
   );
 }
-    
-
-    
