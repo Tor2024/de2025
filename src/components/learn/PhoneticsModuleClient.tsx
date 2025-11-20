@@ -1,60 +1,47 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { useUserData } from '@/contexts/UserDataContext';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import type { PhoneticsTask } from '@/ai/flows/generate-phonetics-tasks-flow';
 
-const staticTasks: PhoneticsTask[] = [
-  {
-    type: 'repeat',
-    instruction: 'Прослушайте и повторите фразу вслух:',
-    audioText: 'Guten Morgen! Wie geht es Ihnen?',
-    correctAnswer: 'Guten Morgen! Wie geht es Ihnen?',
-    explanation: 'Обратите внимание на произношение буквы "g" и интонацию вопроса.'
-  },
-  {
-    type: 'choose_pronunciation',
-    instruction: 'Выберите правильное произношение слова "ch" в слове "ich":',
-    options: ['как в русском "ш"', 'как в русском "х"', 'как мягкое "хь"'],
-    correctAnswer: 'как мягкое "хь"',
-    explanation: 'В немецком "ich" произносится как мягкое "хь".'
-  },
-  {
-    type: 'identify_word',
-    instruction: 'Прослушайте фразу и отметьте, что вы услышали:',
-    audioText: 'Ich möchte einen Kaffee, bitte.',
-    options: ['Ich möchte einen Tee, bitte.', 'Ich möchte einen Kaffee, bitte.', 'Ich möchte Wasser, bitte.'],
-    correctAnswer: 'Ich möchte einen Kaffee, bitte.',
-    explanation: 'Проверьте, правильно ли вы различили все слова и окончания.'
-  }
-];
+"use client";
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { useUserData } from '@/contexts/UserDataContext';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import type { PhoneticsTask } from '@/ai/flows/generate-phonetics-tasks-flow';
+import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
+import { mapTargetLanguageToBcp47, type TargetLanguage as AppTargetLanguage } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { CheckCircle2, XCircle, RefreshCw, ArrowRight, BrainCircuit, PartyPopper } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function PhoneticsModuleClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
-  const [currentTask, setCurrentTask] = useState(0);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [results, setResults] = useState<{ correct: boolean; explanation: string }[]>([]);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [isNextLoading, setIsNextLoading] = useState(false);
-  const [nextError, setNextError] = useState('');
+  const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion } = useUserData();
+  const { toast } = useToast();
+  const router = useRouter();
 
-  // --- AI-фонетика ---
   const [aiTasks, setAiTasks] = useState<PhoneticsTask[] | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
 
-  // Получить AI-задания
-  const fetchAiTasks = async () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+
+  const [showResults, setShowResults] = useState(false);
+  const [finalScore, setFinalScore] = useState({ correct: 0, total: 0 });
+
+  const fetchAiTasks = useCallback(async () => {
     if (!userData.settings) return;
     setIsAiLoading(true);
     setAiError('');
     setAiTasks(null);
-    setCurrentTask(0);
+    setCurrentIndex(0);
     setUserAnswer('');
-    setResults([]);
-    setShowExplanation(false);
     setIsAnswered(false);
+    setShowResults(false);
+    setFinalScore({ correct: 0, total: 0 });
+
     try {
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
       const response = await fetch('/api/ai/generate-phonetics-tasks', {
@@ -69,149 +56,218 @@ export default function PhoneticsModuleClient() {
           count: 5,
         }),
       });
-      if (!response.ok) throw new Error('Ошибка генерации AI-заданий');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка генерации AI-заданий');
+      }
       const res = await response.json();
+      if (!res.tasks || res.tasks.length === 0) {
+        throw new Error('ИИ не сгенерировал фонетические задания.');
+      }
       setAiTasks(res.tasks);
-    } catch (e) {
-      setAiError('Ошибка генерации AI-заданий. Попробуйте позже.');
+      setFinalScore({ correct: 0, total: res.tasks.length });
+
+    } catch (e: any) {
+      setAiError(e.message || 'Ошибка генерации заданий. Попробуйте снова.');
+      toast({
+        title: "Ошибка генерации",
+        description: e.message || 'Не удалось сгенерировать задания.',
+        variant: 'destructive',
+      });
     } finally {
       setIsAiLoading(false);
     }
-  };
+  }, [userData.settings, toast]);
+  
+  useEffect(() => {
+    if(!aiTasks && !isAiLoading && !aiError) {
+       fetchAiTasks();
+    }
+  }, [aiTasks, isAiLoading, aiError, fetchAiTasks]);
+  
 
-  // Выбор источника заданий: AI или статические
-  const tasks = aiTasks && aiTasks.length > 0 ? aiTasks : staticTasks;
-  const task = tasks[currentTask];
+  const currentTask = aiTasks?.[currentIndex];
 
   const handleCheck = () => {
-    let isCorrect = false;
-    if (aiTasks && aiTasks.length > 0) {
-      // AI-задания: сравниваем с correctAnswer (без учёта регистра и пробелов)
-      if (task.type === 'choose_pronunciation' || task.type === 'identify_word' || task.type === 'match_transcription') {
-        isCorrect = userAnswer.trim().toLowerCase() === task.correctAnswer.trim().toLowerCase();
-      } else if (task.type === 'repeat') {
-        // Для "повтори" — просто отмечаем как выполнено
-        isCorrect = true;
-      }
+    if (!currentTask) return;
+
+    let isAnswerCorrect = false;
+    if (currentTask.type === 'repeat') {
+      isAnswerCorrect = true; // For "repeat" tasks, we just mark as completed
     } else {
-      // Статические задания (старое поведение)
-      if (currentTask === 1) {
-        isCorrect = userAnswer.trim() === task.correctAnswer;
-      } else {
-        isCorrect = true;
-      }
+      isAnswerCorrect = userAnswer.trim().toLowerCase() === currentTask.correctAnswer.trim().toLowerCase();
     }
-    setResults([...results, { correct: isCorrect, explanation: task.explanation || task.explanation || '' }]);
-    setShowExplanation(true);
+    
+    setIsCorrect(isAnswerCorrect);
     setIsAnswered(true);
+
+    if (isAnswerCorrect) {
+      setFinalScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+    } else if (currentTask.type !== 'repeat') {
+        addErrorToArchive({
+            module: "Phonetics",
+            context: currentTask.instruction,
+            userAttempt: userAnswer,
+            correctAnswer: currentTask.correctAnswer,
+        });
+    }
   };
 
   const handleNext = () => {
-    setUserAnswer('');
-    setShowExplanation(false);
-    setIsAnswered(false);
-    setCurrentTask(currentTask + 1);
+    if (currentIndex < (aiTasks?.length || 0) - 1) {
+      setCurrentIndex(prev => prev + 1);
+      setUserAnswer('');
+      setIsAnswered(false);
+      setIsCorrect(false);
+    } else {
+      setShowResults(true);
+      if(aiTasks?.length) recordPracticeSetCompletion();
+    }
   };
 
-  const handleRepeat = () => {
-    setCurrentTask(0);
-    setUserAnswer('');
-    setResults([]);
-    setShowExplanation(false);
-    setIsAnswered(false);
+  const handleRestart = () => {
+    setShowResults(false);
+    fetchAiTasks();
   };
 
-  // Итоговый анализ
-  if (currentTask >= staticTasks.length) {
-    const correctCount = results.filter(r => r.correct).length;
-    const percent = Math.round((correctCount / staticTasks.length) * 100);
-    const canGoNext = percent >= 70;
-    const handleNextLesson = async () => {
-      setIsNextLoading(true);
-      setNextError('');
-      try {
-        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
-        const input = {
-          interfaceLanguage: userData.settings.interfaceLanguage,
-          currentLearningRoadmap: userData.progress.learningRoadmap,
-          completedLessonIds: userData.progress.completedLessonIds || [],
-          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
-          currentProficiencyLevel: (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2',
-        };
-        const rec = await getLessonRecommendation(input);
-        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
-          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
-          if (lesson && lesson.topics && lesson.topics.length > 0) {
-            window.location.href = `/learn/phonetics?topic=${encodeURIComponent(lesson.topics[0])}&lessonId=${lesson.id}`;
-            return;
-          }
-        }
-        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
-      } catch (e) {
-        setNextError('Ошибка перехода к следующему уроку.');
-      } finally {
-        setIsNextLoading(false);
-      }
-    };
+  if (isUserDataLoading) {
+    return <div className="flex h-full items-center justify-center p-4"><LoadingSpinner size={32} /><p className="ml-2">Загрузка модуля фонетики...</p></div>;
+  }
+  
+  if (isAiLoading && !aiTasks) {
     return (
-      <div className="max-w-xl mx-auto p-8 text-center">
-        <h2 className="text-2xl mb-3">Фонетический тест завершён</h2>
-        <p className="text-lg mb-4">Ваш результат: <b>{correctCount} из {staticTasks.length}</b> ({percent}%)</p>
-        {canGoNext ? (
-          <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
-        ) : (
-          <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
-        )}
-        <Button onClick={handleRepeat} className="px-6 py-2 text-base mr-3">Пройти ещё раз</Button>
-        {canGoNext && (
-          <Button onClick={handleNextLesson} className="px-6 py-2 text-base" disabled={isNextLoading}>
-            {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
-          </Button>
-        )}
-        {!canGoNext && (
-          <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
-        )}
-        {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+      <div className="flex flex-col h-full items-center justify-center p-4">
+        <LoadingSpinner size={32} />
+        <p className="ml-2 mt-2 text-muted-foreground">Генерация фонетических упражнений...</p>
       </div>
     );
   }
 
-  return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 32 }}>
-      <h2 style={{ fontSize: 24, marginBottom: 12 }}>Фонетическое задание</h2>
-      <div style={{ fontSize: 18, marginBottom: 16 }}>Задание {currentTask + 1} из {staticTasks.length}:</div>
-      <div style={{ fontSize: 18, marginBottom: 16 }}><b>{task.instruction}</b></div>
-      <div style={{ fontSize: 20, marginBottom: 16 }}>{task.audioText}</div>
-      {currentTask === 1 ? (
-        <input
-          type="text"
-          value={userAnswer}
-          onChange={e => setUserAnswer(e.target.value)}
-          placeholder="Введите номер варианта (1, 2 или 3)"
-          style={{ width: '100%', padding: 8, fontSize: 16, marginBottom: 16 }}
-          disabled={isAnswered}
-        />
-      ) : null}
-      <div>
-        {!isAnswered ? (
-          <Button onClick={handleCheck} disabled={currentTask === 1 && !userAnswer.trim()} style={{ marginRight: 12 }}>
-            Выполнил
-          </Button>
-        ) : (
-          <Button onClick={handleNext} style={{ marginRight: 12 }}>
-            Следующее задание
-          </Button>
-        )}
-        {showExplanation && (
-          <div style={{ marginTop: 24, fontSize: 17, color: isAnswered && results[results.length - 1]?.correct ? 'green' : 'red' }}>
-            {results[results.length - 1]?.correct ? '✅ Хорошо!' : '❌ Ошибка'}
-            <div style={{ marginTop: 8, color: '#0070f3' }}>Пояснение: {task.explanation}</div>
-            {task.correctAnswer && currentTask === 1 && (
-              <div style={{ marginTop: 8, color: '#888' }}><b>Правильный ответ:</b> {task.correctAnswer}</div>
-            )}
-          </div>
-        )}
+  if (aiError) {
+     return (
+        <div className="max-w-xl mx-auto p-8 text-center flex flex-col items-center">
+            <XCircle className="h-16 w-16 text-destructive mb-4" />
+            <h2 className="text-2xl font-bold mb-3">Ошибка загрузки</h2>
+            <p className="text-lg text-muted-foreground mb-6">{aiError}</p>
+            <Button onClick={fetchAiTasks}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Попробовать снова
+            </Button>
+        </div>
+     );
+  }
+
+  if (showResults) {
+    const percent = finalScore.total > 0 ? Math.round((finalScore.correct / finalScore.total) * 100) : 0;
+    
+    return (
+      <div className="max-w-xl mx-auto p-8 text-center">
+         <PartyPopper className="h-16 w-16 text-primary mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-3">Практика по фонетике завершена!</h2>
+        <p className="text-lg mb-4">Ваш результат: <b>{finalScore.correct} из {finalScore.total}</b> ({percent}%)</p>
+        <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
+            <Button onClick={handleRestart}>
+                <RefreshCw className="mr-2 h-4 w-4"/>
+                Повторить еще раз
+            </Button>
+            <Button onClick={() => router.push('/dashboard')} variant="outline">
+                На главную
+            </Button>
+        </div>
       </div>
+    );
+  }
+  
+  if (!currentTask) {
+    return (
+        <div className="flex h-full items-center justify-center p-4">
+            <p className="text-muted-foreground">Нет доступных заданий. Попробуйте обновить страницу.</p>
+        </div>
+    );
+  }
+
+  const targetLang = userData.settings?.targetLanguage || 'English';
+  const audioLangCode = mapTargetLanguageToBcp47(targetLang as AppTargetLanguage);
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 md:p-8">
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-2xl">
+            <BrainCircuit className="h-7 w-7 text-primary" />
+            Фонетика
+          </CardTitle>
+          <CardDescription>Задание {currentIndex + 1} из {aiTasks?.length || 0}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <p className="font-semibold text-lg">{currentTask.instruction}</p>
+            
+            {currentTask.audioText && (
+                <div className="flex items-center justify-center p-4 bg-muted/50 rounded-md">
+                    <p className="text-xl font-bold mr-4">{currentTask.audioText}</p>
+                    <PlayAudioButton text={currentTask.audioText} lang={audioLangCode} />
+                </div>
+            )}
+            
+            {currentTask.options && currentTask.options.length > 0 && (
+                <div className="grid grid-cols-1 gap-2">
+                    {currentTask.options.map((opt, idx) => (
+                         <Button
+                            key={idx}
+                            variant="outline"
+                            className={cn(
+                                "h-auto py-3 justify-start text-left whitespace-normal transition-colors duration-200",
+                                isAnswered && opt.trim().toLowerCase() === currentTask.correctAnswer.trim().toLowerCase() && "bg-green-500/20 border-green-500 text-green-700",
+                                isAnswered && userAnswer === opt && opt.trim().toLowerCase() !== currentTask.correctAnswer.trim().toLowerCase() && "bg-red-500/20 border-red-500 text-red-700",
+                                !isAnswered && userAnswer === opt && "bg-primary/10 border-primary"
+                            )}
+                            onClick={() => setUserAnswer(opt)}
+                            disabled={isAnswered}
+                        >
+                            {opt}
+                        </Button>
+                    ))}
+                </div>
+            )}
+            
+            {currentTask.type === 'repeat' && !isAnswered && (
+                <p className="text-sm text-muted-foreground italic">Прослушайте аудио и повторите вслух. Затем нажмите "Выполнено".</p>
+            )}
+
+            {isAnswered && (
+                <Card className={cn("p-4", isCorrect ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30")}>
+                    <div className="flex items-center gap-2">
+                        {isCorrect ? <CheckCircle2 className="h-6 w-6 text-green-600"/> : <XCircle className="h-6 w-6 text-red-600"/>}
+                        <p className={cn("text-lg font-semibold", isCorrect ? "text-green-700" : "text-red-700")}>
+                           {isCorrect ? (currentTask.type === 'repeat' ? 'Отлично!' : 'Верно!') : 'Ошибка'}
+                        </p>
+                    </div>
+                    {!isCorrect && (
+                        <p className="mt-2 text-muted-foreground">
+                            Правильный ответ: <span className="font-bold text-primary">{currentTask.correctAnswer}</span>
+                        </p>
+                    )}
+                    {currentTask.explanation && (
+                        <p className="mt-2 text-sm text-muted-foreground italic">
+                            {currentTask.explanation}
+                        </p>
+                    )}
+                </Card>
+            )}
+        </CardContent>
+        <CardFooter className="flex justify-end">
+            {!isAnswered ? (
+                <Button onClick={handleCheck} disabled={!userAnswer && currentTask.type !== 'repeat'}>
+                    {currentTask.type === 'repeat' ? 'Выполнено' : 'Проверить'}
+                </Button>
+            ) : (
+                <Button onClick={handleNext}>
+                    {currentIndex === (aiTasks?.length || 0) - 1 ? "Завершить" : "Следующее"}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+            )}
+        </CardFooter>
+      </Card>
     </div>
   );
-} 
+}
