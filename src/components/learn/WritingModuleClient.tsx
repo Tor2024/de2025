@@ -14,92 +14,105 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUserData } from "@/contexts/UserDataContext";
 import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
-import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput, ErrorCategory } from "@/ai/flows/ai-powered-writing-assistance";
+import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput } from "@/ai/flows/ai-powered-writing-assistance";
+import { generateWritingTask } from "@/ai/flows/generate-writing-task-flow";
+import type { GenerateWritingTaskInput, GenerateWritingTaskOutput } from "@/ai/flows/generate-writing-task-flow";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks } from "lucide-react"; 
+import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks, Lightbulb, PencilRuler } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { toggleLessonCompletion } from '@/lib/userDataUtils';
 import { lessonTypes } from '@/config/lessonTypes';
 
 
-const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
+const topicSchema = z.object({
+  topic: z.string().min(3, "Topic must be at least 3 characters long."),
+});
+type TopicFormData = z.infer<typeof topicSchema>;
 
 const writingSchema = z.object({
-  writingPrompt: z.string().min(5, "Prompt should be at least 5 characters"),
   userText: z.string().min(10, "Your text should be at least 10 characters"),
-  writingTaskType: z.enum(writingTaskTypeValues).optional(),
 });
-
 type WritingFormData = z.infer<typeof writingSchema>;
 
+
 const baseEnTranslations: Record<string, string> = {
-  title: "AI-Powered Writing Assistant",
-  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback. Feedback will be tailored to your proficiency level.",
-  writingPromptLabel: "Writing Prompt",
-  writingPromptPlaceholder: "E.g., Describe your last holiday, Write a formal email asking for information...",
-  userTextLabel: "Your Text",
-  userTextPlaceholder: "Write your text in {language} here...",
-  writingTaskTypeLabel: "Writing Task Type (Optional)",
-  writingTaskTypePlaceholder: "Select task type (e.g., Formal Letter, Essay)",
-  getFeedbackButton: "Get Feedback",
-  toastSuccessTitle: "Feedback Received!",
-  toastSuccessDescription: "Your writing has been reviewed.",
-  toastErrorTitle: "Error",
-  toastErrorDescription: "Failed to get writing assistance. Please try again.",
-  resultsCardTitle: "Feedback & Corrections",
-  feedbackSectionTitle: "Feedback",
-  yourOriginalTextSectionTitle: "Your Original Text",
-  correctedTextSectionTitle: "Corrected Text (with highlights)",
-  errorCategoriesHeader: "Identified Error Types",
-  errorCategoryLabel: "Category",
-  errorSpecificErrorLabel: "Specific Error",
-  errorCommentLabel: "Comment",
-  onboardingMissing: "Please complete onboarding first.",
-  loading: "Loading...",
-  informalLetterEmail: "Informal Letter/Email",
-  formalLetterEmail: "Formal Letter/Email",
-  complaintLetter: "Complaint Letter",
-  announcementNotice: "Announcement/Notice",
-  chatSmsNote: "Chat/SMS/Short Note",
-  essayArgumentative: "Essay/Argumentative Text",
-  clearResultsButton: "Clear Results",
-  nextLessonButton: "Next Section",
+    title: "AI Writing Assistant",
+    description: "Get a unique writing task on your chosen topic, then receive AI-driven feedback on your text.",
+    topicFormTitle: "1. Choose a Topic",
+    topicFormDescription: "Enter a general theme, and the AI will create a specific writing task for you.",
+    topicLabel: "General Theme",
+    topicPlaceholder: "e.g., Travel, Hobbies, Work",
+    generateTaskButton: "Generate Writing Task",
+    
+    taskTitle: "2. Your Writing Task",
+    userTextLabel: "Your Text",
+    userTextPlaceholder: "Write your text in {language} here...",
+    getFeedbackButton: "Get Feedback",
+
+    resultsCardTitle: "Feedback & Corrections",
+    feedbackSectionTitle: "Feedback",
+    yourOriginalTextSectionTitle: "Your Original Text",
+    correctedTextSectionTitle: "Corrected Text (with highlights)",
+    errorCategoriesHeader: "Identified Error Types",
+    errorCategoryLabel: "Category",
+    errorSpecificErrorLabel: "Specific Error",
+    errorCommentLabel: "Comment",
+
+    toastTaskSuccessTitle: "Task Generated!",
+    toastTaskSuccessDescription: "Your writing task is ready.",
+    toastTaskErrorTitle: "Task Generation Error",
+    toastTaskErrorDescription: "Could not generate a task. Please try another topic.",
+    
+    toastFeedbackSuccessTitle: "Feedback Received!",
+    toastFeedbackSuccessDescription: "Your writing has been reviewed.",
+    toastFeedbackErrorTitle: "Feedback Error",
+    toastFeedbackErrorDescription: "Failed to get writing assistance. Please try again.",
+
+    onboardingMissing: "Please complete onboarding first.",
+    loading: "Loading...",
+    clearResultsButton: "Start New Task",
+    nextLessonButton: "Complete & Go to Next Section",
 };
 
 const baseRuTranslations: Record<string, string> = {
-  title: "Помощник по письму с ИИ",
-  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи. Обратная связь будет адаптирована к вашему уровню владения языком.",
-  writingPromptLabel: "Тема для письма",
-  writingPromptPlaceholder: "Напр., Опишите свой последний отпуск, Напишите официальное письмо с запросом информации...",
-  userTextLabel: "Ваш текст",
-  userTextPlaceholder: "Напишите свой текст на языке {language} здесь...",
-  writingTaskTypeLabel: "Тип письменного задания (необязательно)",
-  writingTaskTypePlaceholder: "Выберите тип задания (напр., Официальное письмо, Эссе)",
-  getFeedbackButton: "Получить обратную связь",
-  toastSuccessTitle: "Обратная связь получена!",
-  toastSuccessDescription: "Ваш текст был проверен.",
-  toastErrorTitle: "Ошибка",
-  toastErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
-  resultsCardTitle: "Обратная связь и исправления",
-  feedbackSectionTitle: "Обратная связь",
-  yourOriginalTextSectionTitle: "Ваш исходный текст",
-  correctedTextSectionTitle: "Исправленный текст (с выделениями)",
-  errorCategoriesHeader: "Выявленные типы ошибок",
-  errorCategoryLabel: "Категория",
-  errorSpecificErrorLabel: "Конкретная ошибка",
-  errorCommentLabel: "Комментарий",
-  onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
-  loading: "Загрузка...",
-  informalLetterEmail: "Неофициальное письмо/E-Mail",
-  formalLetterEmail: "Официальное письмо/E-Mail",
-  complaintLetter: "Жалоба",
-  announcementNotice: "Объявление/Заметка",
-  chatSmsNote: "Сообщение в чате/SMS",
-  essayArgumentative: "Эссе/Аргументативный текст",
-  clearResultsButton: "Очистить результаты",
-  nextLessonButton: "Следующий раздел",
+    title: "Помощник по письму с ИИ",
+    description: "Получите уникальное письменное задание по выбранной теме, а затем получите от ИИ обратную связь по вашему тексту.",
+    topicFormTitle: "1. Выберите тему",
+    topicFormDescription: "Введите общую тему, и ИИ создаст для вас конкретное письменное задание.",
+    topicLabel: "Общая тема",
+    topicPlaceholder: "Напр., Путешествия, Хобби, Работа",
+    generateTaskButton: "Сгенерировать задание",
+
+    taskTitle: "2. Ваше письменное задание",
+    userTextLabel: "Ваш текст",
+    userTextPlaceholder: "Напишите свой текст на языке {language} здесь...",
+    getFeedbackButton: "Получить обратную связь",
+
+    resultsCardTitle: "Обратная связь и исправления",
+    feedbackSectionTitle: "Обратная связь",
+    yourOriginalTextSectionTitle: "Ваш исходный текст",
+    correctedTextSectionTitle: "Исправленный текст (с выделениями)",
+    errorCategoriesHeader: "Выявленные типы ошибок",
+    errorCategoryLabel: "Категория",
+    errorSpecificErrorLabel: "Конкретная ошибка",
+    errorCommentLabel: "Комментарий",
+    
+    toastTaskSuccessTitle: "Задание сгенерировано!",
+    toastTaskSuccessDescription: "Ваше письменное задание готово.",
+    toastTaskErrorTitle: "Ошибка генерации задания",
+    toastTaskErrorDescription: "Не удалось создать задание. Попробуйте другую тему.",
+
+    toastFeedbackSuccessTitle: "Обратная связь получена!",
+    toastFeedbackSuccessDescription: "Ваш текст был проверен.",
+    toastFeedbackErrorTitle: "Ошибка обратной связи",
+    toastFeedbackErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
+
+    onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+    loading: "Загрузка...",
+    clearResultsButton: "Начать новое задание",
+    nextLessonButton: "Завершить и перейти к следующему разделу",
 };
 
 const generateTranslations = () => {
@@ -116,51 +129,6 @@ const generateTranslations = () => {
 
 const componentTranslations = generateTranslations();
 
-// parseTopicAndGetLink (локальная копия)
-const keywordsToModules = [
-  { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
-  { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
-  { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
-  { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
-  { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
-  { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
-];
-function parseTopicAndGetLink(
-  topicLine: string,
-  lessonContext?: { lessonId: string; lessonLevel: string }
-): { href: string | null } {
-  let href: string | null = null;
-  const cleanAndEncodeTopic = (rawTopic: string): string => {
-    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
-    cleaned = cleaned.replace(/^\"':\s+|\"':\s+$/g, "").trim();
-    return encodeURIComponent(cleaned);
-  };
-  const topicLineLower = topicLine.toLowerCase();
-  for (const mod of keywordsToModules) {
-    for (const keyword of mod.keywords) {
-      const keywordLower = keyword.toLowerCase();
-      if (topicLineLower.startsWith(keywordLower)) {
-        let theme = topicLine.substring(keyword.length).trim();
-        theme = cleanAndEncodeTopic(theme);
-        if (theme.length > 0) {
-          href = `${mod.path}?topic=${theme}`;
-          if (lessonContext) {
-            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
-            if (mod.needsLevel && lessonContext.lessonLevel) {
-              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
-              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
-            }
-          }
-        }
-        break;
-      }
-    }
-    if (href) break;
-  }
-  return { href };
-}
-
 const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
 function goToNextSection(
@@ -171,7 +139,6 @@ function goToNextSection(
   router: ReturnType<typeof useRouter>
 ) {
   const currentIndex = lessonSections.indexOf(currentSection);
-    // Найти следующий существующий раздел
   for (let i = currentIndex + 1; i < lessonSections.length; i++) {
     const nextSection = lessonSections[i];
     if ((lessonTypes as Record<string, any>)[nextSection]) {
@@ -182,90 +149,72 @@ function goToNextSection(
       return;
     }
   }
-  // Если ничего не найдено — на дашборд
   router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
 
 
 export default function WritingModuleClient() {
-  const { userData, isLoading: isUserDataLoading, toggleLessonCompletion } = useUserData();
+  const { userData, isLoading: isUserDataLoading, setUserData } = useUserData();
   const { toast } = useToast();
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [generatedTask, setGeneratedTask] = useState<GenerateWritingTaskOutput | null>(null);
   const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
   const [submittedUserText, setSubmittedUserText] = useState<string | null>(null);
   const router = useRouter();
-  const [isNextLoading, setIsNextLoading] = useState(false);
-  const [nextError, setNextError] = useState('');
   const searchParams = useSearchParams();
 
-  const { register, handleSubmit, control, formState: { errors }, reset, setValue } = useForm<WritingFormData>({
-    resolver: zodResolver(writingSchema),
-  });
+  const topicForm = useForm<TopicFormData>({ resolver: zodResolver(topicSchema) });
+  const writingForm = useForm<WritingFormData>({ resolver: zodResolver(writingSchema) });
 
   const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
   const t = (key: string, defaultText?: string): string => {
     const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
     return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
+  
+  const topicFromParams = searchParams.get('topic');
 
   useEffect(() => {
-    // Reset form with default proficiency from user settings when user data is loaded
-    if (userData.settings) {
-        // We don't need to reset the proficiency here as it's part of general user settings,
-        // not a per-task setting in this module's form.
+    if (topicFromParams && !generatedTask && !isAiLoading) { 
+      topicForm.setValue('topic', decodeURIComponent(topicFromParams));
+      handleGenerateTask({ topic: decodeURIComponent(topicFromParams) });
     }
-  }, [userData.settings, reset]);
-
-  // Этот useEffect отвечает за автоматическую подстановку темы для письма,
-  // если пользователь перешел в этот модуль из своего учебного плана (Roadmap).
-  useEffect(() => {
-    const topicParam = searchParams.get('topic');
-    if (topicParam) {
-      // Декодируем и устанавливаем тему из URL в качестве "Темы для письма".
-      setValue('writingPrompt', decodeURIComponent(topicParam));
-    }
-  }, [searchParams, setValue]);
+  }, [topicFromParams, generatedTask, isAiLoading]);
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
   }
-
   if (!userData.settings) {
     return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
   }
 
-  const onSubmit: SubmitHandler<WritingFormData> = async (data) => {
+  const handleGenerateTask: SubmitHandler<TopicFormData> = async (data) => {
     setIsAiLoading(true);
+    setGeneratedTask(null);
     setAssistanceResult(null);
-    setSubmittedUserText(data.userText); 
+    setSubmittedUserText(null);
+    writingForm.reset();
+
     try {
-      if (!userData.settings) {
-        toast({ title: t('onboardingMissing', 'Пожалуйста, завершите ввод данных для начала работы.'), variant: "destructive" });
-        setIsAiLoading(false);
-        return;
-      }
-      const writingInput: AIPoweredWritingAssistanceInput = {
-        prompt: data.writingPrompt,
-        text: data.userText,
-        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
-        writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
-        proficiencyLevel: (userData.settings.proficiencyLevel || 'A1-A2') as AppProficiencyLevel,
-        goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : (userData.settings.goal ? [userData.settings.goal] : []),
-        interests: Array.isArray(userData.settings.interests) ? userData.settings.interests : (userData.settings.interests ? [userData.settings.interests] : []),
+      const taskInput: GenerateWritingTaskInput = {
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings!.targetLanguage as AppTargetLanguage,
+        proficiencyLevel: (userData.settings!.proficiencyLevel || 'A1-A2') as AppProficiencyLevel,
+        topic: data.topic,
+        goals: Array.isArray(userData.settings!.goal) ? userData.settings!.goal : [userData.settings!.goal],
+        interests: userData.settings!.interests || [],
       };
-      
-      const result = await aiPoweredWritingAssistance(writingInput);
-      setAssistanceResult(result);
+      const result = await generateWritingTask(taskInput);
+      setGeneratedTask(result);
       toast({
-        title: t('toastSuccessTitle', 'Проверка завершена!'),
-        description: t('toastSuccessDescription', 'Получите обратную связь ниже.'),
+        title: t('toastTaskSuccessTitle'),
+        description: t('toastTaskSuccessDescription'),
       });
     } catch (error) {
-      console.error("Writing assistance error:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Writing task generation error:", error);
       toast({
-        title: t('toastErrorTitle', 'Ошибка при проверке текста'),
-        description: `${t('toastErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
+        title: t('toastTaskErrorTitle'),
+        description: t('toastTaskErrorDescription'),
         variant: "destructive",
       });
     } finally {
@@ -273,31 +222,61 @@ export default function WritingModuleClient() {
     }
   };
 
-  const handleClearResults = () => {
+  const handleGetFeedback: SubmitHandler<WritingFormData> = async (data) => {
+    if (!generatedTask) return;
+    setIsAiLoading(true);
+    setAssistanceResult(null);
+    setSubmittedUserText(data.userText); 
+
+    try {
+      const assistanceInput: AIPoweredWritingAssistanceInput = {
+        prompt: generatedTask.writingPrompt,
+        text: data.userText,
+        interfaceLanguage: userData.settings!.interfaceLanguage as AppInterfaceLanguage,
+        writingTaskType: generatedTask.taskType as GermanWritingTaskType | undefined,
+        proficiencyLevel: (userData.settings!.proficiencyLevel || 'A1-A2') as AppProficiencyLevel,
+        goals: Array.isArray(userData.settings!.goal) ? userData.settings!.goal : [userData.settings!.goal],
+        interests: userData.settings!.interests || [],
+      };
+      
+      const result = await aiPoweredWritingAssistance(assistanceInput);
+      setAssistanceResult(result);
+      toast({
+        title: t('toastFeedbackSuccessTitle'),
+        description: t('toastFeedbackSuccessDescription'),
+      });
+    } catch (error) {
+      console.error("Writing assistance error:", error);
+      toast({
+        title: t('toastFeedbackErrorTitle'),
+        description: t('toastFeedbackErrorDescription'),
+        variant: "destructive",
+      });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleClearAll = () => {
+    setGeneratedTask(null);
     setAssistanceResult(null);
     setSubmittedUserText(null);
-    reset(); // Reset the form fields
+    topicForm.reset();
+    writingForm.reset();
   };
   
-  const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
-    value: taskType.value,
-    label: t(taskType.labelKey, taskType.defaultLabel),
-  }));
+  const handleCompleteAndNext = () => {
+    const lessonId = searchParams.get('lessonId');
+    if (lessonId && setUserData) {
+      toggleLessonCompletion(setUserData, lessonId);
+    }
+    const topic = searchParams.get('topic');
+    const baseLevel = searchParams.get('baseLevel');
+    goToNextSection('writing', lessonId, topic, baseLevel, router);
+  };
 
-  // Финальный экран — если есть результат и пользователь завершил задание
-  if (assistanceResult && submittedUserText) {
-    const handleNextSection = async () => {
-        const lessonId = searchParams.get('lessonId');
-        const topic = searchParams.get('topic');
-        const baseLevel = searchParams.get('baseLevel');
 
-        if(lessonId) {
-            toggleLessonCompletion(lessonId);
-        }
-        
-        goToNextSection('writing', lessonId, topic, baseLevel, router);
-    };
-
+  if (assistanceResult) {
     return (
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
         <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
@@ -308,6 +287,7 @@ export default function WritingModuleClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Feedback & Errors */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>{t('feedbackSectionTitle')}</h3>
@@ -315,20 +295,16 @@ export default function WritingModuleClient() {
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
                 </ScrollArea>
               </div>
-
               {assistanceResult.errorCategories && assistanceResult.errorCategories.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <ListChecks className="h-5 w-5 text-orange-500" />
-                    {t('errorCategoriesHeader')}
-                  </h3>
+                  <h3 className="font-semibold text-lg flex items-center gap-2"><ListChecks className="h-5 w-5 text-orange-500" />{t('errorCategoriesHeader')}</h3>
                   <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
                     <ul className="space-y-3">
                       {assistanceResult.errorCategories.map((errCat, index) => (
                         <li key={index} className="text-sm p-2 rounded-md bg-card border border-border/50">
-                          <p><strong>{t('errorCategoryLabel', 'Category')}:</strong> {errCat.category}</p>
-                          <p><strong>{t('errorSpecificErrorLabel', 'Error')}:</strong> {errCat.specificError}</p>
-                          {errCat.comment && <p><em>{t('errorCommentLabel', 'Comment')}: {errCat.comment}</em></p>}
+                          <p><strong>{t('errorCategoryLabel')}:</strong> {errCat.category}</p>
+                          <p><strong>{t('errorSpecificErrorLabel')}:</strong> {errCat.specificError}</p>
+                          {errCat.comment && <p><em>{t('errorCommentLabel')}: {errCat.comment}</em></p>}
                         </li>
                       ))}
                     </ul>
@@ -336,37 +312,26 @@ export default function WritingModuleClient() {
                 </div>
               )}
             </div>
-            
+             {/* Original and Corrected Text */}
             {submittedUserText && (
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-500" />
-                  {t('yourOriginalTextSectionTitle')}
-                </h3>
+                <h3 className="font-semibold text-lg flex items-center gap-2"><FileText className="h-5 w-5 text-blue-500" />{t('yourOriginalTextSectionTitle')}</h3>
                 <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
                 </ScrollArea>
               </div>
             )}
-
             <div className="space-y-2">
               <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
               <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
-                <div 
-                  className="whitespace-pre-wrap text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
-                />
+                <div className="whitespace-pre-wrap text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} />
               </ScrollArea>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-              <Button onClick={handleClearResults} variant="outline">{t('clearResultsButton')}</Button>
-              <Button onClick={handleNextSection} disabled={isNextLoading}>
-                {isNextLoading ? <LoadingSpinner size={16} className="mr-2"/> : null}
-                {t('nextLessonButton')}
-              </Button>
+            <Button onClick={handleClearAll} variant="outline">{t('clearResultsButton')}</Button>
+            <Button onClick={handleCompleteAndNext}>{t('nextLessonButton')}</Button>
           </CardFooter>
-           {nextError && <p className="text-sm text-destructive text-center p-4">{nextError}</p>}
         </Card>
       </div>
     );
@@ -377,55 +342,59 @@ export default function WritingModuleClient() {
       <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
-             <Edit className="h-8 w-8 text-primary animate-pulse" />
+            <Edit className="h-8 w-8 text-primary animate-pulse" />
             {t('title')}
           </CardTitle>
           <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="writingPrompt">{t('writingPromptLabel')}</Label>
-              <Input id="writingPrompt" placeholder={t('writingPromptPlaceholder')} {...register("writingPrompt")} />
-              {errors.writingPrompt && <p className="text-sm text-destructive">{errors.writingPrompt.message}</p>}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="writingTaskType">{t('writingTaskTypeLabel')}</Label>
-              <Controller
-                name="writingTaskType"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || ''}> 
-                    <SelectTrigger id="writingTaskType">
-                      <SelectValue placeholder={t('writingTaskTypePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {translatedTaskTypes.map(taskType => (
-                        <SelectItem key={taskType.value} value={taskType.value}>
-                          {taskType.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.writingTaskType && <p className="text-sm text-destructive">{errors.writingTaskType.message}</p>}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="userText">{t('userTextLabel')} ({userData.settings.targetLanguage})</Label>
-              <Textarea id="userText" placeholder={t('userTextPlaceholder').replace('{language}', userData.settings.targetLanguage)} {...register("userText")} className="min-h-[150px]" />
-              {errors.userText && <p className="text-sm text-destructive">{errors.userText.message}</p>}
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
-              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
-              {t('getFeedbackButton')}
-            </Button>
-          </CardFooter>
-        </form>
+        
+        {!generatedTask ? (
+          <form onSubmit={topicForm.handleSubmit(handleGenerateTask)}>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2"><PencilRuler className="h-6 w-6 text-accent" />{t('topicFormTitle')}</CardTitle>
+              <CardDescription>{t('topicFormDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="topic">{t('topicLabel')}</Label>
+                <Input id="topic" placeholder={t('topicPlaceholder')} {...topicForm.register("topic")} />
+                {topicForm.formState.errors.topic && <p className="text-sm text-destructive">{topicForm.formState.errors.topic.message}</p>}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={isAiLoading}>
+                {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+                {t('generateTaskButton')}
+              </Button>
+            </CardFooter>
+          </form>
+        ) : (
+          <form onSubmit={writingForm.handleSubmit(handleGetFeedback)}>
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2"><Lightbulb className="h-6 w-6 text-accent" />{t('taskTitle')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-md border">
+                    <p className="font-semibold">{generatedTask.writingPrompt}</p>
+                    {generatedTask.taskType && (
+                        <p className="text-sm text-muted-foreground mt-1">({t('writingTaskTypeLabel')}: {generatedTask.taskType})</p>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="userText">{t('userTextLabel').replace('{language}', userData.settings.targetLanguage)}</Label>
+                    <Textarea id="userText" placeholder={t('userTextPlaceholder').replace('{language}', userData.settings.targetLanguage)} {...writingForm.register("userText")} className="min-h-[200px]" />
+                    {writingForm.formState.errors.userText && <p className="text-sm text-destructive">{writingForm.formState.errors.userText.message}</p>}
+                </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+                <Button variant="ghost" onClick={handleClearAll}>{t('clearResultsButton', 'Cancel')}</Button>
+                <Button type="submit" disabled={isAiLoading}>
+                    {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+                    {t('getFeedbackButton')}
+                </Button>
+            </CardFooter>
+          </form>
+        )}
       </Card>
     </div>
   );

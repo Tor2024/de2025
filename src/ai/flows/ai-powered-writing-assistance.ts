@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI-powered writing assistance flow.
@@ -178,7 +179,7 @@ Your tasks:
     *   \`comment\`: This is CRITICAL. Provide a **detailed but easy-to-understand explanation** of the error. Explain the rule, show the user's incorrect version and the corrected version side-by-side, and give a clear tip on how to avoid it. Example: "Ошибка: Вы написали 'I goed'. Правило: Глагол 'go' — неправильный, его форма в Past Simple — 'went'. Совет: Запомните основные неправильные глаголы, например, go-went-gone."
 
 Output the feedback, the marked corrected text, and the error categories as a JSON object matching the defined output schema.
-  `,
+`,
 });
 
 const aiPoweredWritingAssistanceFlow = ai.defineFlow(

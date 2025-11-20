@@ -17,3 +17,4 @@ import '@/ai/flows/generate-listening-material-flow.ts';
 import '@/ai/flows/generate-fill-in-the-blank-flow.ts';
 import '@/ai/flows/get-lesson-recommendation-flow.ts';
 import '@/ai/flows/generate-repetition-tasks-flow.ts';
+import '@/ai/flows/generate-writing-task-flow.ts';
