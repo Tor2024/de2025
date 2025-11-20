@@ -34,7 +34,7 @@ const VocabularyWordSchema = z.object({
 export type VocabularyWord = z.infer<typeof VocabularyWordSchema>;
 
 const GenerateVocabularyOutputSchema = z.object({
-  words: z.array(VocabularyWordSchema).describe('A list of vocabulary words with translations and example sentences.'),
+  words: z.array(VocabularyWordSchema).min(10).max(20).describe('A list of 10-20 vocabulary words with translations and example sentences, fully covering the topic for the specified proficiency level.'),
 });
 export type GenerateVocabularyOutput = z.infer<typeof GenerateVocabularyOutputSchema>;
 
@@ -47,9 +47,9 @@ const generateVocabularyPrompt = ai.definePrompt({
   name: 'generateVocabularyPrompt',
   input: {schema: GenerateVocabularyInputSchema},
   output: {schema: GenerateVocabularyOutputSchema},
-  prompt: `You are an AI language learning assistant specializing in creating vocabulary lists.
+  prompt: `You are an AI language learning assistant specializing in creating comprehensive vocabulary lists.
 
-Task: Generate a list of 5-10 relevant vocabulary words based on the user's preferences and learning profile.
+Task: Generate a list of 10-20 relevant vocabulary words based on the user's preferences and learning profile. The list must fully cover the specified topic for the given proficiency level.
 
 User Profile:
 - Interface Language (for translations): {{{interfaceLanguage}}}
@@ -64,18 +64,16 @@ User Profile:
 - User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL Instructions:
-1.  **Words Relevance and Level Appropriateness:**
-    *   The generated words MUST be highly relevant to the specified {{{topic}}}.
-    *   The complexity of the words, их переводы, и особенно примеры предложений ДОЛЖНЫ строго соответствовать уровню {{{proficiencyLevel}}}.
-    *   Where possible, учитывай интересы, цели и слабые места пользователя (ошибки, темы, грамматика, лексика) — делай подборку слов более релевантной и полезной для проработки этих аспектов.
+1.  **Comprehensive Coverage:** The list of 10-20 words you generate MUST be comprehensive and fully cover the core vocabulary for the specified {{{topic}}} at the user's {{{proficiencyLevel}}}.
+2.  **Level Appropriateness:** The complexity of the words, their translations, and especially the example sentences MUST strictly correspond to the {{{proficiencyLevel}}}.
+3.  **Relevance and Personalization:**
+    *   Where possible, consider the user's interests, goals, and weaknesses (past errors, topics, grammar, vocab) to make the word selection and examples more relevant and useful for addressing these aspects.
     *   Ensure that the selected words are commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
-2.  **Translations:** For each word, provide an accurate translation into the {{{interfaceLanguage}}}.
-3.  **Example Sentences (Optional but HIGHLY encouraged):** For each word, try to provide a simple, clear example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence MUST also be appropriate for the {{{proficiencyLevel}}}.
-    *   Если есть ошибки или слабые места (из userPastErrors), часть примеров должна быть направлена на их проработку.
-4.  **Adaptation to Past Errors:** If 'userPastErrors' is provided, analyze these errors. If possible, create example sentences for some of the new vocabulary words that specifically address these past mistakes. For example, if the user made a mistake with verb conjugation, create an example sentence that uses that verb correctly.
-
-Output Format: Ensure your response is a JSON object matching the defined output schema.
-The 'words' array should contain objects, each with 'word', 'translation', and optionally 'exampleSentence'.
+4.  **Translations:** For each word, provide an accurate translation into the {{{interfaceLanguage}}}.
+5.  **Example Sentences:** For each word, you MUST provide a simple, clear example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence MUST also be appropriate for the {{{proficiencyLevel}}}.
+    *   If 'userPastErrors' is provided, some examples should be aimed at addressing them.
+6.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
+The 'words' array should contain objects, each with 'word', 'translation', and 'exampleSentence'.
 `,
 });
 
