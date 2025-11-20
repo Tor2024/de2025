@@ -137,47 +137,45 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
   }, [userData.progress?.errorArchive]);
 
 
+  const fetchTasksCallback = useCallback(async () => {
+    if (!userData.settings || tasks.length > 0) return;
+
+    setIsAiLoading(true);
+    setAiError('');
+    try {
+      const pastErrors = getPastErrorsAsString();
+      const response = await fetch('/api/ai/adaptive-grammar-explanations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interfaceLanguage: userData.settings.interfaceLanguage,
+          grammarTopic: topic || lessonTitle || 'General Grammar',
+          proficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
+          goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : [userData.settings.goal],
+          interests: userData.settings.interests || [],
+          userPastErrors: pastErrors,
+        }),
+      });
+      if (!response.ok) throw new Error('Ошибка генерации грамматических заданий');
+      const aiResult: AdaptiveGrammarExplanationsOutput = await response.json();
+      setTasks(aiResult.practiceTasks);
+      setExplanation(aiResult.explanation);
+      setCurrentTaskIndex(0);
+      setUserAnswer('');
+      setTaskStates({});
+    } catch (e: any) {
+      setAiError(e.message || 'Ошибка генерации заданий. Попробуйте обновить страницу или выбрать другую тему.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, [userData.settings, tasks.length, getPastErrorsAsString, topic, lessonTitle]);
+
   // Получаем задания через ИИ при инициализации
   useEffect(() => {
-    const fetchTasks = async () => {
-      if (!userData.settings) return;
-      // Если заданий еще нет, начинаем загрузку
-      if (tasks.length === 0) {
-        setIsAiLoading(true);
-        setAiError('');
-        try {
-          const pastErrors = getPastErrorsAsString();
-          const response = await fetch('/api/ai/adaptive-grammar-explanations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              interfaceLanguage: userData.settings.interfaceLanguage,
-              grammarTopic: topic || lessonTitle || 'General Grammar',
-              proficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
-              goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : [userData.settings.goal],
-              interests: userData.settings.interests || [],
-              userPastErrors: pastErrors,
-            }),
-          });
-          if (!response.ok) throw new Error('Ошибка генерации грамматических заданий');
-          const aiResult: AdaptiveGrammarExplanationsOutput = await response.json();
-          setTasks(aiResult.practiceTasks);
-          setExplanation(aiResult.explanation);
-          setCurrentTaskIndex(0);
-          setUserAnswer('');
-          setTaskStates({});
-        } catch (e) {
-          setAiError('Ошибка генерации заданий. Попробуйте обновить страницу или выбрать другую тему.');
-        } finally {
-          setIsAiLoading(false);
-        }
-      }
-    };
     if (!isUserDataLoading && userData.settings) {
-      fetchTasks();
+      fetchTasksCallback();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserDataLoading, userData.settings, topic, lessonTitle]);
+  }, [isUserDataLoading, userData.settings, fetchTasksCallback]);
 
   const handleCheck = () => {
     if (!currentTask) return;
