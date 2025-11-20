@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -215,11 +216,13 @@ export function WritingAssistantClient() {
     }
   }, [userData.settings, reset]);
 
-  // Автоматически подставлять тему из query-параметра topic
+  // Этот useEffect отвечает за автоматическую подстановку темы для письма,
+  // если пользователь перешел в этот модуль из своего учебного плана (Roadmap).
   useEffect(() => {
     const topicParam = searchParams.get('topic');
     if (topicParam) {
-      setValue('writingPrompt', topicParam);
+      // Декодируем и устанавливаем тему из URL в качестве "Темы для письма".
+      setValue('writingPrompt', decodeURIComponent(topicParam));
     }
   }, [searchParams, setValue]);
 
