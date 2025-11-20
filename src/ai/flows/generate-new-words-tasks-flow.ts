@@ -1,3 +1,4 @@
+'use server';
 import { ai } from '../genkit';
 import { z } from 'genkit';
 import { targetLanguageNames, proficiencyLevels, InterfaceLanguageSchema } from '../../lib/types';
@@ -39,6 +40,11 @@ const GenerateNewWordsTasksOutputSchema = z.object({
 });
 
 export type GenerateNewWordsTasksOutput = z.infer<typeof GenerateNewWordsTasksOutputSchema>;
+
+export async function generateNewWordsTasks(input: GenerateNewWordsTasksInput): Promise<GenerateNewWordsTasksOutput> {
+    return generateNewWordsTasksFlow(input);
+}
+
 
 const generateNewWordsTasksPrompt = ai.definePrompt({
   name: 'generateNewWordsTasksPrompt',
