@@ -8,7 +8,7 @@ import { Volume2, XCircle, RefreshCw } from 'lucide-react';
 import type { GenerateListeningMaterialOutput } from '@/ai/flows/generate-listening-material-flow';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import { MultiVoiceAudioPlayer } from '@/components/ui/MultiVoiceAudioPlayer';
+import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
 import type { TargetLanguage as AppTargetLanguage } from '@/lib/types';
 import { lessonTypes } from '@/config/lessonTypes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -257,10 +257,9 @@ export default function ListeningModuleClient() {
         <CardHeader>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <CardTitle style={{ marginBottom: 0 }}>{material.title || 'Скрипт для аудирования'}</CardTitle>
-              <MultiVoiceAudioPlayer
-                script={material.script}
-                targetLang={userData?.settings?.targetLanguage as AppTargetLanguage}
-                interfaceLang={userData?.settings?.interfaceLanguage}
+              <PlayAudioButton
+                text={material.script}
+                lang={userData?.settings?.targetLanguage === 'German' ? 'de-DE' : 'en-US'}
                 tooltipPlay="Прослушать"
                 tooltipStop="Остановить"
                 className="ml-3"

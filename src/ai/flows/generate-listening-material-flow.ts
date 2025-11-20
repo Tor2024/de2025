@@ -39,8 +39,8 @@ const VocabularyEntrySchema = z.object({
 
 const GenerateListeningMaterialOutputSchema = z.object({
   title: z.string().optional().describe('A suitable title for the listening material, in the targetLanguage.'),
-  scenario: z.string().optional().describe('A brief description of the listening scenario (e.g., "A conversation at a train station"), in the interfaceLanguage.'),
-  script: z.string().describe('The generated listening script in the targetLanguage, adapted to the proficiencyLevel. If it\'s a dialogue, it MUST be formatted with speaker labels like "Speaker 1:", "Speaker 2:", etc., on separate lines.'),
+  scenario: z.string().optional().describe('A brief description of the listening scenario (e.g., "A story about a trip to the mountains"), in the interfaceLanguage.'),
+  script: z.string().describe('The generated listening script in the targetLanguage, adapted to the proficiencyLevel. This MUST be a monologue or narrative text from a single speaker. It MUST NOT contain speaker labels like "Speaker 1:", "Man:", etc.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).min(2).max(4).describe('An array of 2-4 multiple-choice comprehension questions about the script, with questions and options in the interfaceLanguage.'),
   vocabulary: z.array(VocabularyEntrySchema).min(10).max(15).optional().describe('A list of 10-15 key vocabulary words from the script with their translations into the interfaceLanguage. Focus on important nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
 });
@@ -69,9 +69,9 @@ User Profile:
 - User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL INSTRUCTIONS:
-1.  **Listening Script:**
-    *   Create a short, coherent, and engaging monologue or dialogue in the {{{targetLanguage}}}.
-    *   **If you generate a dialogue, you MUST format it with speaker labels.** Each speaker's line must start on a new line with a label like "Speaker 1:", "Speaker 2:", "Mann:", "Frau:", "Person A:", etc. This is crucial for multi-voice playback.
+1.  **Listening Script (Monologue/Narrative ONLY):**
+    *   Create a short, coherent, and engaging monologue or narrative text from a single speaker's perspective in the {{{targetLanguage}}}.
+    *   **You MUST NOT create a dialogue.** The script should not contain any speaker labels like "Speaker 1:", "Speaker 2:", "Mann:", "Frau:", "Person A:", etc. It should be a continuous text. For example, a short story, a description, a news report, or a personal opinion piece.
     *   The script's length, grammar, and vocabulary MUST be appropriate for the user's {{{proficiencyLevel}}}.
     *   The script MUST be directly related to the specified {{{topic}}}.
     *   If 'userPastErrors' is provided, subtly incorporate correct examples of the problematic grammar or vocabulary into the script to provide passive reinforcement.
