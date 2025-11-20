@@ -3,7 +3,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUserData } from '@/contexts/UserDataContext';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import { Button } from '@/components/ui/button';
-import type { NextRouter } from 'next/router';
 import type { PracticeTask, AdaptiveGrammarExplanationsOutput } from '@/ai/flows/adaptive-grammar-explanations';
 import type { ExplainGrammarTaskErrorOutput } from '@/ai/flows/explain-grammar-task-error-flow';
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -20,7 +19,7 @@ const keywordsToModules = [
   { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
   { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
   { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
 ];
 function parseTopicAndGetLink(
   topicLine: string,
@@ -66,6 +65,13 @@ function GrammarExplanation({ explanation }: { explanation: string }) {
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: displayText.replace(/\n/g, '<br />') }} />
   );
+}
+
+interface GrammarModuleClientProps {
+  lessonId?: string;
+  lessonTitle?: string;
+  lessonDescription?: string;
+  grammarTopic?: string;
 }
 
 // Универсальный массив разделов

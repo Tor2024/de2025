@@ -90,7 +90,7 @@ export const italianCurriculum: CurriculumStage[] = [
       { title: 'Condizionale passato', description: 'avrei fatto...' },
       { title: 'Verbi modali per deduzione', description: 'dovere, potere al condizionale.' },
       { title: 'Causativo', description: 'far fare qualcosa.' },
-      { title: 'Desideri', description: 'vorrei che...' },
+      { title: 'Desejos', description: 'vorrei che...' },
       { title: 'Inversione', description: 'Mai ho visto...' },
       { title: 'Congiunzioni', description: 'tuttavia, sebbene, nonostante.' },
       { title: 'Enfasi', description: 'è... che/chi.' },

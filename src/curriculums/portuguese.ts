@@ -19,7 +19,7 @@ export const portugueseCurriculum: CurriculumStage[] = [
       { title: 'Adjetivos possessivos', description: 'meu, teu, seu, nosso, vosso, seu.' },
       { title: 'Imperativo', description: 'Vem!, Ouça!' },
       { title: 'Preposições de lugar', description: 'em, sobre, sob, diante, atrás.' },
-      { title: 'Plural dos substantivos', description: 'regras gerais e exceções.' },
+      { title: 'Plural dos substantivos', description: 'reglas gerais e exceções.' },
       { title: 'Perguntas simples', description: 'Quem, o que, onde, quando, como.' },
       { title: 'Expressões básicas', description: 'Há, é, está.' },
     ],

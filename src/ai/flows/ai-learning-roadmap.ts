@@ -1,4 +1,3 @@
-// Use server directive is required for all Genkit flows.
 'use server';
 
 /**
@@ -99,15 +98,15 @@ You are an AI language tutor responsible for creating a complete and personalize
 Your output MUST be a JSON object that strictly adheres to the provided schema.
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Full Curriculum (A1-C2):** You MUST generate a complete learning roadmap covering ALL levels from A1 to C2 for the \`{{{targetLanguage}}}\`. Do NOT create a partial plan based on the user's \`proficiencyLevel\`. The user wants to see the entire path and choose any topic.
+1.  **Full Curriculum (A1-C2):** You MUST generate a complete learning roadmap covering ALL levels from A1 to C2 for the '{{{targetLanguage}}}'. Do NOT create a partial plan based on the user's 'proficiencyLevel'. The user wants to see the entire path and choose any topic.
 2.  **Use Provided Curriculum:** You MUST use the provided JSON curriculum as the primary source for topics. For each level (A1, A2, etc.), you MUST include at least one grammar and one vocabulary topic from the corresponding level in the curriculum JSON.
 3.  **Language of Output:**
-    *   All user-facing text in the output JSON ('introduction', 'lessons.level', 'lessons.title', 'lessons.description', 'lessons.topics', 'lessons.estimatedDuration', 'conclusion') MUST be in the specified \`{{{interfaceLanguage}}}\`.
-    *   The learning concepts themselves (grammar rules, vocabulary themes) should be for the \`{{{targetLanguage}}}\`.
+    *   All user-facing text in the output JSON ('introduction', 'lessons.level', 'lessons.title', 'lessons.description', 'lessons.topics', 'lessons.estimatedDuration', 'conclusion') MUST be in the specified '{{{interfaceLanguage}}}'.
+    *   The learning concepts themselves (grammar rules, vocabulary themes) should be for the '{{{targetLanguage}}}'.
 4.  **Personalization:**
-    *   If a \`proficiencyLevel\` is provided by the user, use it as a hint to potentially add more detail or focus to that section, but do NOT omit other levels. Acknowledge their starting point in the introduction.
-    *   Subtly integrate the user's \`goals\` and \`interests\` into the lesson descriptions and topic choices to make the plan more engaging.
-    *   If the user has provided mistake data (\`topicMistakes\`, \`grammarMistakes\`, \`vocabMistakes\`), create more practice opportunities or slightly more detailed explanations for those "weak spots" in the relevant lessons. Do this subtly, without explicitly saying "you made a mistake here."
+    *   If a 'proficiencyLevel' is provided by the user, use it as a hint to potentially add more detail or focus to that section, but do NOT omit other levels. Acknowledge their starting point in the introduction.
+    *   Subtly integrate the user's 'goals' and 'interests' into the lesson descriptions and topic choices to make the plan more engaging.
+    *   If the user has provided mistake data ('topicMistakes', 'grammarMistakes', 'vocabMistakes'), create more practice opportunities or slightly more detailed explanations for those "weak spots" in the relevant lessons. Do this subtly, without explicitly saying "you made a mistake here."
 5.  **TTS-Friendly:** All descriptive text must be clear, concise, and suitable for text-to-speech conversion. Avoid complex sentence structures and do NOT use markdown (like asterisks or underscores).
 
 **User Profile:**
