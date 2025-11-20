@@ -16,10 +16,9 @@ import {
 import {
   Home,
   BarChart3,
-  Settings as SettingsIconLucide, // Renamed to avoid conflict with Settings type
-  Award,
-  Bot,
-} from "lucide-react"; // Removed unused icons, kept Bot
+  Settings as SettingsIconLucide,
+  Archive,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useUserData } from "@/contexts/UserDataContext";
 import type { InterfaceLanguage as AppInterfaceLanguage } from "@/lib/types"; 
@@ -60,7 +59,7 @@ const mainNavItemDefinitions: NavItemDef[] = [
 
 const bottomNavItemDefinitions: NavItemDef[] = [
   { href: "/progress", icon: BarChart3, labelKey: "progress", defaultLabel: "Progress", tooltipKey: "progressTooltip", defaultTooltip: "Progress" },
-  { href: "/errors", icon: Award, labelKey: "errors", defaultLabel: "Error Archive", tooltipKey: "errorsTooltip", defaultTooltip: "Error Archive" },
+  { href: "/errors", icon: Archive, labelKey: "errors", defaultLabel: "Error Archive", tooltipKey: "errorsTooltip", defaultTooltip: "Error Archive" },
   { href: "/settings", icon: SettingsIconLucide, labelKey: "settings", defaultLabel: "Settings", tooltipKey: "settingsTooltip", defaultTooltip: "Settings" },
 ];
 
@@ -192,8 +191,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-2">
         <Link href="/dashboard" className="block text-sidebar-foreground hover:text-sidebar-primary transition-colors">
           <div className="flex items-center justify-center group-data-[collapsible=icon]:justify-center p-2 rounded-md hover:bg-sidebar-accent group-data-[collapsible=icon]:p-0">
-            <Bot className="h-8 w-8 text-sidebar-primary group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6" />
-            <span className="ml-2 text-sm font-semibold group-data-[collapsible=icon]:hidden">{t('aiTutor', baseEnTranslations.aiTutor)}</span>
+             <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent group-data-[collapsible=icon]:hidden">{t('aiTutor', baseEnTranslations.aiTutor)}</span>
           </div>
         </Link>
       </SidebarHeader>

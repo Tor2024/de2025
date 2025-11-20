@@ -2,14 +2,16 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useCallback } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord } from '@/lib/types';
+import { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import { useAuth, useDoc, useFirebase } from '@/firebase';
+import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord } from '@/lib/types';
 import { initialUserProgress, MAX_LEARNING_STAGE, learningStageIntervals } from '@/lib/types';
 
 interface UserDataContextType {
   userData: UserData;
-  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void;
+  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void; // Kept for optimistic updates
   updateSettings: (settings: Partial<UserSettings>) => void;
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
@@ -19,23 +21,79 @@ interface UserDataContextType {
   clearErrorArchive: () => void;
   processWordRepetition: (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => void;
   recordPracticeSetCompletion: () => void;
-  isLoading: boolean;
+  isLoading: boolean; // General loading state
+  isFirebaseLoading: boolean; // Firebase-specific loading
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
 
-// Moved to module scope to ensure stable reference
 const initialUserData: UserData = {
   settings: null,
   progress: { ...initialUserProgress },
 };
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const [userDataState, setUserDataState, isStorageLoading] = useLocalStorage<UserData>('lingualab-user', initialUserData);
+  const { firestore } = useFirebase();
+  const { user, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
 
+  const userId = user?.uid;
+
+  // Fetch user data from Firestore using React Query
+  const { data: userData = initialUserData, isLoading: isDocLoading } = useQuery({
+    queryKey: ['userData', userId],
+    queryFn: async () => {
+      if (!firestore || !userId) return initialUserData;
+      const docRef = doc(firestore, 'users', userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Ensure progress object has all initial keys
+        const progress = { ...initialUserProgress, ...data.progress };
+        return { settings: data.settings, progress } as UserData;
+      }
+      return initialUserData;
+    },
+    enabled: !!firestore && !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Mutation to update user data in Firestore
+  const { mutate: updateUserDataInFirestore } = useMutation({
+    mutationFn: async (newUserData: UserData) => {
+      if (!firestore || !userId) throw new Error("User or Firestore not available");
+      const docRef = doc(firestore, 'users', userId);
+      await setDoc(docRef, newUserData, { merge: true });
+      return newUserData;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['userData', userId], data);
+    },
+    onError: (error) => {
+      console.error("Error updating user data in Firestore:", error);
+      // Optionally: revert optimistic update or show error toast
+    }
+  });
+  
+  // Mutation to delete user document (on clearUserData)
+  const { mutate: deleteUserDataInFirestore } = useMutation({
+     mutationFn: async () => {
+      if (!firestore || !userId) throw new Error("User or Firestore not available");
+      const docRef = doc(firestore, 'users', userId);
+      await deleteDoc(docRef);
+    },
+    onSuccess: () => {
+       queryClient.setQueryData(['userData', userId], initialUserData);
+    }
+  });
+
+
+  // This function is now for optimistic UI updates before Firestore sync
   const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
-    setUserDataState(dataOrFn);
-  }, [setUserDataState]);
+    const newData = typeof dataOrFn === 'function' ? dataOrFn(userData) : dataOrFn;
+    queryClient.setQueryData(['userData', userId], newData); // Optimistic update
+    updateUserDataInFirestore(newData); // Sync with Firestore
+  }, [userData, queryClient, userId, updateUserDataInFirestore]);
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
@@ -45,50 +103,39 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [setUserData]);
 
   const updateProgress = useCallback((newProgress: Partial<UserProgress>) => {
-    setUserData(prev => {
-      const updatedProgress = { 
-        ...initialUserProgress, 
-        ...(prev.progress || {}), 
+    setUserData(prev => ({
+      ...prev,
+      progress: { 
+        ...initialUserProgress,
+        ...(prev.progress || {}),
         ...newProgress 
-      } as UserProgress;
-      return {
-        ...prev,
-        progress: updatedProgress,
-      };
-    });
+      },
+    }));
   }, [setUserData]);
-  
+
   const setLearningRoadmap = useCallback((roadmap: LearningRoadmap) => {
     updateProgress({ learningRoadmap: roadmap });
   }, [updateProgress]);
 
   const toggleLessonCompletion = useCallback((lessonId: string) => {
     setUserData(prev => {
-      const currentProgress = prev.progress;
-      const currentCompletedIds = currentProgress.completedLessonIds || [];
+      const currentCompletedIds = prev.progress.completedLessonIds || [];
       const isCompleted = currentCompletedIds.includes(lessonId);
+      const newCompletedLessonIds = isCompleted
+        ? currentCompletedIds.filter(id => id !== lessonId)
+        : [...currentCompletedIds, lessonId];
       
-      let newCompletedLessonIds: string[];
-      
-      if (isCompleted) {
-        newCompletedLessonIds = currentCompletedIds.filter(id => id !== lessonId);
-      } else {
-        newCompletedLessonIds = [...currentCompletedIds, lessonId];
-      }
-
-      let updatedProgress: UserProgress = {
-        ...currentProgress,
-        completedLessonIds: newCompletedLessonIds,
-      };
-
       return {
         ...prev,
-        progress: updatedProgress,
+        progress: {
+          ...prev.progress,
+          completedLessonIds: newCompletedLessonIds,
+        },
       };
     });
   }, [setUserData]);
 
-  const addErrorToArchive = useCallback((errorData: Omit<ErrorRecord, 'id' | 'date'>) => {
+   const addErrorToArchive = useCallback((errorData: Omit<ErrorRecord, 'id' | 'date'>) => {
     setUserData(prev => {
       const newError: ErrorRecord = {
         ...errorData,
@@ -109,20 +156,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [setUserData]);
 
   const clearErrorArchive = useCallback(() => {
-    setUserData(prev => ({
-      ...prev,
-      progress: {
-        ...(prev.progress || initialUserProgress),
-        errorArchive: [],
-      },
-    }));
-  }, [setUserData]);
+    updateProgress({ errorArchive: [] });
+  }, [updateProgress]);
 
   const processWordRepetition = useCallback(
     (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => {
       setUserData(prev => {
         if (!prev.settings) return prev; 
-
         const wordId = `${targetLanguage.toLowerCase()}_${wordData.word.toLowerCase()}`;
         const learnedWords = prev.progress.learnedWords || [];
         const existingWordIndex = learnedWords.findIndex(lw => lw.id === wordId);
@@ -171,31 +211,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     },
     [setUserData]
   );
-
+  
   const recordPracticeSetCompletion = useCallback(() => {
-    setUserData(prev => {
-      const currentProgress = prev.progress;
-      const newPracticeSetsCompleted = (currentProgress.practiceSetsCompleted || 0) + 1;
-      
-      let updatedProgress: UserProgress = {
-        ...currentProgress,
-        practiceSetsCompleted: newPracticeSetsCompleted,
-      };
-      
-      return {
-        ...prev,
-        progress: updatedProgress,
-      };
-    });
-  }, [setUserData]);
-
+    updateProgress({ practiceSetsCompleted: (userData.progress.practiceSetsCompleted || 0) + 1 });
+  }, [updateProgress, userData.progress.practiceSetsCompleted]);
 
   const clearUserData = useCallback(() => {
-    setUserDataState(initialUserData);
-  }, [setUserDataState]);
+    deleteUserDataInFirestore();
+  }, [deleteUserDataInFirestore]);
 
-  const contextValue = {
-    userData: userDataState,
+  const contextValue: UserDataContextType = {
+    userData,
     setUserData,
     updateSettings,
     updateProgress,
@@ -206,7 +232,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     clearErrorArchive,
     processWordRepetition,
     recordPracticeSetCompletion,
-    isLoading: isStorageLoading,
+    isLoading: authLoading || (!!userId && isDocLoading),
+    isFirebaseLoading: authLoading || (!!userId && isDocLoading),
   };
 
   return (

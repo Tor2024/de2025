@@ -10,11 +10,11 @@ import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { LayoutGrid, BarChart3, Settings, Bot, ArrowRight, RefreshCw, Languages, GraduationCap, Flag, Archive } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { LayoutGrid, BarChart3, Settings, ArrowRight, Languages, GraduationCap, Flag, Archive } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes, proficiencyLevels, type TargetLanguage, type ProficiencyLevel, type ErrorRecord } from "@/lib/types";
+import { supportedLanguages, type InterfaceLanguage, interfaceLanguageCodes } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { appModulesConfig } from "@/lib/modulesConfig";
 
@@ -25,12 +25,6 @@ const baseEnTranslations: Record<string, string> = {
     progressOverview: "Progress Overview",
     errorArchive: "Error Archive",
     quickSettings: "Quick Settings",
-    aiTutorTipsTitle: "AI Tutor Tips",
-    aiTutorTipStatic: "Remember to review your mistakes in the Error Archive. Consistent practice is key!",
-    aiTutorTipLoading: "Generating a fresh tip for you...",
-    aiTutorTipErrorTitle: "AI Tip Error",
-    aiTutorTipErrorDescription: "Could not load a new tip from the AI tutor at this time.",
-    refreshTipButton: "Refresh Tip",
     lessonsCompleted: "Lessons Completed",
     interface: "Interface",
     learning: "Learning",
@@ -92,12 +86,6 @@ const baseRuTranslations: Record<string, string> = {
     progressOverview: "Обзор прогресса",
     errorArchive: "Архив ошибок",
     quickSettings: "Быстрые настройки",
-    aiTutorTipsTitle: "Советы от AI-Репетитора",
-    aiTutorTipStatic: "Не забывайте просматривать свои ошибки в Архиве ошибок. Постоянная практика — ключ к успеху!",
-    aiTutorTipLoading: "Генерирую свежий совет для вас...",
-    aiTutorTipErrorTitle: "Ошибка совета ИИ",
-    aiTutorTipErrorDescription: "В данный момент не удалось загрузить новый совет от AI-репетитора.",
-    refreshTipButton: "Обновить совет",
     lessonsCompleted: "Завершено уроков",
     interface: "Интерфейс",
     learning: "Изучение",
@@ -169,8 +157,6 @@ const pageTranslations = generateTranslations();
 export default function DashboardPage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
-  const [aiTutorTip, setAiTutorTip] = useState<string | null>(null);
-  const [isTipLoading, setIsTipLoading] = useState(false);
   const { toast } = useToast();
   const roadmapDisplayRef = useRef<HTMLDivElement>(null);
 
@@ -279,14 +265,6 @@ export default function DashboardPage() {
               completedLessonsCount={completedLessons}
               totalLessonsCount={totalLessons}
             />
-            <Card className="shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bot className="text-primary h-6 w-6"/>{t('aiTutorTipsTitle')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <p className="text-sm text-muted-foreground">{t('aiTutorTipStatic')}</p>
-              </CardContent>
-            </Card>
           </div>
         </div>
 

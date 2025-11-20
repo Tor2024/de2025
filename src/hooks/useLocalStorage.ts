@@ -3,6 +3,11 @@
 
 import { useState, useEffect, type Dispatch, type SetStateAction, useCallback } from 'react';
 
+// This hook is no longer the primary source of truth for user data,
+// as data is now persisted in Firestore. It can be kept for other
+// non-critical client-side state persistence if needed, or removed
+// if no longer used. For now, it's left as is but is unused by UserDataContext.
+
 type SetValue<T> = Dispatch<SetStateAction<T>>;
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, boolean] {
@@ -31,7 +36,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
       console.warn(
         `Tried setting localStorage key "${key}" even though environment is not a client`
       );
-      // Применяем новое значение, чтобы UI обновился, даже если localStorage недоступен
       setStoredValue(prev => value instanceof Function ? value(prev) : value);
       return;
     }
@@ -44,7 +48,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
     } catch (error) {
       console.warn(`Error setting localStorage key "${key}":`, error);
     }
-  }, [key, storedValue]); // storedValue здесь нужен, если value - не функция, а прямое значение
+  }, [key, storedValue]);
 
   const handleStorageChange = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -80,5 +84,3 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>, bool
 }
 
 export default useLocalStorage;
-
-

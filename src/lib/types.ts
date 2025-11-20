@@ -67,10 +67,6 @@ export interface UserLearnedWord extends VocabularyWord {
 
 export interface UserProgress {
   learningRoadmap?: LearningRoadmap;
-  xp: number;
-  streak: number;
-  badges: string[];
-  moduleCompletion: Record<string, number | boolean>; // Potentially for tracking detailed module/lesson part completion
   errorArchive: ErrorRecord[];
   completedLessonIds: string[]; // IDs of lessons from LearningRoadmap
   learnedWords: UserLearnedWord[]; // For SRS
@@ -81,10 +77,6 @@ export interface UserProgress {
 }
 
 export const initialUserProgress: UserProgress = {
-  xp: 0,
-  streak: 0,
-  badges: [],
-  moduleCompletion: {},
   errorArchive: [],
   learningRoadmap: undefined,
   completedLessonIds: [],

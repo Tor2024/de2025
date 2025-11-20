@@ -2,7 +2,7 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart3, TrendingUp, Archive, ArrowRight } from "lucide-react"; 
 import { useUserData } from "@/contexts/UserDataContext";
 import { interfaceLanguageCodes } from "@/lib/types";
@@ -12,12 +12,10 @@ import { useRouter } from "next/navigation";
 
 const baseEnTranslations = {
   title: "Your Progress Overview",
-  description: "Detailed progress tracking, including a personalized CEFR tree and custom review modes, will be available here soon.",
+  description: "Track your completed lessons and review your saved errors.",
   loading: "Loading progress...",
   quickStats: "Quick Stats",
   lessonsCompleted: "Lessons Completed",
-  roadmapProgressTitle: "Roadmap Progress",
-  roadmapProgressDesc: "Track your journey through the CEFR levels and completed lessons. (Coming Soon)",
   errorArchiveTitle: "Error Insights",
   errorArchiveDesc: "Review common mistakes and focus areas for improvement.",
   viewErrorArchiveButton: "View Error Archive",
@@ -25,12 +23,10 @@ const baseEnTranslations = {
 
 const baseRuTranslations = {
   title: "Обзор вашего прогресса",
-  description: "Подробное отслеживание прогресса, включая персонализированное дерево CEFR и настраиваемые режимы повторения, скоро будут доступны здесь.",
+  description: "Отслеживайте завершенные уроки и просматривайте сохраненные ошибки.",
   loading: "Загрузка прогресса...",
   quickStats: "Быстрая статистика",
   lessonsCompleted: "Завершено уроков",
-  roadmapProgressTitle: "Прогресс по плану",
-  roadmapProgressDesc: "Отслеживайте свой путь по уровням CEFR и выполненным урокам. (Скоро)",
   errorArchiveTitle: "Анализ ошибок",
   errorArchiveDesc: "Просматривайте частые ошибки и области для улучшения.",
   viewErrorArchiveButton: "Просмотреть архив ошибок",
@@ -87,6 +83,7 @@ export default function ProgressPage() {
               <BarChart3 className="h-12 w-12 text-primary" />
             </div>
             <CardTitle className="text-3xl font-bold tracking-tight">{t('title')}</CardTitle>
+             <CardDescription>{t('description')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <Card>
@@ -109,8 +106,6 @@ export default function ProgressPage() {
                 </Button>
               </CardContent>
             </Card>
-
-            <p className="text-center text-muted-foreground pt-4">{t('description')}</p>
           </CardContent>
         </Card>
       </div>
