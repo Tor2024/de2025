@@ -22,6 +22,7 @@ const GenerateVocabularyInputSchema = z.object({
   topicMistakes: z.record(z.number()).optional().describe('User mistakes by topic.'),
   grammarMistakes: z.record(z.number()).optional().describe('User mistakes by grammar point.'),
   vocabMistakes: z.record(z.number()).optional().describe('User mistakes by vocabulary.'),
+  userPastErrors: z.string().optional().describe('A list of the user\'s prior known errors in their past practice tasks.'),
 });
 export type GenerateVocabularyInput = z.infer<typeof GenerateVocabularyInputSchema>;
 
@@ -60,6 +61,7 @@ User Profile:
 - Mistakes by topic: {{#if topicMistakes}}{{topicMistakes}}{{else}}нет данных{{/if}}
 - Mistakes by grammar: {{#if grammarMistakes}}{{grammarMistakes}}{{else}}нет данных{{/if}}
 - Mistakes by vocabulary: {{#if vocabMistakes}}{{vocabMistakes}}{{else}}нет данных{{/if}}
+- User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL Instructions:
 1.  **Words Relevance and Level Appropriateness:**
@@ -69,7 +71,8 @@ CRITICAL Instructions:
     *   Ensure that the selected words are commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
 2.  **Translations:** For each word, provide an accurate translation into the {{{interfaceLanguage}}}.
 3.  **Example Sentences (Optional but HIGHLY encouraged):** For each word, try to provide a simple, clear example sentence in the {{{targetLanguage}}} that demonstrates its usage. The complexity of the example sentence MUST also be appropriate for the {{{proficiencyLevel}}}.
-    *   Если есть ошибки или слабые места, часть примеров должна быть направлена на их проработку.
+    *   Если есть ошибки или слабые места (из userPastErrors), часть примеров должна быть направлена на их проработку.
+4.  **Adaptation to Past Errors:** If 'userPastErrors' is provided, analyze these errors. If possible, create example sentences for some of the new vocabulary words that specifically address these past mistakes. For example, if the user made a mistake with verb conjugation, create an example sentence that uses that verb correctly.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 The 'words' array should contain objects, each with 'word', 'translation', and optionally 'exampleSentence'.

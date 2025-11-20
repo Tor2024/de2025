@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useCallback, useEffect, useState } from 'react';
-import { useAuth, useDoc, useFirebase } from '@/firebase';
+import { useAuth, useFirebase } from '@/firebase'; // Use a single entry point
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord } from '@/lib/types';

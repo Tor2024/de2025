@@ -308,6 +308,17 @@ export function VocabularyModuleClient() {
     if (currentLang === 'ru') return ruLocale;
     return enUS;
   };
+  
+  const getPastErrorsAsString = useCallback(() => {
+    if (!userData.progress?.errorArchive || userData.progress.errorArchive.length === 0) {
+        return "No past errors recorded.";
+    }
+    return userData.progress.errorArchive
+        .slice(-10) // Take last 10 errors to keep prompt concise
+        .map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`)
+        .join('\n');
+  }, [userData.progress?.errorArchive]);
+
 
   const fetchVocabularyList = useCallback(async (formData: VocabularyFormData) => {
     if (!userData.settings) {
@@ -342,6 +353,7 @@ export function VocabularyModuleClient() {
 
     try {
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+      const pastErrors = getPastErrorsAsString();
       const flowInput: GenerateVocabularyInput = {
         interfaceLanguage: 'ru',
         targetLanguage: 'German',
@@ -349,6 +361,7 @@ export function VocabularyModuleClient() {
         topic: formData.topic,
         goals: [],
         interests: [],
+        userPastErrors: pastErrors,
       };
 
       const result = await generateVocabulary(flowInput);
@@ -378,7 +391,7 @@ export function VocabularyModuleClient() {
     } finally {
       setIsAiLoading(false);
     }
-  }, [userData.settings, toast, t]);
+  }, [userData.settings, toast, t, getPastErrorsAsString]);
 
   const onSubmit: SubmitHandler<VocabularyFormData> = async (data) => {
     await fetchVocabularyList(data);

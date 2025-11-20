@@ -22,6 +22,7 @@ const GenerateListeningMaterialInputSchema = z.object({
   topicMistakes: z.record(z.number()).optional().describe('User mistakes by topic.'),
   grammarMistakes: z.record(z.number()).optional().describe('User mistakes by grammar point.'),
   vocabMistakes: z.record(z.number()).optional().describe('User mistakes by vocabulary.'),
+  userPastErrors: z.string().optional().describe('A list of the user\'s prior known errors in their past practice tasks.'),
 });
 export type GenerateListeningMaterialInput = z.infer<typeof GenerateListeningMaterialInputSchema>;
 
@@ -59,12 +60,14 @@ User Profile:
 - Topic: {{{topic}}}
 - User Goals: {{#if goals.length}}{{goals}}{{else}}не указаны{{/if}}
 - User Interests: {{#if interests.length}}{{interests}}{{else}}не указаны{{/if}}
+- User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL INSTRUCTIONS:
 1.  **Listening Script:**
     *   Create a short, coherent, and engaging monologue or dialogue in the {{{targetLanguage}}}.
     *   The script's length, grammar, and vocabulary MUST be appropriate for the user's {{{proficiencyLevel}}}.
     *   The script MUST be directly related to the specified {{{topic}}}.
+    *   If 'userPastErrors' is provided, subtly incorporate correct examples of the problematic grammar or vocabulary into the script to provide passive reinforcement.
 2.  **Comprehension Questions (Multiple Choice ONLY):**
     *   Generate 2 to 4 multiple-choice questions about the script.
     *   Each question must have 3 or 4 distinct options.

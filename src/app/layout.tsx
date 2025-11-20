@@ -1,13 +1,11 @@
+
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
-import { UserDataProvider } from '@/contexts/UserDataContext';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/contexts/ThemeContext';
-
-// The GeistSans and GeistMono imports from 'geist/font' are already configured.
-// No need for further instantiation like GeistSans({ ... })
+import { Providers } from '@/contexts/Providers';
 
 export const metadata: Metadata = {
   title: 'LinguaLab - Personalized Language Learning',
@@ -21,17 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      {/*
-        GeistSans.variable and GeistMono.variable provide the CSS class names
-        that set up the --font-geist-sans and --font-geist-mono CSS variables.
-        globals.css already uses var(--font-geist-sans).
-      */}
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <ThemeProvider>
-          <UserDataProvider>
+          <Providers>
             {children}
             <Toaster />
-          </UserDataProvider>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

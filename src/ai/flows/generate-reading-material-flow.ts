@@ -22,6 +22,7 @@ const GenerateReadingMaterialInputSchema = z.object({
   topicMistakes: z.record(z.number()).optional().describe('User mistakes by topic.'),
   grammarMistakes: z.record(z.number()).optional().describe('User mistakes by grammar point.'),
   vocabMistakes: z.record(z.number()).optional().describe('User mistakes by vocabulary.'),
+  userPastErrors: z.string().optional().describe('A list of the user\'s prior known errors in their past practice tasks.'),
 });
 export type GenerateReadingMaterialInput = z.infer<typeof GenerateReadingMaterialInputSchema>;
 
@@ -62,6 +63,7 @@ User Profile:
 - Mistakes by topic: {{#if topicMistakes}}{{topicMistakes}}{{else}}нет данных{{/if}}
 - Mistakes by grammar: {{#if grammarMistakes}}{{grammarMistakes}}{{else}}нет данных{{/if}}
 - Mistakes by vocabulary: {{#if vocabMistakes}}{{vocabMistakes}}{{else}}нет данных{{/if}}
+- User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL Instructions:
 1.  **Text Relevance and Level Appropriateness:**
@@ -71,7 +73,8 @@ CRITICAL Instructions:
     *   Ensure that the selected text is commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
 2.  **Comprehension Questions:** Generate 2-4 questions to check understanding. Для каждого вопроса: формулируй его максимально понятно для новичка, всегда указывай, что именно должен сделать пользователь (например: выбрать правильный вариант, вписать слово, ответить на вопрос по содержанию и т.д.). Если есть риск неоднозначности, добавь короткую подсказку или пример. Избегай слишком кратких и абстрактных формулировок. Для каждого вопроса указывай правильный ответ и, если возможно, варианты (для multiple choice).
 3.  **Detailed Explanations:** For each question, you MUST provide a detailed explanation in the 'explanation' field. This explanation should clarify why the correct answer is right and, if applicable, why the other options are wrong, citing evidence from the reading text. The explanation MUST be in the {{{interfaceLanguage}}} and be friendly and supportive.
-4.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
+4.  **Adaptation to Past Errors:** If 'userPastErrors' is provided, analyze these errors. If relevant to the 'topic', subtly weave correct usage of the problematic grammar or vocabulary into the 'readingText'. This provides passive reinforcement.
+5.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
 The 'comprehensionQuestions' array should contain objects, each with 'question', 'answer', 'explanation', and optionally 'options'.
 `,
 });
