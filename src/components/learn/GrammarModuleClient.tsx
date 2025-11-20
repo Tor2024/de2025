@@ -172,7 +172,7 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
       fetchTasks();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserDataLoading, userData.settings, grammarTopic, topic, lessonTitle, getPastErrorsAsString]);
+  }, [isUserDataLoading, userData.settings, grammarTopic, topic, lessonTitle]);
 
   const handleCheck = () => {
     if (!currentTask) return;
