@@ -58,7 +58,7 @@ const adaptiveGrammarExplanationsPrompt = ai.definePrompt({
 
 You will generate a grammar explanation and structured practice tasks tailored to the user's proficiency level, learning goals, interests, interface language, and common mistakes. Ensure the explanation is clear, concise, easy to understand, and TTS-friendly.
 
-User Details:
+User Profile:
 - Grammar Topic: {{{grammarTopic}}}
 - Proficiency Level: {{{proficiencyLevel}}}
 - User Goals: {{{goalsString}}}

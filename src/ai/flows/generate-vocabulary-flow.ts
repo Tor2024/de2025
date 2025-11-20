@@ -90,4 +90,3 @@ const generateVocabularyFlow = ai.defineFlow(
     return output;
   }
 );
-
