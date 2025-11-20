@@ -2,8 +2,8 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { createContext, useContext, useCallback, useEffect, useState } from 'react';
-import { useAuth, useFirebase } from '@/firebase'; // Use a single entry point
+import { createContext, useContext, useCallback } from 'react';
+import { useAuth, useFirebase } from '@/firebase';
 import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord } from '@/lib/types';
@@ -11,7 +11,7 @@ import { initialUserProgress, MAX_LEARNING_STAGE, learningStageIntervals } from 
 
 interface UserDataContextType {
   userData: UserData;
-  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void; // Kept for optimistic updates
+  setUserData: (dataOrFn: UserData | ((prevData: UserData) => UserData)) => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
   updateProgress: (progress: Partial<UserProgress>) => void;
   clearUserData: () => void;
@@ -21,8 +21,8 @@ interface UserDataContextType {
   clearErrorArchive: () => void;
   processWordRepetition: (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => void;
   recordPracticeSetCompletion: () => void;
-  isLoading: boolean; // General loading state
-  isFirebaseLoading: boolean; // Firebase-specific loading
+  isLoading: boolean;
+  isFirebaseLoading: boolean;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
@@ -39,7 +39,6 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   const userId = user?.uid;
 
-  // Fetch user data from Firestore using React Query
   const { data: userData = initialUserData, isLoading: isDocLoading } = useQuery({
     queryKey: ['userData', userId],
     queryFn: async () => {
@@ -48,47 +47,38 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Ensure progress object has all initial keys
         const progress = { ...initialUserProgress, ...data.progress };
         return { settings: data.settings, progress } as UserData;
       }
       return initialUserData;
     },
     enabled: !!firestore && !!userId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Mutation to update user data in Firestore
   const { mutate: updateUserDataInFirestore } = useMutation({
     mutationFn: async (newUserData: UserData) => {
-      // This check is crucial. We should not even attempt to mutate if these are not available.
       if (!firestore || !userId) {
         console.warn("Update attempt skipped: User or Firestore not available.");
-        // We throw an error to be caught by onError, but it shouldn't be a generic error.
-        // Or better, we avoid throwing and just don't proceed.
-        // For robustness with TanStack Query, throwing is fine as long as it's handled.
-        throw new Error("User or Firestore not available for mutation.");
+        return; // Return instead of throwing an error
       }
       const docRef = doc(firestore, 'users', userId);
       await setDoc(docRef, newUserData, { merge: true });
       return newUserData;
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['userData', userId], data);
+      if (data) { // Only update query data if mutation ran
+        queryClient.setQueryData(['userData', userId], data);
+      }
     },
     onError: (error) => {
       console.error("Error updating user data in Firestore:", error);
-      // Optionally: revert optimistic update or show error toast
     }
   });
   
-  // Mutation to delete user document (on clearUserData)
   const { mutate: deleteUserDataInFirestore } = useMutation({
      mutationFn: async () => {
-      if (!firestore || !userId) {
-        console.warn("Delete attempt skipped: User or Firestore not available.");
-        return;
-      };
+      if (!firestore || !userId) return;
       const docRef = doc(firestore, 'users', userId);
       await deleteDoc(docRef);
     },
@@ -97,16 +87,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }
   });
 
-
-  // This function is now for optimistic UI updates before Firestore sync
   const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
-    // Only proceed if firestore and user are ready.
     if (!firestore || !userId) {
+        console.warn("setUserData called before user or firestore is available.");
         return;
     }
     const newData = typeof dataOrFn === 'function' ? dataOrFn(userData) : dataOrFn;
-    queryClient.setQueryData(['userData', userId], newData); // Optimistic update
-    updateUserDataInFirestore(newData); // Sync with Firestore
+    queryClient.setQueryData(['userData', userId], newData);
+    updateUserDataInFirestore(newData);
   }, [userData, queryClient, userId, updateUserDataInFirestore, firestore]);
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
