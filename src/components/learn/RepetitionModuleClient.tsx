@@ -66,7 +66,7 @@ export default function RepetitionModuleClient() {
 
     try {
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
-      const response = await fetch('/api/ai/generate-repetition-tasks/route.ts', {
+      const response = await fetch('/api/ai/generate-repetition-tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -325,3 +325,5 @@ export default function RepetitionModuleClient() {
     </div>
   );
 }
+
+    
