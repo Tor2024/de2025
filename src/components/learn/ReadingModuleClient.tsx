@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-fl
 import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage } from '@/lib/types';
 import { lessonTypes } from '@/config/lessonTypes';
-
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ResultItem {
   correct: boolean;
@@ -85,6 +85,44 @@ function goToNextSection(
   // Если ничего не найдено — на дашборд
   router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
+
+const InteractiveText = ({ text, vocabulary }: { text: string; vocabulary: { word: string; translation: string; }[] }) => {
+  const vocabMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (vocabulary) {
+      for (const item of vocabulary) {
+        map.set(item.word.toLowerCase(), item.translation);
+      }
+    }
+    return map;
+  }, [vocabulary]);
+
+  const words = text.split(/(\s+|[.,!?;:"])/);
+
+  return (
+    <p className="text-base mb-4 whitespace-pre-line leading-relaxed">
+      <TooltipProvider>
+        {words.map((word, index) => {
+          const cleanWord = word.replace(/[.,!?;:"]/, '').toLowerCase();
+          const translation = vocabMap.get(cleanWord);
+          if (translation) {
+            return (
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <span className="underline decoration-dotted cursor-pointer decoration-primary">{word}</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{translation}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          return <span key={index}>{word}</span>;
+        })}
+      </TooltipProvider>
+    </p>
+  );
+};
 
 export default function ReadingModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -257,7 +295,7 @@ export default function ReadingModuleClient() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-base mb-4 whitespace-pre-line">{material.readingText}</div>
+            <InteractiveText text={material.readingText} vocabulary={material.vocabulary || []} />
           </CardContent>
         </Card>
       )}
@@ -327,6 +365,11 @@ export default function ReadingModuleClient() {
                 {results[results.length - 1]?.correct ? '✅ Правильно!' : '❌ Ошибка'}
                 {material.comprehensionQuestions![currentQuestion].answer && (
                   <div className="mt-2 text-blue-600">Правильный ответ: {material.comprehensionQuestions![currentQuestion].answer}</div>
+                )}
+                 {material.comprehensionQuestions![currentQuestion].explanation && (
+                  <div className="mt-2 text-sm text-muted-foreground italic">
+                    <strong>Пояснение:</strong> {material.comprehensionQuestions![currentQuestion].explanation}
+                  </div>
                 )}
               </div>
             )}

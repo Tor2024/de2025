@@ -32,11 +32,17 @@ const ComprehensionQuestionSchema = z.object({
   answer: z.string().describe('The correct answer, which MUST be one of the provided options. This text MUST be in the interfaceLanguage.'),
 });
 
+const VocabularyEntrySchema = z.object({
+  word: z.string().describe('A key vocabulary word from the text, in the targetLanguage. MUST be a single word.'),
+  translation: z.string().describe('The translation of the word into the interfaceLanguage.'),
+});
+
 const GenerateListeningMaterialOutputSchema = z.object({
   title: z.string().optional().describe('A suitable title for the listening material, in the targetLanguage.'),
   scenario: z.string().optional().describe('A brief description of the listening scenario (e.g., "A conversation at a train station"), in the interfaceLanguage.'),
   script: z.string().describe('The generated listening script in the targetLanguage, adapted to the proficiencyLevel. If it\'s a dialogue, it MUST be formatted with speaker labels like "Speaker 1:", "Speaker 2:", etc., on separate lines.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).min(2).max(4).describe('An array of 2-4 multiple-choice comprehension questions about the script, with questions and options in the interfaceLanguage.'),
+  vocabulary: z.array(VocabularyEntrySchema).optional().describe('A list of 10-15 key vocabulary words from the script with their translations into the interfaceLanguage. Focus on nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
 });
 export type GenerateListeningMaterialOutput = z.infer<typeof GenerateListeningMaterialOutputSchema>;
 
@@ -51,10 +57,10 @@ const generateListeningMaterialPrompt = ai.definePrompt({
   output: {schema: GenerateListeningMaterialOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging listening materials.
 
-Task: Generate a listening script and 2-4 multiple-choice comprehension questions based on the user's preferences and learning profile.
+Task: Generate a listening script, 2-4 multiple-choice comprehension questions, and a key vocabulary list based on the user's preferences and learning profile.
 
 User Profile:
-- Interface Language (for questions/instructions): {{{interfaceLanguage}}}
+- Interface Language (for questions/instructions/translations): {{{interfaceLanguage}}}
 - Target Language (for the listening script): {{{targetLanguage}}}
 - Proficiency Level (for script and question complexity): {{{proficiencyLevel}}}
 - Topic: {{{topic}}}
@@ -77,6 +83,10 @@ CRITICAL INSTRUCTIONS:
     *   The 'answer' field MUST exactly match the text of one of the provided options.
     *   Questions should test understanding of the main ideas, specific details, or implied meanings in the script. Avoid questions that can be answered without understanding the script.
     *   Distractor options should be plausible but incorrect based on the script's content.
+3.  **Vocabulary List:**
+    *   Create a 'vocabulary' array containing 10-15 key words from the script.
+    *   For each entry, provide the 'word' in the {{{targetLanguage}}} and its 'translation' in the {{{interfaceLanguage}}}.
+    *   The words MUST be single words (not phrases) and should be relevant to the {{{topic}}} and the user's {{{proficiencyLevel}}}. Focus on important nouns, verbs, and adjectives.
 
 Output Format: Ensure your response is a JSON object matching the defined output schema.
 `,
@@ -95,7 +105,7 @@ const generateListeningMaterialFlow = ai.defineFlow(
         }
         // Post-processing to ensure the 'answer' is one of the 'options'
         output.comprehensionQuestions.forEach(q => {
-            if (!q.options.includes(q.answer)) {
+            if (q.options && !q.options.includes(q.answer)) {
                 // If the answer is not in the options, log it and fallback to the first option.
                 // A better long-term solution would be to regenerate or fix this in the prompt.
                 console.warn(`Generated answer "${q.answer}" is not in options [${q.options.join(', ')}]. Falling back to first option.`);

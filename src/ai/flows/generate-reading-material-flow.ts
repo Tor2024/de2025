@@ -33,10 +33,16 @@ const ComprehensionQuestionSchema = z.object({
   explanation: z.string().optional().describe('A detailed explanation in interfaceLanguage about why the answer is correct, with examples if possible.')
 });
 
+const VocabularyEntrySchema = z.object({
+  word: z.string().describe('A key vocabulary word from the text, in the targetLanguage. MUST be a single word.'),
+  translation: z.string().describe('The translation of the word into the interfaceLanguage.'),
+});
+
 const GenerateReadingMaterialOutputSchema = z.object({
   title: z.string().optional().describe('A suitable title for the reading text, in the targetLanguage.'),
   readingText: z.string().describe('The generated reading text in the targetLanguage, adapted to the proficiencyLevel.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).optional().describe('An array of 2-3 comprehension questions about the text, with questions and options in the interfaceLanguage.'),
+  vocabulary: z.array(VocabularyEntrySchema).optional().describe('A list of 10-20 key vocabulary words from the text with their translations into the interfaceLanguage. Focus on nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
 });
 export type GenerateReadingMaterialOutput = z.infer<typeof GenerateReadingMaterialOutputSchema>;
 
@@ -51,10 +57,10 @@ const generateReadingMaterialPrompt = ai.definePrompt({
   output: {schema: GenerateReadingMaterialOutputSchema},
   prompt: `You are an AI language learning assistant specializing in creating engaging reading materials.
 
-Task: Generate a short reading text and optional comprehension questions based on the user's preferences and learning profile.
+Task: Generate a short reading text, optional comprehension questions, and a key vocabulary list based on the user's preferences and learning profile.
 
 User Profile:
-- Interface Language (for questions/instructions): {{{interfaceLanguage}}}
+- Interface Language (for questions/instructions/translations): {{{interfaceLanguage}}}
 - Target Language (for the reading text): {{{targetLanguage}}}
 - Proficiency Level (for text complexity): {{{proficiencyLevel}}}
 - Topic: {{{topic}}}
@@ -66,16 +72,18 @@ User Profile:
 - User's Past Errors (if any): {{{userPastErrors}}}
 
 CRITICAL Instructions:
-1.  **Text Relevance and Level Appropriateness:**
-    *   The generated text MUST be highly relevant to the specified {{{topic}}}.
-    *   The complexity of the text, questions, и особенно примеры ДОЛЖНЫ строго соответствовать уровню {{{proficiencyLevel}}}.
-    *   Where possible, учитывай интересы, цели и слабые места пользователя (ошибки, темы, грамматика, лексика) — делай текст более релевантным и полезным для проработки этих аспектов.
-    *   Ensure that the selected text is commonly learned or considered essential for a user at the {{{proficiencyLevel}}} studying this {{{topic}}}.
-2.  **Comprehension Questions:** Generate 2-4 questions to check understanding. Для каждого вопроса: формулируй его максимально понятно для новичка, всегда указывай, что именно должен сделать пользователь (например: выбрать правильный вариант, вписать слово, ответить на вопрос по содержанию и т.д.). Если есть риск неоднозначности, добавь короткую подсказку или пример. Избегай слишком кратких и абстрактных формулировок. Для каждого вопроса указывай правильный ответ и, если возможно, варианты (для multiple choice).
-3.  **Detailed Explanations:** For each question, you MUST provide a detailed explanation in the 'explanation' field. This explanation should clarify why the correct answer is right and, if applicable, why the other options are wrong, citing evidence from the reading text. The explanation MUST be in the {{{interfaceLanguage}}} and be friendly and supportive.
-4.  **Adaptation to Past Errors:** If 'userPastErrors' is provided, analyze these errors. If relevant to the 'topic', subtly weave correct usage of the problematic grammar or vocabulary into the 'readingText'. This provides passive reinforcement.
-5.  **Output Format:** Ensure your response is a JSON object matching the defined output schema.
-The 'comprehensionQuestions' array should contain objects, each with 'question', 'answer', 'explanation', and optionally 'options'.
+1.  **Reading Text:**
+    *   The generated text MUST be highly relevant to the specified {{{topic}}} and appropriate for the {{{proficiencyLevel}}}.
+    *   Subtly weave in correct usage of grammar or vocabulary related to 'userPastErrors' if provided.
+2.  **Comprehension Questions:**
+    *   Generate 2-4 questions to check understanding.
+    *   For each question, provide a 'question' in the '{{{interfaceLanguage}}}', a correct 'answer', and a detailed 'explanation' in the '{{{interfaceLanguage}}}'.
+    *   Optionally include an 'options' array for multiple-choice questions.
+3.  **Vocabulary List:**
+    *   Create a 'vocabulary' array containing 10-20 key words from the text.
+    *   For each entry, provide the 'word' in the {{{targetLanguage}}} and its 'translation' in the {{{interfaceLanguage}}}.
+    *   The words MUST be single words (not phrases) and should be relevant to the {{{topic}}} and proficiency level. Focus on important nouns, verbs, and adjectives.
+4.  **Output Format:** Your response MUST be a JSON object matching the defined output schema.
 `,
 });
 

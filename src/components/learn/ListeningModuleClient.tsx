@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -10,8 +10,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import { MultiVoiceAudioPlayer } from '@/components/ui/MultiVoiceAudioPlayer';
 import type { TargetLanguage as AppTargetLanguage } from '@/lib/types';
-import { lessonTypes, mapTargetLanguageToBcp47 } from '@/config/lessonTypes';
-
+import { lessonTypes } from '@/config/lessonTypes';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ResultItem {
   correct: boolean;
@@ -86,6 +86,45 @@ function goToNextSection(
   // Если ничего не найдено — на дашборд
   router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
+
+const InteractiveText = ({ text, vocabulary }: { text: string; vocabulary: { word: string; translation: string; }[] }) => {
+  const vocabMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (vocabulary) {
+      for (const item of vocabulary) {
+        map.set(item.word.toLowerCase(), item.translation);
+      }
+    }
+    return map;
+  }, [vocabulary]);
+
+  const words = text.split(/(\s+|[.,!?;:"])/);
+
+  return (
+    <p className="text-base mb-4 whitespace-pre-line leading-relaxed">
+      <TooltipProvider>
+        {words.map((word, index) => {
+          const cleanWord = word.replace(/[.,!?;:"]/, '').toLowerCase();
+          const translation = vocabMap.get(cleanWord);
+          if (translation) {
+            return (
+              <Tooltip key={index}>
+                <TooltipTrigger asChild>
+                  <span className="underline decoration-dotted cursor-pointer decoration-primary">{word}</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{translation}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          return <span key={index}>{word}</span>;
+        })}
+      </TooltipProvider>
+    </p>
+  );
+};
+
 
 export default function ListeningModuleClient() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
@@ -230,7 +269,7 @@ export default function ListeningModuleClient() {
             {material.scenario && <CardDescription>{material.scenario}</CardDescription>}
         </CardHeader>
           <CardContent>
-            <div style={{ fontSize: 18, marginBottom: 16, whiteSpace: 'pre-line' }}>{material.script}</div>
+            <InteractiveText text={material.script} vocabulary={material.vocabulary || []} />
           </CardContent>
       </Card>
       )}
