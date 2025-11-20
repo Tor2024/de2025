@@ -2,7 +2,7 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { VocabularyModuleClient } from "@/components/learn/VocabularyModuleClient"; 
+import VocabularyModuleClient from "@/components/learn/VocabularyModuleClient"; 
 import { useUserData } from "@/contexts/UserDataContext";
 import { useRouter } from "next/navigation"; 
 import { useEffect } from "react"; 
