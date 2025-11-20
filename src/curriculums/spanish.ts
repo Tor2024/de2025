@@ -1,6 +1,6 @@
 // Структурированный учебный план для испанского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const spanishCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Испанский алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Звуки ll, ñ, r/rr, c/z, g/j.' },
+        { title: 'Личные местоимения (единственное число)', description: 'yo, tú, él, ella, usted (я, ты, он, она, Вы).' },
+        { title: 'Глагол "ser" (быть, постоянный признак)', description: 'yo soy, tú eres, él/ella es.' },
+        { title: 'Глагол "estar" (быть, временное состояние)', description: 'yo estoy, tú estás, él/ella está.' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Hola, Buenos días, Adiós, Hasta luego.' },
+        { title: 'Знакомство', description: '¿Cómo te llamas?, Me llamo...' },
+        { title: 'Слова "Да" и "Нет"', description: 'Sí, No.' },
+        { title: 'Числа от 0 до 10', description: 'cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez.' },
+        { title: 'Простые вежливые фразы', description: 'Por favor (пожалуйста), Gracias (спасибо), Perdón/Disculpe (извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +161,4 @@ export const spanishCurriculum: CurriculumStage[] = [
       { title: 'Expresiones para debate y discusión', description: 'Expresar opinión, disentir...' },
     ],
   },
-]; 
+];

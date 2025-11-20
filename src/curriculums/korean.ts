@@ -1,6 +1,6 @@
 // Структурированный учебный план для корейского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,22 @@ export type CurriculumStage = {
 };
 
 export const koreanCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Хангыль (корейский алфавит)', description: 'Изучение всех букв (чамо) и их произношения.' },
+        { title: 'Правила чтения и ассимиляции', description: 'Основные правила чтения слогов (пачим) и изменения звуков.' },
+        { title: 'Личные местоимения (вежливая форма)', description: '저 (чо - я), 당신 (танъщин - Вы), 그/그녀 (кы/кынё - он/она).' },
+        { title: 'Вежливая связка "-입니다"', description: 'Построение простых предложений типа "저는 학생입니다" (Я студент).' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: '안녕하세요 (Аннёнъхасэё), 안녕히 가세요 (Аннёнъи касэё), 안녕히 계세요 (Аннёнъи кйесэё).' },
+        { title: 'Знакомство', description: '이름이 무엇입니까? (Ирыми муосимникка?), 제 이름은... (Че ирымын...).' },
+        { title: 'Слова "Да" и "Нет"', description: '네 (нэ), 아니요 (аниё).' },
+        { title: 'Числа (корейская система) от 1 до 10', description: '하나, 둘, 셋, 넷, 다섯, 여섯, 일곱, 여덟, 아홉, 열.' },
+        { title: 'Простые вежливые фразы', description: '부탁합니다 (путхакхам니다 - прошу), 감사합니다 (камсахам니다 - спасибо), 죄송합니다 (чвэсонъхам니다 - извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +160,4 @@ export const koreanCurriculum: CurriculumStage[] = [
       { title: '토론/논쟁 표현', description: '의견을 말하다, 반대하다...' },
     ],
   },
-]; 
+];

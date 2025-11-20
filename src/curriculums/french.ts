@@ -1,6 +1,6 @@
 // Структурированный учебный план для французского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const frenchCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Французский алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Носовые гласные, "e" немое, основные акценты (é, è, ç).' },
+        { title: 'Личные местоимения (единственное число)', description: 'je, tu, il, elle (я, ты, он, она).' },
+        { title: 'Глагол "être" (быть) в настоящем времени', description: 'je suis, tu es, il/elle est.' },
+        { title: 'Глагол "avoir" (иметь) в настоящем времени', description: 'j\'ai, tu as, il/elle a.' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Bonjour, Salut, Au revoir, Bonne nuit.' },
+        { title: 'Знакомство', description: 'Comment vous appelez-vous?, Je m\'appelle...' },
+        { title: 'Слова "Да" и "Нет"', description: 'Oui, Non.' },
+        { title: 'Числа от 0 до 10', description: 'zéro, un, deux, trois, quatre, cinq, six, sept, huit, neuf, dix.' },
+        { title: 'Простые вежливые фразы', description: 'S\'il vous plaît (пожалуйста), Merci (спасибо), Pardon/Excusez-moi (извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +161,4 @@ export const frenchCurriculum: CurriculumStage[] = [
       { title: 'Expressions pour le débat et la discussion', description: 'Exprimer une opinion, être en désaccord...' },
     ],
   },
-]; 
+];

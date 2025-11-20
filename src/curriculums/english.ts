@@ -1,6 +1,6 @@
 // Структурированный учебный план для английского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const englishCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'The English Alphabet', description: 'Learning the letters and their names.' },
+        { title: 'Basic Pronunciation', description: 'Key sounds and simple phonetic rules.' },
+        { title: 'Personal Pronouns (Singular)', description: 'I, you, he, she, it.' },
+        { title: 'The verb "to be" (present simple)', description: 'I am, you are, he/she/it is.' },
+        { title: 'The verb "to have" (present simple)', description: 'I have, you have, he/she/it has.' },
+    ],
+    vocabulary: [
+        { title: 'Greetings and Farewells', description: 'Hello, Hi, Goodbye, Bye.' },
+        { title: 'Introductions', description: 'What\'s your name?, My name is...' },
+        { title: '"Yes" and "No"', description: 'Yes, No.' },
+        { title: 'Numbers 0-10', description: 'zero, one, two, three, four, five, six, seven, eight, nine, ten.' },
+        { title: 'Basic courtesy words', description: 'Please, Thank you, Sorry, Excuse me.' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +161,4 @@ export const englishCurriculum: CurriculumStage[] = [
       { title: 'Debate and discussion expressions', description: 'Expressing opinion, disagreeing...' },
     ],
   },
-]; 
+];

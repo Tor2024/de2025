@@ -1,6 +1,6 @@
 // Структурированный учебный план для итальянского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const italianCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Итальянский алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Звуки c/g, sc, gn, gl и двойные согласные.' },
+        { title: 'Личные местоимения (единственное число)', description: 'io, tu, lui, lei (я, ты, он, она).' },
+        { title: 'Глагол "essere" (быть) в настоящем времени', description: 'sono, sei, è.' },
+        { title: 'Глагол "avere" (иметь) в настоящем времени', description: 'ho, hai, ha.' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Ciao, Buongiorno, Arrivederci, Buonanotte.' },
+        { title: 'Знакомство', description: 'Come ti chiami?, Mi chiamo...' },
+        { title: 'Слова "Да" и "Нет"', description: 'Sì, No.' },
+        { title: 'Числа от 0 до 10', description: 'zero, uno, due, tre, quattro, cinque, sei, sette, otto, nove, dieci.' },
+        { title: 'Простые вежливые фразы', description: 'Per favore (пожалуйста), Grazie (спасибо), Scusa/Scusi (извини/извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +161,4 @@ export const italianCurriculum: CurriculumStage[] = [
       { title: 'Espressioni per dibattito e discussione', description: 'Esprimere opinione, dissentire...' },
     ],
   },
-]; 
+];

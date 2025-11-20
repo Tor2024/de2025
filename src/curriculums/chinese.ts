@@ -1,6 +1,6 @@
 // Структурированный учебный план для китайского языка (мандаринский) по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,22 @@ export type CurriculumStage = {
 };
 
 export const chineseCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Пиньинь и тоны', description: 'Изучение системы пиньинь для транскрипции и четырёх основных тонов.' },
+        { title: 'Основные черты и порядок написания иероглифов', description: 'Знакомство с базовыми чертами и правилами написания.' },
+        { title: 'Местоимения "я", "ты", "он/она"', description: '我 (wǒ), 你 (nǐ), 他/她 (tā).' },
+        { title: 'Глагол-связка "是" (shì)', description: 'Построение простых предложений типа "Я студент" (我是学生).' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: '你好 (Nǐ hǎo), 再见 (Zàijiàn).' },
+        { title: 'Знакомство', description: '你叫什么名字？(Nǐ jiào shénme míngzi?), 我叫... (Wǒ jiào...).' },
+        { title: 'Слова "Да" и "Нет" (простые)', description: '是 (shì), 不是 (bú shì).' },
+        { title: 'Числа от 0 до 10', description: '零, 一, 二, 三, 四, 五, 六, 七, 八, 九, 十.' },
+        { title: 'Простые вежливые фразы', description: '请 (qǐng - пожалуйста), 谢谢 (xièxie - спасибо), 不客气 (bú kèqi - не за что).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +160,4 @@ export const chineseCurriculum: CurriculumStage[] = [
       { title: '辩论与讨论表达', description: '表达观点，反对...' },
     ],
   },
-]; 
+];

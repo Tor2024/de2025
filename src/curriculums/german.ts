@@ -1,6 +1,6 @@
 // Структурированный учебный план для немецкого языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const germanCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Немецкий алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Ключевые звуки, умлауты (ä, ö, ü) и дифтонги (ei, au, eu).' },
+        { title: 'Личные местоимения (единственное число)', description: 'ich, du, er, sie, es (я, ты, он, она, оно).' },
+        { title: 'Спряжение глагола "sein" (быть) в настоящем времени', description: 'ich bin, du bist, er/sie/es ist.' },
+        { title: 'Спряжение глагола "haben" (иметь) в настоящем времени', description: 'ich habe, du hast, er/sie/es hat.' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Hallo, Guten Tag, Tschüss, Auf Wiedersehen.' },
+        { title: 'Знакомство', description: 'Wie heißen Sie?, Ich heiße..., Wie geht\'s?' },
+        { title: 'Слова "Да" и "Нет"', description: 'Ja, Nein.' },
+        { title: 'Числа от 0 до 10', description: 'null, eins, zwei, drei, vier, fünf, sechs, sieben, acht, neun, zehn.' },
+        { title: 'Простые команды и фразы', description: 'Bitte (пожалуйста/прошу), Danke (спасибо), Entschuldigung (извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -159,4 +176,4 @@ export const germanCurriculum: CurriculumStage[] = [
       { title: 'Сложные выражения для дебатов и дискуссий', description: 'Meinung äußern, widersprechen...' },
     ],
   },
-]; 
+];

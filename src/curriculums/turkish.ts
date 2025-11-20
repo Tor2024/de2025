@@ -1,6 +1,6 @@
 // Структурированный учебный план для турецкого языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,22 @@ export type CurriculumStage = {
 };
 
 export const turkishCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Турецкий алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Гармония гласных (большая и малая), гармония согласных.' },
+        { title: 'Личные местоимения', description: 'ben, sen, o, biz, siz, onlar (я, ты, он/она/оно, мы, вы, они).' },
+        { title: 'Аффиксы сказуемости (настоящее время)', description: 'Построение простых предложений типа "Ben öğrenciyim" (Я студент).' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Merhaba, Günaydın, Hoşça kalın, Güle güle.' },
+        { title: 'Знакомство', description: 'Adınız ne?, Benim adım...' },
+        { title: 'Слова "Да" и "Нет"', description: 'Evet, Hayır.' },
+        { title: 'Числа от 0 до 10', description: 'sıfır, bir, iki, üç, dört, beş, altı, yedi, sekiz, dokuz, on.' },
+        { title: 'Простые вежливые фразы', description: 'Lütfen (пожалуйста), Teşekkür ederim (спасибо), Afedersiniz (извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +160,4 @@ export const turkishCurriculum: CurriculumStage[] = [
       { title: 'Tartışma ve münazara ifadeleri', description: 'Fikir belirtmek, karşı çıkmak...' },
     ],
   },
-]; 
+];

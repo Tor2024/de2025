@@ -1,6 +1,6 @@
 // Структурированный учебный план для японского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,22 @@ export type CurriculumStage = {
 };
 
 export const japaneseCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Слоговые азбуки хирагана и катакана', description: 'Изучение всех знаков и их произношения.' },
+        { title: 'Основы произношения', description: 'Долгие и короткие гласные, редукция гласных, палатализация.' },
+        { title: 'Местоимения "я", "ты", "он/она"', description: '私 (watashi), あなた (anata), 彼 (kare), 彼女 (kanojo).' },
+        { title: 'Глагольная связка "です" (desu)', description: 'Построение простых предложений типа "Я студент" (私は学生です).' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'こんにちは (Konnichiwa), さようなら (Sayōnara), おはようございます (Ohayō gozaimasu).' },
+        { title: 'Знакомство', description: 'はじめまして (Hajimemashite), 私の名前は... (Watashi no namae wa...).' },
+        { title: 'Слова "Да" и "Нет"', description: 'はい (hai), いいえ (iie).' },
+        { title: 'Числа от 0 до 10', description: 'ゼロ, いち, に, さん, よん, ご, ろく, なな, はち, きゅう, じゅう.' },
+        { title: 'Простые вежливые фразы', description: 'お願いします (Onegai shimasu), ありがとう (Arigatō), すみません (Sumimasen).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +160,4 @@ export const japaneseCurriculum: CurriculumStage[] = [
       { title: 'ディベート・議論表現', description: '意見を述べる、反対する...' },
     ],
   },
-]; 
+];

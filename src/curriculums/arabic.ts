@@ -1,6 +1,6 @@
 // Структурированный учебный план для арабского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,22 @@ export type CurriculumStage = {
 };
 
 export const arabicCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Арабский алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Ключевые звуки, огласовки (фатха, касра, дамма).' },
+        { title: 'Личные местоимения (единственное число)', description: 'أنا, أنتَ, أنتِ, هو, هي (я, ты (м/ж), он, она).' },
+        { title: 'Глагол "быть" (скрытая форма)', description: 'Построение простых именных предложений, например, "أنا طالب" (Я студент).' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'مرحباً, السلام عليكم, مع السلامة.' },
+        { title: 'Знакомство', description: 'ما اسمك؟, اسمي...' },
+        { title: 'Слова "Да" и "Нет"', description: 'نعم, لا.' },
+        { title: 'Числа от 0 до 10', description: 'صفر, واحد, اثنان, ثلاثة...' },
+        { title: 'Простые команды и фразы', description: 'من فضلك (пожалуйста), شكراً (спасибо), عفواً (извините/пожалуйста).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +160,4 @@ export const arabicCurriculum: CurriculumStage[] = [
       { title: 'تعبيرات للنقاش والحوار', description: 'إبداء الرأي، الاعتراض...' },
     ],
   },
-]; 
+];

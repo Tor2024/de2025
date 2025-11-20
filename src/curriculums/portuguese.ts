@@ -1,6 +1,6 @@
 // Структурированный учебный план для португальского языка по уровням
 export type Topic = { title: string; description?: string };
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+export type Level = 'A0' | 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type CurriculumStage = {
   level: Level;
@@ -9,6 +9,23 @@ export type CurriculumStage = {
 };
 
 export const portugueseCurriculum: CurriculumStage[] = [
+  {
+    level: 'A0',
+    grammar: [
+        { title: 'Португальский алфавит', description: 'Изучение букв и их названий.' },
+        { title: 'Основы произношения', description: 'Носовые звуки, правила чтения -s, -z, -x, -ch, -lh.' },
+        { title: 'Личные местоимения (единственное число)', description: 'eu, tu, ele, ela, você (я, ты, он, она, вы).' },
+        { title: 'Глагол "ser" (быть, постоянный признак)', description: 'eu sou, tu és, ele/ela é.' },
+        { title: 'Глагол "estar" (быть, временное состояние)', description: 'eu estou, tu estás, ele/ela está.' },
+    ],
+    vocabulary: [
+        { title: 'Приветствия и прощания', description: 'Olá, Bom dia, Adeus, Tchau.' },
+        { title: 'Знакомство', description: 'Como se chama?, Chamo-me...' },
+        { title: 'Слова "Да" и "Нет"', description: 'Sim, Não.' },
+        { title: 'Числа от 0 до 10', description: 'zero, um, dois, três, quatro, cinco, seis, sete, oito, nove, dez.' },
+        { title: 'Простые вежливые фразы', description: 'Por favor, Obrigado/Obrigada (спасибо м/ж), Desculpe (извините).' },
+    ],
+  },
   {
     level: 'A1',
     grammar: [
@@ -144,4 +161,4 @@ export const portugueseCurriculum: CurriculumStage[] = [
       { title: 'Expressões para debate e discussão', description: 'Expressar opinião, discordar...' },
     ],
   },
-]; 
+];
