@@ -5,7 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { Providers } from '@/contexts/Providers';
+import { UserDataProvider } from '@/contexts/UserDataContext';
 
 export const metadata: Metadata = {
   title: 'LinguaLab - Personalized Language Learning',
@@ -21,10 +21,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <ThemeProvider>
-          <Providers>
+          <UserDataProvider>
             {children}
             <Toaster />
-          </Providers>
+          </UserDataProvider>
         </ThemeProvider>
       </body>
     </html>

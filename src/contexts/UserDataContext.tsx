@@ -3,9 +3,7 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useCallback } from 'react';
-import { useAuth, useFirebase } from '@/firebase';
-import { doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import useLocalStorage from '@/hooks/useLocalStorage';
 import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord } from '@/lib/types';
 import { initialUserProgress, MAX_LEARNING_STAGE, learningStageIntervals } from '@/lib/types';
 
@@ -22,7 +20,6 @@ interface UserDataContextType {
   processWordRepetition: (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => void;
   recordPracticeSetCompletion: () => void;
   isLoading: boolean;
-  isFirebaseLoading: boolean;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
@@ -33,69 +30,7 @@ const initialUserData: UserData = {
 };
 
 export function UserDataProvider({ children }: { children: ReactNode }) {
-  const { firestore } = useFirebase();
-  const { user, loading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-
-  const userId = user?.uid;
-
-  const { data: userData = initialUserData, isLoading: isDocLoading } = useQuery({
-    queryKey: ['userData', userId],
-    queryFn: async () => {
-      if (!firestore || !userId) return initialUserData;
-      const docRef = doc(firestore, 'users', userId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const progress = { ...initialUserProgress, ...data.progress };
-        return { settings: data.settings, progress } as UserData;
-      }
-      return initialUserData;
-    },
-    enabled: !!firestore && !!userId,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const { mutate: updateUserDataInFirestore } = useMutation({
-    mutationFn: async (newUserData: UserData) => {
-      if (!firestore || !userId) {
-        console.warn("Update attempt skipped: User or Firestore not available.");
-        return; // Return instead of throwing an error
-      }
-      const docRef = doc(firestore, 'users', userId);
-      await setDoc(docRef, newUserData, { merge: true });
-      return newUserData;
-    },
-    onSuccess: (data) => {
-      if (data) { // Only update query data if mutation ran
-        queryClient.setQueryData(['userData', userId], data);
-      }
-    },
-    onError: (error) => {
-      console.error("Error updating user data in Firestore:", error);
-    }
-  });
-  
-  const { mutate: deleteUserDataInFirestore } = useMutation({
-     mutationFn: async () => {
-      if (!firestore || !userId) return;
-      const docRef = doc(firestore, 'users', userId);
-      await deleteDoc(docRef);
-    },
-    onSuccess: () => {
-       queryClient.setQueryData(['userData', userId], initialUserData);
-    }
-  });
-
-  const setUserData = useCallback((dataOrFn: UserData | ((prevData: UserData) => UserData)) => {
-    if (!firestore || !userId) {
-        console.warn("setUserData called before user or firestore is available.");
-        return;
-    }
-    const newData = typeof dataOrFn === 'function' ? dataOrFn(userData) : dataOrFn;
-    queryClient.setQueryData(['userData', userId], newData);
-    updateUserDataInFirestore(newData);
-  }, [userData, queryClient, userId, updateUserDataInFirestore, firestore]);
+  const [userData, setUserData, isLoading] = useLocalStorage<UserData>('userData', initialUserData);
 
   const updateSettings = useCallback((newSettings: Partial<UserSettings>) => {
     setUserData(prev => ({
@@ -160,6 +95,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const clearErrorArchive = useCallback(() => {
     updateProgress({ errorArchive: [] });
   }, [updateProgress]);
+  
+  const clearUserData = useCallback(() => {
+    setUserData(initialUserData);
+  }, [setUserData]);
 
   const processWordRepetition = useCallback(
     (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => {
@@ -218,10 +157,6 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     updateProgress({ practiceSetsCompleted: (userData.progress.practiceSetsCompleted || 0) + 1 });
   }, [updateProgress, userData.progress.practiceSetsCompleted]);
 
-  const clearUserData = useCallback(() => {
-    deleteUserDataInFirestore();
-  }, [deleteUserDataInFirestore]);
-
   const contextValue: UserDataContextType = {
     userData,
     setUserData,
@@ -234,8 +169,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     clearErrorArchive,
     processWordRepetition,
     recordPracticeSetCompletion,
-    isLoading: authLoading || (!!userId && isDocLoading),
-    isFirebaseLoading: authLoading || (!!userId && isDocLoading),
+    isLoading,
   };
 
   return (
