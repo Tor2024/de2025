@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -17,7 +18,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Repeat, Sparkles, CheckCircle2, XCircle, Lightbulb, XCircle as ClearIcon, Archive, PartyPopper, ArrowRight, RefreshCw } from "lucide-react";
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, type TargetLanguage as AppTargetLanguage, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { useRouter, useSearchParams } from "next/navigation";
+import { lessonTypes } from "@/config/lessonTypes";
 
 const exerciseFormSchema = z.object({
   topic: z.string().min(3, "Topic should be at least 3 characters").optional().or(z.literal('')),
@@ -95,7 +97,7 @@ const baseRuTranslations: Record<string, string> = {
   archiveMistakeButton: "Добавить ошибку в архив",
   mistakeArchivedToastTitle: "Ошибка добавлена в архив",
   mistakeArchivedToastDescription: "Эта ошибка была добавлена в ваш архив ошибок.",
-  nextPartButton: "Следующий набор",
+  nextPartButton: "Следующий раздел",
   repeatLessonPartButton: "Повторить этот набор",
 };
 
@@ -121,6 +123,30 @@ interface ExerciseState {
   isMistakeArchived: boolean;
 }
 
+const lessonSections = ['grammar', 'vocabulary', 'practice', 'reading', 'listening', 'writing'];
+
+function goToNextSection(
+  currentSection: string,
+  lessonId: string | null,
+  topic: string | null,
+  baseLevel: string | null,
+  router: ReturnType<typeof useRouter>
+) {
+  const currentIndex = lessonSections.indexOf(currentSection);
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
+  }
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
+}
+
+
 export function WordPracticeClient() {
   const { userData, isLoading: isUserDataLoading, addErrorToArchive, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();
@@ -130,10 +156,10 @@ export function WordPracticeClient() {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exerciseStates, setExerciseStates] = useState<Record<number, ExerciseState>>({});
   const [showOverallResults, setShowOverallResults] = useState(false);
-  const [isNextLoading, setIsNextLoading] = useState(false);
-  const [nextError, setNextError] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm } = useForm<ExerciseFormData>({
+  const { register, handleSubmit, formState: { errors }, reset: resetTopicForm, setValue } = useForm<ExerciseFormData>({
     resolver: zodResolver(exerciseFormSchema),
   });
 
@@ -145,15 +171,14 @@ export function WordPracticeClient() {
 
   const currentExercise = exerciseResult?.exercises?.[currentExerciseIndex];
   const currentExerciseState = exerciseStates[currentExerciseIndex] || { userAnswer: "", isSubmitted: false, showHint: false, isMistakeArchived: false };
-
-  const onSubmitTopic: SubmitHandler<ExerciseFormData> = async (data) => {
+  
+  const handleGenerateExercises = useCallback(async (data: ExerciseFormData) => {
     setIsAiLoading(true);
     setExerciseResult(null);
     setCurrentTopic(data.topic || "");
     setCurrentExerciseIndex(0);
     setExerciseStates({});
     setShowOverallResults(false);
-    
 
     try {
       if (!userData.settings) {
@@ -166,7 +191,7 @@ export function WordPracticeClient() {
         targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: userData.settings.proficiencyLevel as AppProficiencyLevel,
         topic: data.topic || undefined,
-        count: 5, 
+        count: 5,
       };
       const result = await generateFillInTheBlankExercises(flowInput);
       setExerciseResult(result);
@@ -193,8 +218,20 @@ export function WordPracticeClient() {
     } finally {
       setIsAiLoading(false);
     }
-  };
+  }, [userData.settings, toast, t, resetTopicForm]);
 
+  useEffect(() => {
+    const initialTopic = searchParams.get('topic');
+    if (initialTopic && !exerciseResult && !isAiLoading) {
+      setValue('topic', initialTopic);
+      handleGenerateExercises({ topic: initialTopic });
+    }
+  }, [searchParams, setValue, handleGenerateExercises, exerciseResult, isAiLoading]);
+
+  const onSubmitTopic: SubmitHandler<ExerciseFormData> = async (data) => {
+    await handleGenerateExercises(data);
+  };
+  
   const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setExerciseStates(prev => ({
       ...prev,
@@ -265,6 +302,10 @@ export function WordPracticeClient() {
     setExerciseStates(resetStates);
     setShowOverallResults(false);
   };
+  
+  const lessonIdFromParams = searchParams.get('lessonId');
+  const topicFromParams = searchParams.get('topic');
+  const baseLevelFromParams = searchParams.get('baseLevel');
 
   if (isUserDataLoading) {
     return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
@@ -339,26 +380,18 @@ export function WordPracticeClient() {
                         {t('scoreMessage').replace('{correct}', correctCount.toString()).replace('{total}', totalExercises.toString())}
                     </p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                      {scorePercentage <= 70 && (
                         <Button onClick={handleRestartCurrentSet} variant="default" className="w-full sm:w-auto">
                           <RefreshCw className="mr-2 h-4 w-4" />
                           {t('repeatLessonPartButton')}
                         </Button>
-                      )}
                       <Button 
-                        onClick={handleClearResults} 
-                        variant={scorePercentage > 70 ? "default" : "outline"} 
+                        onClick={() => goToNextSection('practice', lessonIdFromParams, topicFromParams, baseLevelFromParams, router)} 
+                        variant="outline" 
                         className="w-full sm:w-auto"
                       >
                         <ArrowRight className="mr-2 h-4 w-4" />
                         {t('nextPartButton')} 
                       </Button>
-                       {scorePercentage > 70 && (
-                         <Button onClick={handleRestartCurrentSet} variant="outline" className="w-full sm:w-auto">
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          {t('repeatLessonPartButton')}
-                        </Button>
-                      )}
                     </div>
                 </div>
             ) : currentExercise ? (
@@ -449,48 +482,6 @@ export function WordPracticeClient() {
             </CardContent>
         </Card>
       )}
-      {showOverallResults && (
-        <CardFooter className="flex-col items-center border-t mt-6 pt-6">
-          <PartyPopper className="h-12 w-12 text-primary mb-2" />
-          <div style={{ fontSize: 18, marginBottom: 12 }}>Ваш результат: <b>{correctCount} из {totalExercises}</b> ({scorePercentage}%)</div>
-          {scorePercentage > 70 ? (
-            <div style={{ color: 'green', fontSize: 20, marginBottom: 16 }}>Поздравляем! Вы можете перейти к следующей теме.</div>
-          ) : (
-            <div style={{ color: 'red', fontSize: 20, marginBottom: 16 }}>Рекомендуем повторить тему для лучшего результата.</div>
-          )}
-          <Button onClick={handleRestartCurrentSet} variant="default" className="w-full sm:w-auto" style={{ marginRight: 12 }}>Пройти ещё раз</Button>
-          {scorePercentage > 70 && (
-            <Button onClick={async () => {
-              setIsNextLoading(true);
-              setNextError('');
-              try {
-                if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
-                const input = {
-                  interfaceLanguage: userData.settings.interfaceLanguage,
-                  currentLearningRoadmap: userData.progress.learningRoadmap,
-                  completedLessonIds: userData.progress.completedLessonIds || [],
-                  userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
-                  currentProficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
-                };
-                const rec = await getLessonRecommendation(input);
-                if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
-                  const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
-                }
-              } catch (error) {
-                console.error("Lesson recommendation error:", error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                toast({
-                  title: "Ошибка получения рекомендации",
-                  description: `Не удалось получить рекомендацию. Пожалуйста, попробуйте позже или обратитесь к администратору. ${errorMessage ? `(${errorMessage})` : ''}`,
-                  variant: "destructive",
-                });
-              }
-            }} variant="default" className="w-full sm:w-auto">Перейти к следующей теме</Button>
-          )}
-        </CardFooter>
-      )}
     </div>
   );
 }
-
-  

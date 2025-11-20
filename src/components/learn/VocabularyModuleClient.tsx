@@ -142,7 +142,7 @@ function goToNextSection(
   router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
 
-export function VocabularyModuleClient() {
+export default function VocabularyModuleClient() {
   const router = useRouter();
   const { userData, isLoading: isUserDataLoading, addErrorToArchive, processWordRepetition, recordPracticeSetCompletion } = useUserData();
   const { toast } = useToast();

@@ -77,7 +77,7 @@ interface GrammarModuleClientProps {
 }
 
 // Универсальный массив разделов
-const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
+const lessonSections = ['grammar', 'vocabulary', 'practice', 'reading', 'listening', 'writing'];
 
 function goToNextSection(
   currentSection: string,
@@ -107,8 +107,10 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const lessonIdFromParams = searchParams.get('lessonId');
-  const topic = searchParams.get('topic');
+  
+  // Используем `lessonId` из пропсов, если он есть, иначе из URL
+  const currentLessonId = lessonId || searchParams.get('lessonId');
+  const topic = grammarTopic || searchParams.get('topic');
   const baseLevel = searchParams.get('baseLevel');
   
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
@@ -139,40 +141,43 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
   useEffect(() => {
     const fetchTasks = async () => {
       if (!userData.settings) return;
-      setIsAiLoading(true);
-      setAiError('');
-      try {
-        const pastErrors = getPastErrorsAsString();
-        const response = await fetch('/api/ai/adaptive-grammar-explanations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            interfaceLanguage: userData.settings.interfaceLanguage,
-            grammarTopic: grammarTopic || topic || lessonTitle || 'General Grammar',
-            proficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
-            goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : [userData.settings.goal],
-            interests: userData.settings.interests || [],
-            userPastErrors: pastErrors,
-          }),
-        });
-        if (!response.ok) throw new Error('Ошибка генерации грамматических заданий');
-        const aiResult: AdaptiveGrammarExplanationsOutput = await response.json();
-        setTasks(aiResult.practiceTasks);
-        setExplanation(aiResult.explanation);
-        setCurrentTaskIndex(0);
-        setUserAnswer('');
-        setTaskStates({});
-      } catch (e) {
-        setAiError('Ошибка генерации заданий. Попробуйте обновить страницу или выбрать другую тему.');
-      } finally {
-        setIsAiLoading(false);
+      // Если заданий еще нет, начинаем загрузку
+      if (tasks.length === 0) {
+        setIsAiLoading(true);
+        setAiError('');
+        try {
+          const pastErrors = getPastErrorsAsString();
+          const response = await fetch('/api/ai/adaptive-grammar-explanations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              interfaceLanguage: userData.settings.interfaceLanguage,
+              grammarTopic: topic || lessonTitle || 'General Grammar',
+              proficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
+              goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : [userData.settings.goal],
+              interests: userData.settings.interests || [],
+              userPastErrors: pastErrors,
+            }),
+          });
+          if (!response.ok) throw new Error('Ошибка генерации грамматических заданий');
+          const aiResult: AdaptiveGrammarExplanationsOutput = await response.json();
+          setTasks(aiResult.practiceTasks);
+          setExplanation(aiResult.explanation);
+          setCurrentTaskIndex(0);
+          setUserAnswer('');
+          setTaskStates({});
+        } catch (e) {
+          setAiError('Ошибка генерации заданий. Попробуйте обновить страницу или выбрать другую тему.');
+        } finally {
+          setIsAiLoading(false);
+        }
       }
     };
     if (!isUserDataLoading && userData.settings) {
       fetchTasks();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserDataLoading, userData.settings, grammarTopic, topic, lessonTitle]);
+  }, [isUserDataLoading, userData.settings, topic, lessonTitle]);
 
   const handleCheck = () => {
     if (!currentTask) return;
@@ -187,7 +192,7 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
     if (!isCorrect) {
         addErrorToArchive({
             module: "Grammar",
-            context: `Topic: ${grammarTopic || topic || lessonTitle}. Task: ${currentTask.taskDescription}`,
+            context: `Topic: ${topic || lessonTitle}. Task: ${currentTask.taskDescription}`,
             userAttempt: userAnswer,
             correctAnswer: currentTask.correctAnswer,
         });
@@ -204,7 +209,7 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           interfaceLanguage: userData.settings.interfaceLanguage,
-          grammarTopic: grammarTopic || topic || lessonTitle || 'General Grammar',
+          grammarTopic: topic || lessonTitle || 'General Grammar',
           taskDescription: currentTask.taskDescription,
           userAttempt: userAnswer,
           correctAnswer: currentTask.correctAnswer,
@@ -251,7 +256,7 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
         <div className="flex justify-center gap-4">
             <Button onClick={handleRepeat} variant="outline" className="px-6 py-2 text-base">Пройти ещё раз</Button>
             {canGoNext && (
-                <Button onClick={() => goToNextSection('grammar', lessonIdFromParams, topic, baseLevel, router)} className="px-6 py-2 text-base">
+                <Button onClick={() => goToNextSection('grammar', currentLessonId, topic, baseLevel, router)} className="px-6 py-2 text-base">
                     Перейти к следующему разделу
                 </Button>
             )}
