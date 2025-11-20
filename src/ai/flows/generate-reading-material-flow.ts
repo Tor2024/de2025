@@ -42,7 +42,7 @@ const GenerateReadingMaterialOutputSchema = z.object({
   title: z.string().optional().describe('A suitable title for the reading text, in the targetLanguage.'),
   readingText: z.string().describe('The generated reading text in the targetLanguage, adapted to the proficiencyLevel.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).optional().describe('An array of 2-3 comprehension questions about the text, with questions and options in the interfaceLanguage.'),
-  vocabulary: z.array(VocabularyEntrySchema).optional().describe('A list of 10-20 key vocabulary words from the text with their translations into the interfaceLanguage. Focus on nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
+  vocabulary: z.array(VocabularyEntrySchema).min(10).max(20).optional().describe('A list of 10-20 key vocabulary words from the text with their translations into the interfaceLanguage. Focus on important nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
 });
 export type GenerateReadingMaterialOutput = z.infer<typeof GenerateReadingMaterialOutputSchema>;
 

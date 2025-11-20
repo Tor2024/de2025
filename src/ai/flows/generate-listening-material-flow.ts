@@ -42,7 +42,7 @@ const GenerateListeningMaterialOutputSchema = z.object({
   scenario: z.string().optional().describe('A brief description of the listening scenario (e.g., "A conversation at a train station"), in the interfaceLanguage.'),
   script: z.string().describe('The generated listening script in the targetLanguage, adapted to the proficiencyLevel. If it\'s a dialogue, it MUST be formatted with speaker labels like "Speaker 1:", "Speaker 2:", etc., on separate lines.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).min(2).max(4).describe('An array of 2-4 multiple-choice comprehension questions about the script, with questions and options in the interfaceLanguage.'),
-  vocabulary: z.array(VocabularyEntrySchema).optional().describe('A list of 10-15 key vocabulary words from the script with their translations into the interfaceLanguage. Focus on nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
+  vocabulary: z.array(VocabularyEntrySchema).min(10).max(15).optional().describe('A list of 10-15 key vocabulary words from the script with their translations into the interfaceLanguage. Focus on important nouns, verbs, and adjectives relevant to the topic and proficiency level.'),
 });
 export type GenerateListeningMaterialOutput = z.infer<typeof GenerateListeningMaterialOutputSchema>;
 
