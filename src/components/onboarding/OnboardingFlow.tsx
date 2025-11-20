@@ -31,7 +31,8 @@ import { generatePersonalizedLearningRoadmap } from "@/ai/flows/ai-learning-road
 import type { GeneratePersonalizedLearningRoadmapInput, GeneratePersonalizedLearningRoadmapOutput } from "@/ai/flows/ai-learning-roadmap";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, PartyPopper } from "lucide-react";
+import { useRouter } from 'next/navigation';
 
 // The proficiency level is now optional in the schema.
 const onboardingSchema = z.object({
@@ -69,6 +70,7 @@ const baseEnTranslations: Record<string, string> = {
   errorTitle: "Error",
   errorDescription: "Failed to complete setup. Please try again.",
   fallbackLearnerName: "Learner",
+  startLearningButton: "Start Learning!",
 };
 
 const baseRuTranslations: Record<string, string> = {
@@ -96,6 +98,7 @@ const baseRuTranslations: Record<string, string> = {
   errorTitle: "Ошибка",
   errorDescription: "Не удалось завершить настройку. Пожалуйста, попробуйте снова.",
   fallbackLearnerName: "Ученик",
+  startLearningButton: "Начать обучение!",
 };
 
 const generateTranslations = () => {
@@ -118,6 +121,8 @@ export function OnboardingFlow() {
   const { toast } = useToast();
   const [isLoadingAi, setIsLoadingAi] = useState(false); 
   const [currentStep, setCurrentStep] = useState(0);
+  const [isPlanGenerated, setIsPlanGenerated] = useState(false);
+  const router = useRouter();
   
   const { register, handleSubmit, control, trigger, formState: { errors, isValid }, watch } = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -189,13 +194,7 @@ export function OnboardingFlow() {
         };
       });
 
-      const toastTitle = (currentTranslations.setupCompleteTitle || baseEnTranslations.setupCompleteTitle)
-        .replace('{userName}', settingsData.userName || currentTranslations.fallbackLearnerName || baseEnTranslations.fallbackLearnerName);
-      
-      toast({
-        title: toastTitle,
-        description: currentTranslations.setupCompleteDescription || baseEnTranslations.setupCompleteDescription,
-      });
+      setIsPlanGenerated(true); // Set flag to show success screen
 
     } catch (error) {
       console.error("Onboarding error:", error);
@@ -205,126 +204,45 @@ export function OnboardingFlow() {
         description: `${currentTranslations.errorDescription || baseEnTranslations.errorDescription} ${errorMessage ? `(${errorMessage})` : ''}`,
         variant: "destructive",
       });
+      setIsLoadingAi(false); // Stop loading on error
     } finally {
-      setIsLoadingAi(false);
+      // Don't set isLoadingAi to false on success, to keep showing the final screen
     }
-  };
-
-  const renderStepContent = () => {
-    const stepConfig = steps[currentStep];
-    const isLastStep = currentStep === steps.length - 1;
-    return (
-      <>
-        {stepConfig.fields.includes("userName") && (
-          <div className="space-y-2">
-            <Label htmlFor="userName">{currentTranslations.nicknameLabel}</Label>
-            <Input id="userName" placeholder={currentTranslations.nicknamePlaceholder} {...register("userName")} />
-            {errors.userName && <p className="text-sm text-destructive">{errors.userName.message}</p>}
-          </div>
-        )}
-        {stepConfig.fields.includes("interfaceLanguage") && (
-          <div className="space-y-2">
-            <Label htmlFor="interfaceLanguage">{currentTranslations.interfaceLanguageLabel}</Label>
-            <Controller
-              name="interfaceLanguage"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value} 
-                >
-                  <SelectTrigger id="interfaceLanguage">
-                    <SelectValue placeholder={currentTranslations.interfaceLanguagePlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {supportedLanguages.map(lang => (
-                      <SelectItem key={lang.code} value={lang.code}>
-                        {lang.nativeName} ({lang.name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.interfaceLanguage && <p className="text-sm text-destructive">{errors.interfaceLanguage.message}</p>}
-          </div>
-        )}
-        {stepConfig.fields.includes("targetLanguage") && (
-          <div className="space-y-2">
-            <Label htmlFor="targetLanguage">{currentTranslations.targetLanguageLabel}</Label>
-             <Controller name="targetLanguage" control={control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="targetLanguage">
-                    <SelectValue placeholder={currentTranslations.targetLanguagePlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {supportedLanguages.map(lang => (
-                      <SelectItem key={lang.name} value={lang.name}>
-                        {lang.nativeName} ({lang.name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )} />
-            {errors.targetLanguage && <p className="text-sm text-destructive">{errors.targetLanguage.message}</p>}
-          </div>
-        )}
-        {stepConfig.fields.includes("proficiencyLevel") && (
-          <div className="space-y-2">
-            <Label htmlFor="proficiencyLevel">{currentTranslations.proficiencyLevelLabel}</Label>
-            <Controller
-              name="proficiencyLevel"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value} 
-                >
-                  <SelectTrigger id="proficiencyLevel">
-                    <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {proficiencyLevels.map(level => (
-                      <SelectItem key={level} value={level}>
-                        {level}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
-          </div>
-        )}
-        {stepConfig.fields.includes("goal") && (
-          <div className="space-y-2">
-            <Label htmlFor="goal">{currentTranslations.goalLabel}</Label>
-            <Textarea
-              id="goal"
-              placeholder={currentTranslations.goalPlaceholder}
-              {...register("goal")}
-              className="min-h-[100px]"
-              disabled={isLoadingAi && isLastStep}
-            />
-            {errors.goal && <p className="text-sm text-destructive">{errors.goal.message}</p>}
-          </div>
-        )}
-        {isLastStep && isLoadingAi && (
-          <div className="mt-4 p-3 text-center bg-muted/50 rounded-md">
-            <LoadingSpinner size={24} className="mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {currentTranslations.generatingPlanMessage || baseEnTranslations.generatingPlanMessage}
-            </p>
-          </div>
-        )}
-      </>
-    )
   };
 
   const stepTitle = currentTranslations[steps[currentStep].titleKey as keyof typeof currentTranslations] || `Step ${currentStep + 1} Title`;
   const stepDescriptionText = (currentTranslations.stepDescription || baseEnTranslations.stepDescription)
     .replace("{current}", (currentStep + 1).toString())
     .replace("{total}", steps.length.toString());
+
+  const finalScreenTitle = (currentTranslations.setupCompleteTitle || baseEnTranslations.setupCompleteTitle)
+    .replace('{userName}', watch("userName") || currentTranslations.fallbackLearnerName || baseEnTranslations.fallbackLearnerName);
+
+
+  if (isPlanGenerated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-secondary/30 p-4">
+        <Card className="w-full max-w-lg shadow-2xl shadow-primary/10 text-center">
+          <CardHeader>
+            <div className="mx-auto bg-green-500/10 p-3 rounded-full w-fit mb-3">
+              <PartyPopper className="h-10 w-10 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold tracking-tight text-center">
+              {finalScreenTitle}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {currentTranslations.setupCompleteDescription || baseEnTranslations.setupCompleteDescription}
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button className="w-full" onClick={() => router.push('/dashboard')}>
+              {currentTranslations.startLearningButton || baseEnTranslations.startLearningButton}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-secondary/30 p-4">
@@ -342,7 +260,108 @@ export function OnboardingFlow() {
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
-            {renderStepContent()}
+            {steps[currentStep].fields.includes("userName") && (
+              <div className="space-y-2">
+                <Label htmlFor="userName">{currentTranslations.nicknameLabel}</Label>
+                <Input id="userName" placeholder={currentTranslations.nicknamePlaceholder} {...register("userName")} />
+                {errors.userName && <p className="text-sm text-destructive">{errors.userName.message}</p>}
+              </div>
+            )}
+            {steps[currentStep].fields.includes("interfaceLanguage") && (
+              <div className="space-y-2">
+                <Label htmlFor="interfaceLanguage">{currentTranslations.interfaceLanguageLabel}</Label>
+                <Controller
+                  name="interfaceLanguage"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value} 
+                    >
+                      <SelectTrigger id="interfaceLanguage">
+                        <SelectValue placeholder={currentTranslations.interfaceLanguagePlaceholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {supportedLanguages.map(lang => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            {lang.nativeName} ({lang.name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.interfaceLanguage && <p className="text-sm text-destructive">{errors.interfaceLanguage.message}</p>}
+              </div>
+            )}
+            {steps[currentStep].fields.includes("targetLanguage") && (
+              <div className="space-y-2">
+                <Label htmlFor="targetLanguage">{currentTranslations.targetLanguageLabel}</Label>
+                <Controller name="targetLanguage" control={control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger id="targetLanguage">
+                        <SelectValue placeholder={currentTranslations.targetLanguagePlaceholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {supportedLanguages.map(lang => (
+                          <SelectItem key={lang.name} value={lang.name}>
+                            {lang.nativeName} ({lang.name})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                {errors.targetLanguage && <p className="text-sm text-destructive">{errors.targetLanguage.message}</p>}
+              </div>
+            )}
+            {steps[currentStep].fields.includes("proficiencyLevel") && (
+              <div className="space-y-2">
+                <Label htmlFor="proficiencyLevel">{currentTranslations.proficiencyLevelLabel}</Label>
+                <Controller
+                  name="proficiencyLevel"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value} 
+                    >
+                      <SelectTrigger id="proficiencyLevel">
+                        <SelectValue placeholder={currentTranslations.proficiencyLevelPlaceholder} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {proficiencyLevels.map(level => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.proficiencyLevel && <p className="text-sm text-destructive">{errors.proficiencyLevel.message}</p>}
+              </div>
+            )}
+            {steps[currentStep].fields.includes("goal") && (
+              <div className="space-y-2">
+                <Label htmlFor="goal">{currentTranslations.goalLabel}</Label>
+                <Textarea
+                  id="goal"
+                  placeholder={currentTranslations.goalPlaceholder}
+                  {...register("goal")}
+                  className="min-h-[100px]"
+                  disabled={isLoadingAi && currentStep === steps.length - 1}
+                />
+                {errors.goal && <p className="text-sm text-destructive">{errors.goal.message}</p>}
+              </div>
+            )}
+            {currentStep === steps.length - 1 && isLoadingAi && (
+              <div className="mt-4 p-3 text-center bg-muted/50 rounded-md">
+                <LoadingSpinner size={24} className="mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {currentTranslations.generatingPlanMessage || baseEnTranslations.generatingPlanMessage}
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex justify-between gap-2">
             {currentStep > 0 && (
