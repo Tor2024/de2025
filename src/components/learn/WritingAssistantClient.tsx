@@ -20,6 +20,8 @@ import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks } from "luci
 import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { lessonTypes } from '@/config/lessonTypes';
+
 
 const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
 
@@ -158,6 +160,32 @@ function parseTopicAndGetLink(
   return { href };
 }
 
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+
+function goToNextSection(
+  currentSection: string,
+  lessonId: string | null,
+  topic: string | null,
+  baseLevel: string | null,
+  router: ReturnType<typeof useRouter>
+) {
+  const currentIndex = lessonSections.indexOf(currentSection);
+    // Найти следующий существующий раздел
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
+  }
+  // Если ничего не найдено — на дашборд
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
+}
+
+
 export function WritingAssistantClient() {
   const { userData, isLoading: isUserDataLoading, toggleLessonCompletion } = useUserData();
   const { toast } = useToast();
@@ -256,41 +284,15 @@ export function WritingAssistantClient() {
   // Финальный экран — если есть результат и пользователь завершил задание
   if (assistanceResult && submittedUserText) {
     const handleNextLesson = async () => {
-      setIsNextLoading(true);
-      setNextError('');
-      try {
-        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
-        const lessonIdFromParams = searchParams.get('lessonId');
-        if (lessonIdFromParams && typeof toggleLessonCompletion === 'function') {
-          toggleLessonCompletion(lessonIdFromParams);
+        const lessonId = searchParams.get('lessonId');
+        const topic = searchParams.get('topic');
+        const baseLevel = searchParams.get('baseLevel');
+
+        if(lessonId) {
+            toggleLessonCompletion(lessonId);
         }
-        const completedLessonIds = userData.progress.completedLessonIds
-          ? [...userData.progress.completedLessonIds, lessonIdFromParams].filter((id): id is string => typeof id === 'string' && !!id)
-          : lessonIdFromParams && typeof lessonIdFromParams === 'string' ? [lessonIdFromParams] : [];
-        const input = {
-          interfaceLanguage: userData.settings.interfaceLanguage,
-          currentLearningRoadmap: userData.progress.learningRoadmap,
-          completedLessonIds,
-          userGoal: (Array.isArray(userData.settings.goal) ? userData.settings.goal[0] : userData.settings.goal) || "",
-          currentProficiencyLevel: userData.settings.proficiencyLevel || 'A1-A2',
-        };
-        const rec = await getLessonRecommendation(input);
-        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
-          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
-          if (lesson && lesson.topics && lesson.topics.length > 0) {
-            const { href } = parseTopicAndGetLink(lesson.topics[0], { lessonId: lesson.id, lessonLevel: lesson.level });
-            if (href) {
-              router.push(href);
-              return;
-            }
-          }
-        }
-        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
-      } catch (e) {
-        setNextError('Ошибка перехода к следующему уроку.');
-      } finally {
-        setIsNextLoading(false);
-      }
+        
+        goToNextSection('writing', lessonId, topic, baseLevel, router);
     };
 
     return (

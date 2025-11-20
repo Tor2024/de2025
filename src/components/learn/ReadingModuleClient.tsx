@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
 import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage } from '@/lib/types';
+import { lessonTypes } from '@/config/lessonTypes';
 
 
 interface ResultItem {
@@ -71,15 +72,19 @@ function goToNextSection(
   router: ReturnType<typeof useRouter>
 ) {
   const currentIndex = lessonSections.indexOf(currentSection);
-  if (currentIndex < lessonSections.length - 1) {
-    const nextSection = lessonSections[currentIndex + 1];
-    let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
-    if (topic) href += `&topic=${encodeURIComponent(topic)}`;
-    if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
-    router.push(href);
-  } else {
-    router.push('/dashboard?completedLesson=' + (lessonId || ''));
+    // Найти следующий существующий раздел
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
   }
+  // Если ничего не найдено — на дашборд
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
 
 export default function ReadingModuleClient() {
@@ -152,18 +157,6 @@ export default function ReadingModuleClient() {
     }
   }, [topicParam, material, isLoading, userData.settings, getPastErrorsAsString]);
 
-  // useEffect для автоматического перехода после успешного завершения
-  useEffect(() => {
-    if (material && material.comprehensionQuestions && currentQuestion >= material.comprehensionQuestions.length) {
-      const correctCount = results.filter(r => r.correct).length;
-      const percent = Math.round((correctCount / material.comprehensionQuestions.length) * 100);
-      const canGoNext = percent >= 70;
-      if (canGoNext) {
-        goToNextSection('reading', lessonIdFromParams, topicParam || '', baseLevel, router);
-      }
-    }
-  }, [material, currentQuestion, results, lessonIdFromParams, topicParam, baseLevel, router]);
-
   const handleGetMaterial = async () => {
     setIsLoading(true);
     setError('');
@@ -212,37 +205,6 @@ export default function ReadingModuleClient() {
     const percent = Math.round((correctCount / material.comprehensionQuestions.length) * 100);
     const canGoNext = percent >= 70;
 
-    const handleNextLesson = async () => {
-      setIsNextLoading(true);
-      setNextError('');
-      try {
-        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
-        const input = {
-          interfaceLanguage: userData.settings.interfaceLanguage,
-          currentLearningRoadmap: userData.progress.learningRoadmap,
-          completedLessonIds: userData.progress.completedLessonIds || [],
-          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
-          currentProficiencyLevel: (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2',
-        };
-        const rec = await getLessonRecommendation(input);
-        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
-          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
-          if (lesson && lesson.topics && lesson.topics.length > 0) {
-            const { href } = parseTopicAndGetLink(lesson.topics[0], { lessonId: lesson.id, lessonLevel: lesson.level });
-            if (href) {
-              router.push(href);
-              return;
-            }
-          }
-        }
-        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
-      } catch (e) {
-        setNextError('Ошибка перехода к следующему уроку.');
-      } finally {
-        setIsNextLoading(false);
-      }
-    };
-
     return (
       <div className="max-w-2xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">Чтение завершено</h2>
@@ -252,15 +214,14 @@ export default function ReadingModuleClient() {
         ) : (
           <div className="text-red-600 text-lg mb-4">Рекомендуем повторить тему для лучшего результата.</div>
         )}
-        <Button onClick={() => setMaterial(null)} className="mr-4 px-6 py-2">Пройти ещё раз</Button>
-        {canGoNext && (
-          <Button onClick={handleNextLesson} className="px-6 py-2" disabled={isNextLoading}>
-            {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
-          </Button>
-        )}
-        {!canGoNext && (
-          <div className="mt-4 text-gray-500 text-base">Чтобы перейти дальше, повторите тему.</div>
-        )}
+        <div className="flex justify-center gap-4">
+            <Button onClick={() => setMaterial(null)} variant="outline" className="mr-4 px-6 py-2">Пройти ещё раз</Button>
+            {canGoNext && (
+            <Button onClick={() => goToNextSection('reading', lessonIdFromParams, topicParam || '', baseLevel, router)} className="px-6 py-2" disabled={isNextLoading}>
+                {isNextLoading ? 'Загрузка...' : 'Следующий раздел'}
+            </Button>
+            )}
+        </div>
         {nextError && <div className="text-red-500 mt-4">{nextError}</div>}
       </div>
     );

@@ -11,6 +11,8 @@ import { Textarea } from '../ui/textarea';
 import { CheckCircle, Info, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { lessonTypes } from '@/config/lessonTypes';
+
 
 // parseTopicAndGetLink (упрощённая версия, как в Dashboard)
 const keywordsToModules = [
@@ -85,15 +87,19 @@ function goToNextSection(
   router: ReturnType<typeof useRouter>
 ) {
   const currentIndex = lessonSections.indexOf(currentSection);
-  if (currentIndex < lessonSections.length - 1) {
-    const nextSection = lessonSections[currentIndex + 1];
-    let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
-    if (topic) href += `&topic=${encodeURIComponent(topic)}`;
-    if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
-    router.push(href);
-  } else {
-    router.push('/dashboard?completedLesson=' + (lessonId || ''));
+    // Найти следующий существующий раздел
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
   }
+  // Если ничего не найдено — на дашборд
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
 
 export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescription, grammarTopic }: GrammarModuleClientProps) {
@@ -242,7 +248,14 @@ export default function GrammarModuleClient({ lessonId, lessonTitle, lessonDescr
         ) : (
           <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
         )}
-        <Button onClick={handleRepeat} className="px-6 py-2 text-base mr-3">Пройти ещё раз</Button>
+        <div className="flex justify-center gap-4">
+            <Button onClick={handleRepeat} variant="outline" className="px-6 py-2 text-base">Пройти ещё раз</Button>
+            {canGoNext && (
+                <Button onClick={() => goToNextSection('grammar', lessonIdFromParams, topic, baseLevel, router)} className="px-6 py-2 text-base">
+                    Перейти к следующему разделу
+                </Button>
+            )}
+        </div>
       </div>
     );
   }
