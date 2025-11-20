@@ -1,6 +1,5 @@
-
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Edit3, Headphones, FileText, Repeat, Brain } from "lucide-react";
+import { BookOpen, Edit3, Headphones, FileText, Repeat, Brain, Pencil } from "lucide-react";
 
 export interface AppModuleConfig {
   id: string;
@@ -31,7 +30,7 @@ export const appModulesConfig: AppModuleConfig[] = [
   {
     id: "writingAssistant",
     href: "/learn/writing",
-    icon: Edit3,
+    icon: Pencil,
     titleKey: "writingAssistant",
     defaultTitle: "Writing Assistant",
     descriptionKey: "writingAssistantDescription",

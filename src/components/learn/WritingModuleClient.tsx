@@ -1,35 +1,167 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { useUserData } from '@/contexts/UserDataContext';
-import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import { aiPoweredWritingAssistance } from '@/ai/flows/ai-powered-writing-assistance';
-import { useRouter, useSearchParams } from 'next/navigation';
 
-interface WritingTask {
-  prompt: string;
-  answer: string;
-  explanation: string;
+"use client";
+
+import { useState, useEffect } from "react";
+import { useForm, type SubmitHandler, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useUserData } from "@/contexts/UserDataContext";
+import { aiPoweredWritingAssistance } from "@/ai/flows/ai-powered-writing-assistance";
+import type { AIPoweredWritingAssistanceInput, AIPoweredWritingAssistanceOutput, ErrorCategory } from "@/ai/flows/ai-powered-writing-assistance";
+import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Edit, CheckCircle, Sparkles, XCircle, FileText, ListChecks } from "lucide-react"; 
+import { interfaceLanguageCodes, type InterfaceLanguage as AppInterfaceLanguage, germanWritingTaskTypes, type GermanWritingTaskType, proficiencyLevels as appProficiencyLevels, type ProficiencyLevel as AppProficiencyLevel } from "@/lib/types";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
+import { lessonTypes } from '@/config/lessonTypes';
+
+
+const writingTaskTypeValues = germanWritingTaskTypes.map(t => t.value) as [string, ...string[]];
+
+const writingSchema = z.object({
+  writingPrompt: z.string().min(5, "Prompt should be at least 5 characters"),
+  userText: z.string().min(10, "Your text should be at least 10 characters"),
+  writingTaskType: z.enum(writingTaskTypeValues).optional(),
+});
+
+type WritingFormData = z.infer<typeof writingSchema>;
+
+const baseEnTranslations: Record<string, string> = {
+  title: "AI-Powered Writing Assistant",
+  description: "Write on a given prompt and get AI-driven feedback on structure, grammar, and tone, along with corrections. Optionally, select a writing task type for more specific feedback. Feedback will be tailored to your proficiency level.",
+  writingPromptLabel: "Writing Prompt",
+  writingPromptPlaceholder: "E.g., Describe your last holiday, Write a formal email asking for information...",
+  userTextLabel: "Your Text",
+  userTextPlaceholder: "Write your text in {language} here...",
+  writingTaskTypeLabel: "Writing Task Type (Optional)",
+  writingTaskTypePlaceholder: "Select task type (e.g., Formal Letter, Essay)",
+  getFeedbackButton: "Get Feedback",
+  toastSuccessTitle: "Feedback Received!",
+  toastSuccessDescription: "Your writing has been reviewed.",
+  toastErrorTitle: "Error",
+  toastErrorDescription: "Failed to get writing assistance. Please try again.",
+  resultsCardTitle: "Feedback & Corrections",
+  feedbackSectionTitle: "Feedback",
+  yourOriginalTextSectionTitle: "Your Original Text",
+  correctedTextSectionTitle: "Corrected Text (with highlights)",
+  errorCategoriesHeader: "Identified Error Types",
+  errorCategoryLabel: "Category",
+  errorSpecificErrorLabel: "Specific Error",
+  errorCommentLabel: "Comment",
+  onboardingMissing: "Please complete onboarding first.",
+  loading: "Loading...",
+  informalLetterEmail: "Informal Letter/Email",
+  formalLetterEmail: "Formal Letter/Email",
+  complaintLetter: "Complaint Letter",
+  announcementNotice: "Announcement/Notice",
+  chatSmsNote: "Chat/SMS/Short Note",
+  essayArgumentative: "Essay/Argumentative Text",
+  clearResultsButton: "Clear Results",
+  nextLessonButton: "Next Section",
+};
+
+const baseRuTranslations: Record<string, string> = {
+  title: "Помощник по письму с ИИ",
+  description: "Напишите текст на заданную тему и получите от ИИ обратную связь по структуре, грамматике и тону, а также исправления. При желании выберите тип письменного задания для более точной обратной связи. Обратная связь будет адаптирована к вашему уровню владения языком.",
+  writingPromptLabel: "Тема для письма",
+  writingPromptPlaceholder: "Напр., Опишите свой последний отпуск, Напишите официальное письмо с запросом информации...",
+  userTextLabel: "Ваш текст",
+  userTextPlaceholder: "Напишите свой текст на языке {language} здесь...",
+  writingTaskTypeLabel: "Тип письменного задания (необязательно)",
+  writingTaskTypePlaceholder: "Выберите тип задания (напр., Официальное письмо, Эссе)",
+  getFeedbackButton: "Получить обратную связь",
+  toastSuccessTitle: "Обратная связь получена!",
+  toastSuccessDescription: "Ваш текст был проверен.",
+  toastErrorTitle: "Ошибка",
+  toastErrorDescription: "Не удалось получить помощь в написании. Пожалуйста, попробуйте снова.",
+  resultsCardTitle: "Обратная связь и исправления",
+  feedbackSectionTitle: "Обратная связь",
+  yourOriginalTextSectionTitle: "Ваш исходный текст",
+  correctedTextSectionTitle: "Исправленный текст (с выделениями)",
+  errorCategoriesHeader: "Выявленные типы ошибок",
+  errorCategoryLabel: "Категория",
+  errorSpecificErrorLabel: "Конкретная ошибка",
+  errorCommentLabel: "Комментарий",
+  onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
+  loading: "Загрузка...",
+  informalLetterEmail: "Неофициальное письмо/E-Mail",
+  formalLetterEmail: "Официальное письмо/E-Mail",
+  complaintLetter: "Жалоба",
+  announcementNotice: "Объявление/Заметка",
+  chatSmsNote: "Сообщение в чате/SMS",
+  essayArgumentative: "Эссе/Аргументативный текст",
+  clearResultsButton: "Очистить результаты",
+  nextLessonButton: "Следующий раздел",
+};
+
+const generateTranslations = () => {
+  const translations: Record<string, Record<string, string>> = {};
+  interfaceLanguageCodes.forEach(code => {
+    if (code === 'ru') {
+      translations[code] = { ...baseEnTranslations, ...baseRuTranslations };
+    } else {
+      translations[code] = { ...baseEnTranslations };
+    }
+  });
+  return translations;
+};
+
+const componentTranslations = generateTranslations();
+
+// parseTopicAndGetLink (локальная копия)
+const keywordsToModules = [
+  { keywords: ["лексика:", "словарный запас:", "vocabulary:"], path: "/learn/vocabulary" },
+  { keywords: ["грамматика:", "grammar:"], path: "/learn/grammar" },
+  { keywords: ["чтение:", "reading:"], path: "/learn/reading", needsLevel: true },
+  { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
+  { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
+  { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
+];
+function parseTopicAndGetLink(
+  topicLine: string,
+  lessonContext?: { lessonId: string; lessonLevel: string }
+): { href: string | null } {
+  let href: string | null = null;
+  const cleanAndEncodeTopic = (rawTopic: string): string => {
+    let cleaned = rawTopic.replace(/\s*\(.*?\)\s*$/, "").trim();
+    cleaned = cleaned.replace(/^\"':\s+|\"':\s+$/g, "").trim();
+    return encodeURIComponent(cleaned);
+  };
+  const topicLineLower = topicLine.toLowerCase();
+  for (const mod of keywordsToModules) {
+    for (const keyword of mod.keywords) {
+      const keywordLower = keyword.toLowerCase();
+      if (topicLineLower.startsWith(keywordLower)) {
+        let theme = topicLine.substring(keyword.length).trim();
+        theme = cleanAndEncodeTopic(theme);
+        if (theme.length > 0) {
+          href = `${mod.path}?topic=${theme}`;
+          if (lessonContext) {
+            href += `&lessonId=${encodeURIComponent(lessonContext.lessonId)}`;
+            if (mod.needsLevel && lessonContext.lessonLevel) {
+              const levelCode = lessonContext.lessonLevel.split(' ')[0]?.toUpperCase() || lessonContext.lessonLevel.toUpperCase();
+              href += `&baseLevel=${encodeURIComponent(levelCode)}`;
+            }
+          }
+        }
+        break;
+      }
+    }
+    if (href) break;
+  }
+  return { href };
 }
 
-const staticTasks: WritingTask[] = [
-  {
-    prompt: 'Напишите короткое письмо другу о своих планах на выходные.',
-    answer: 'Привет! В эти выходные я собираюсь поехать на природу с друзьями. Мы будем жарить шашлыки и играть в настольные игры. А какие у тебя планы?',
-    explanation: 'В письме должны быть: приветствие, описание планов, вопрос к другу.'
-  },
-  {
-    prompt: 'Составьте официальный e-mail с просьбой предоставить информацию о курсах немецкого языка.',
-    answer: 'Уважаемые господа! Я хотел бы узнать подробности о ваших курсах немецкого языка: расписание, стоимость и условия записи. Заранее благодарю за ответ. С уважением, Иван.',
-    explanation: 'В официальном письме важно использовать вежливое обращение, четко сформулировать запрос и добавить подпись.'
-  },
-  {
-    prompt: 'Опишите свой обычный день (5-6 предложений).',
-    answer: 'Мой день начинается в 7 утра. Я завтракаю и иду на работу. Днем я встречаюсь с коллегами и решаю рабочие задачи. После работы я занимаюсь спортом или читаю книги. Вечером я ужинаю с семьёй и смотрю фильмы.',
-    explanation: 'В ответе должны быть: начало дня, работа, досуг, вечер.'
-  }
-];
-
-const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
 function goToNextSection(
   currentSection: string,
@@ -39,225 +171,262 @@ function goToNextSection(
   router: ReturnType<typeof useRouter>
 ) {
   const currentIndex = lessonSections.indexOf(currentSection);
-  if (currentIndex < lessonSections.length - 1) {
-    const nextSection = lessonSections[currentIndex + 1];
-    let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
-    if (topic) href += `&topic=${encodeURIComponent(topic)}`;
-    if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
-    router.push(href);
-  } else {
-    router.push('/dashboard?completedLesson=' + (lessonId || ''));
+    // Найти следующий существующий раздел
+  for (let i = currentIndex + 1; i < lessonSections.length; i++) {
+    const nextSection = lessonSections[i];
+    if ((lessonTypes as Record<string, any>)[nextSection]) {
+      let href = `/learn/${nextSection}?lessonId=${encodeURIComponent(lessonId || '')}`;
+      if (topic) href += `&topic=${encodeURIComponent(topic)}`;
+      if (baseLevel) href += `&baseLevel=${encodeURIComponent(baseLevel)}`;
+      router.push(href);
+      return;
+    }
   }
+  // Если ничего не найдено — на дашборд
+  router.push('/dashboard?completedLesson=' + (lessonId || ''));
 }
 
+
 export default function WritingModuleClient() {
-  const { userData, isLoading: isUserDataLoading } = useUserData();
-  const [currentTask, setCurrentTask] = useState(0);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [results, setResults] = useState<{ correct: boolean; explanation: string; aiFeedback?: string; aiCorrection?: string; aiErrors?: any[] }[]>([]);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [isAnswered, setIsAnswered] = useState(false);
+  const { userData, isLoading: isUserDataLoading, toggleLessonCompletion } = useUserData();
+  const { toast } = useToast();
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [assistanceResult, setAssistanceResult] = useState<AIPoweredWritingAssistanceOutput | null>(null);
+  const [submittedUserText, setSubmittedUserText] = useState<string | null>(null);
+  const router = useRouter();
   const [isNextLoading, setIsNextLoading] = useState(false);
   const [nextError, setNextError] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
-  const [aiCorrection, setAiCorrection] = useState<string | null>(null);
-  const [aiErrors, setAiErrors] = useState<any[] | null>(null);
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const lessonIdFromParams = searchParams.get('lessonId');
-  const topic = searchParams.get('topic');
-  const baseLevel = searchParams.get('baseLevel');
 
-  const task = staticTasks[currentTask];
+  const { register, handleSubmit, control, formState: { errors }, reset, setValue } = useForm<WritingFormData>({
+    resolver: zodResolver(writingSchema),
+  });
 
-  const handleCheck = () => {
-    // Примитивная проверка: ответ считается верным, если содержит хотя бы 5 слов из эталона
-    const answerWords = task.answer.toLowerCase().split(/\W+/).filter(Boolean);
-    const userWords = userAnswer.toLowerCase().split(/\W+/).filter(Boolean);
-    const matchCount = answerWords.filter(w => userWords.includes(w)).length;
-    const isCorrect = matchCount >= 5;
-    setResults([...results, { correct: isCorrect, explanation: task.explanation }]);
-    setShowExplanation(true);
-    setIsAnswered(true);
+  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  const t = (key: string, defaultText?: string): string => {
+    const langTranslations = componentTranslations[currentLang as keyof typeof componentTranslations];
+    return langTranslations?.[key] || componentTranslations['en']?.[key] || defaultText || key;
   };
 
-  const handleAiCheck = async () => {
+  useEffect(() => {
+    // Reset form with default proficiency from user settings when user data is loaded
+    if (userData.settings) {
+        // We don't need to reset the proficiency here as it's part of general user settings,
+        // not a per-task setting in this module's form.
+    }
+  }, [userData.settings, reset]);
+
+  // Этот useEffect отвечает за автоматическую подстановку темы для письма,
+  // если пользователь перешел в этот модуль из своего учебного плана (Roadmap).
+  useEffect(() => {
+    const topicParam = searchParams.get('topic');
+    if (topicParam) {
+      // Декодируем и устанавливаем тему из URL в качестве "Темы для письма".
+      setValue('writingPrompt', decodeURIComponent(topicParam));
+    }
+  }, [searchParams, setValue]);
+
+  if (isUserDataLoading) {
+    return <div className="flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner size={32} /><p className="ml-2">{t('loading')}</p></div>;
+  }
+
+  if (!userData.settings) {
+    return <p className="p-4 md:p-6 lg:p-8">{t('onboardingMissing')}</p>;
+  }
+
+  const onSubmit: SubmitHandler<WritingFormData> = async (data) => {
     setIsAiLoading(true);
-    setAiFeedback(null);
-    setAiCorrection(null);
-    setAiErrors(null);
+    setAssistanceResult(null);
+    setSubmittedUserText(data.userText); 
     try {
-      if (!userData.settings) throw new Error('Нет данных пользователя');
-      const input = {
-        prompt: task.prompt,
-        text: userAnswer,
-        interfaceLanguage: userData.settings.interfaceLanguage,
-        proficiencyLevel: (userData.settings.proficiencyLevel || 'A1-A2'),
+      if (!userData.settings) {
+        toast({ title: t('onboardingMissing', 'Пожалуйста, завершите ввод данных для начала работы.'), variant: "destructive" });
+        setIsAiLoading(false);
+        return;
+      }
+      const writingInput: AIPoweredWritingAssistanceInput = {
+        prompt: data.writingPrompt,
+        text: data.userText,
+        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
+        writingTaskType: data.writingTaskType as GermanWritingTaskType | undefined,
+        proficiencyLevel: (userData.settings.proficiencyLevel || 'A1-A2') as AppProficiencyLevel,
         goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : (userData.settings.goal ? [userData.settings.goal] : []),
         interests: Array.isArray(userData.settings.interests) ? userData.settings.interests : (userData.settings.interests ? [userData.settings.interests] : []),
       };
-      const result = await aiPoweredWritingAssistance(input);
-      setAiFeedback(result.feedback);
-      setAiCorrection(result.markedCorrectedText);
-      setAiErrors(result.errorCategories || []);
-      setResults([...results, { correct: true, explanation: task.explanation, aiFeedback: result.feedback, aiCorrection: result.markedCorrectedText, aiErrors: result.errorCategories }]);
-      setShowExplanation(true);
-      setIsAnswered(true);
-    } catch (e) {
-      setAiFeedback('Ошибка ИИ-проверки.');
-      setAiCorrection(null);
-      setAiErrors(null);
-      setShowExplanation(true);
-      setIsAnswered(true);
+      
+      const result = await aiPoweredWritingAssistance(writingInput);
+      setAssistanceResult(result);
+      toast({
+        title: t('toastSuccessTitle', 'Проверка завершена!'),
+        description: t('toastSuccessDescription', 'Получите обратную связь ниже.'),
+      });
+    } catch (error) {
+      console.error("Writing assistance error:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast({
+        title: t('toastErrorTitle', 'Ошибка при проверке текста'),
+        description: `${t('toastErrorDescription', 'Попробуйте ещё раз.')}${errorMessage ? ` (${errorMessage})` : ''}`,
+        variant: "destructive",
+      });
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const handleNext = () => {
-    setUserAnswer('');
-    setShowExplanation(false);
-    setIsAnswered(false);
-    setAiFeedback(null);
-    setAiCorrection(null);
-    setAiErrors(null);
-    setCurrentTask(currentTask + 1);
+  const handleClearResults = () => {
+    setAssistanceResult(null);
+    setSubmittedUserText(null);
+    reset(); // Reset the form fields
   };
+  
+  const translatedTaskTypes = germanWritingTaskTypes.map(taskType => ({
+    value: taskType.value,
+    label: t(taskType.labelKey, taskType.defaultLabel),
+  }));
 
-  const handleRepeat = () => {
-    setCurrentTask(0);
-    setUserAnswer('');
-    setResults([]);
-    setShowExplanation(false);
-    setIsAnswered(false);
-    setAiFeedback(null);
-    setAiCorrection(null);
-    setAiErrors(null);
-  };
+  // Финальный экран — если есть результат и пользователь завершил задание
+  if (assistanceResult && submittedUserText) {
+    const handleNextSection = async () => {
+        const lessonId = searchParams.get('lessonId');
+        const topic = searchParams.get('topic');
+        const baseLevel = searchParams.get('baseLevel');
 
-  // Итоговый анализ
-  if (currentTask >= staticTasks.length) {
-    const correctCount = results.filter(r => r.correct).length;
-    const percent = Math.round((correctCount / staticTasks.length) * 100);
-    const canGoNext = percent >= 70;
-
-    useEffect(() => {
-      if (canGoNext) {
-        goToNextSection('writing', lessonIdFromParams, topic, baseLevel, router);
-      }
-    }, [canGoNext, lessonIdFromParams, topic, baseLevel, router]);
-
-    const handleNextLesson = async () => {
-      setIsNextLoading(true);
-      setNextError('');
-      try {
-        if (!userData.settings || !userData.progress?.learningRoadmap?.lessons) throw new Error('Нет данных пользователя');
-        const input = {
-          interfaceLanguage: userData.settings.interfaceLanguage,
-          currentLearningRoadmap: userData.progress.learningRoadmap,
-          completedLessonIds: userData.progress.completedLessonIds || [],
-          userGoal: Array.isArray(userData.settings.goal) ? (userData.settings.goal[0] || '') : (userData.settings.goal || ''),
-          currentProficiencyLevel: (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2',
-        };
-        const rec = await getLessonRecommendation(input);
-        if (rec.recommendedLessonId && userData.progress.learningRoadmap.lessons) {
-          const lesson = userData.progress.learningRoadmap.lessons.find(l => l.id === rec.recommendedLessonId);
-          if (lesson && lesson.topics && lesson.topics.length > 0) {
-            goToNextSection('writing', lesson.id, lesson.topics[0], null, router);
-            return;
-          }
+        if(lessonId) {
+            toggleLessonCompletion(lessonId);
         }
-        setNextError('Не удалось определить следующий урок. Вернитесь на главную.');
-      } catch (e) {
-        setNextError('Ошибка перехода к следующему уроку.');
-      } finally {
-        setIsNextLoading(false);
-      }
+        
+        goToNextSection('writing', lessonId, topic, baseLevel, router);
     };
+
     return (
-      <div className="max-w-xl mx-auto p-8 text-center">
-        <h2 className="text-2xl mb-3">Письменный тест завершён</h2>
-        <p className="text-lg mb-4">Ваш результат: <b>{correctCount} из {staticTasks.length}</b> ({percent}%)</p>
-        {canGoNext ? (
-          <div className="text-green-600 text-xl mb-4">Поздравляем! Вы можете перейти к следующей теме.</div>
-        ) : (
-          <div className="text-red-600 text-xl mb-4">Рекомендуем повторить тему для лучшего результата.</div>
-        )}
-        <Button onClick={handleRepeat} className="px-6 py-2 text-base mr-3">Пройти ещё раз</Button>
-        {canGoNext && (
-          <Button onClick={handleNextLesson} className="px-6 py-2 text-base" disabled={isNextLoading}>
-            {isNextLoading ? 'Загрузка...' : 'Следующий урок'}
-          </Button>
-        )}
-        {!canGoNext && (
-          <div className="mt-4 text-muted-foreground text-sm">Чтобы перейти дальше, повторите тему.</div>
-        )}
-        {nextError && <div className="text-red-600 mt-4">{nextError}</div>}
+      <div className="space-y-6 p-4 md:p-6 lg:p-8">
+        <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <CheckCircle className="h-8 w-8 text-green-500" />
+              {t('resultsCardTitle')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>{t('feedbackSectionTitle')}</h3>
+                <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{assistanceResult.feedback}</p>
+                </ScrollArea>
+              </div>
+
+              {assistanceResult.errorCategories && assistanceResult.errorCategories.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <ListChecks className="h-5 w-5 text-orange-500" />
+                    {t('errorCategoriesHeader')}
+                  </h3>
+                  <ScrollArea className="h-[250px] rounded-md border p-3 bg-muted/30">
+                    <ul className="space-y-3">
+                      {assistanceResult.errorCategories.map((errCat, index) => (
+                        <li key={index} className="text-sm p-2 rounded-md bg-card border border-border/50">
+                          <p><strong>{t('errorCategoryLabel', 'Category')}:</strong> {errCat.category}</p>
+                          <p><strong>{t('errorSpecificErrorLabel', 'Error')}:</strong> {errCat.specificError}</p>
+                          {errCat.comment && <p><em>{t('errorCommentLabel', 'Comment')}: {errCat.comment}</em></p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+            
+            {submittedUserText && (
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  {t('yourOriginalTextSectionTitle')}
+                </h3>
+                <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{submittedUserText}</p>
+                </ScrollArea>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500"/>{t('correctedTextSectionTitle')}</h3>
+              <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/30">
+                <div 
+                  className="whitespace-pre-wrap text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: assistanceResult.markedCorrectedText }} 
+                />
+              </ScrollArea>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+              <Button onClick={handleClearResults} variant="outline">{t('clearResultsButton')}</Button>
+              <Button onClick={handleNextSection} disabled={isNextLoading}>
+                {isNextLoading ? <LoadingSpinner size={16} className="mr-2"/> : null}
+                {t('nextLessonButton')}
+              </Button>
+          </CardFooter>
+           {nextError && <p className="text-sm text-destructive text-center p-4">{nextError}</p>}
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 32 }}>
-      <h2 style={{ fontSize: 24, marginBottom: 12 }}>Письменное задание</h2>
-      <div style={{ fontSize: 18, marginBottom: 16 }}>Задание {currentTask + 1} из {staticTasks.length}:</div>
-      <div style={{ fontSize: 18, marginBottom: 16 }}>{task.prompt}</div>
-      <textarea
-        value={userAnswer}
-        onChange={e => setUserAnswer(e.target.value)}
-        placeholder="Введите ваш ответ..."
-        rows={5}
-        style={{ width: '100%', padding: 8, fontSize: 16, marginBottom: 16 }}
-        disabled={isAnswered}
-      />
-      <div>
-        {!isAnswered ? (
-          <>
-            <Button onClick={handleCheck} disabled={!userAnswer.trim()} style={{ marginRight: 12 }}>
-              Проверить (статически)
-            </Button>
-            <Button onClick={handleAiCheck} disabled={!userAnswer.trim() || isAiLoading} style={{ marginRight: 12 }}>
-              {isAiLoading ? 'Проверка ИИ...' : 'Проверить с помощью ИИ'}
-            </Button>
-          </>
-        ) : (
-          <Button onClick={handleNext} style={{ marginRight: 12 }}>
-            Следующее задание
-          </Button>
-        )}
-        {showExplanation && (
-          <div style={{ marginTop: 24, fontSize: 17, color: isAnswered && results[results.length - 1]?.correct ? 'green' : 'red' }}>
-            {results[results.length - 1]?.correct ? '✅ Хорошо!' : '❌ Нужно доработать'}
-            <div style={{ marginTop: 8, color: '#0070f3' }}>Пояснение: {task.explanation}</div>
-            <div style={{ marginTop: 8, color: '#888' }}><b>Пример ответа:</b> {task.answer}</div>
-            {aiFeedback && (
-              <div style={{ marginTop: 16, color: '#222', background: '#f6f6f6', borderRadius: 8, padding: 12 }}>
-                <b>Обратная связь ИИ:</b>
-                <div style={{ marginTop: 8 }}>{aiFeedback}</div>
-                {aiCorrection && (
-                  <div style={{ marginTop: 8 }}>
-                    <b>Исправленный текст:</b>
-                    <div style={{ marginTop: 4, background: '#fff', border: '1px solid #eee', borderRadius: 4, padding: 8 }} dangerouslySetInnerHTML={{ __html: aiCorrection }} />
-                  </div>
-                )}
-                {aiErrors && aiErrors.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    <b>Категории ошибок:</b>
-                    <ul style={{ marginTop: 4 }}>
-                      {aiErrors.map((err, idx) => (
-                        <li key={idx} style={{ fontSize: 14, marginBottom: 4 }}>
-                          <b>{err.category}:</b> {err.specificError} {err.comment && <span>({err.comment})</span>}
-                        </li>
+    <div className="space-y-6 p-4 md:p-6 lg:p-8">
+      <Card className="shadow-xl bg-gradient-to-br from-card via-card to-primary/5 border border-primary/20">
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold tracking-tight flex items-center gap-2">
+             <Edit className="h-8 w-8 text-primary animate-pulse" />
+            {t('title')}
+          </CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="writingPrompt">{t('writingPromptLabel')}</Label>
+              <Input id="writingPrompt" placeholder={t('writingPromptPlaceholder')} {...register("writingPrompt")} />
+              {errors.writingPrompt && <p className="text-sm text-destructive">{errors.writingPrompt.message}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="writingTaskType">{t('writingTaskTypeLabel')}</Label>
+              <Controller
+                name="writingTaskType"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value || ''}> 
+                    <SelectTrigger id="writingTaskType">
+                      <SelectValue placeholder={t('writingTaskTypePlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {translatedTaskTypes.map(taskType => (
+                        <SelectItem key={taskType.value} value={taskType.value}>
+                          {taskType.label}
+                        </SelectItem>
                       ))}
-                    </ul>
-                  </div>
+                    </SelectContent>
+                  </Select>
                 )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+              />
+              {errors.writingTaskType && <p className="text-sm text-destructive">{errors.writingTaskType.message}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="userText">{t('userTextLabel')} ({userData.settings.targetLanguage})</Label>
+              <Textarea id="userText" placeholder={t('userTextPlaceholder').replace('{language}', userData.settings.targetLanguage)} {...register("userText")} className="min-h-[150px]" />
+              {errors.userText && <p className="text-sm text-destructive">{errors.userText.message}</p>}
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={isAiLoading} className="w-full md:w-auto">
+              {isAiLoading && <LoadingSpinner size={16} className="mr-2" />}
+              {t('getFeedbackButton')}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 }

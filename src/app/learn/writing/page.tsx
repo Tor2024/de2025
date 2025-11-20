@@ -2,7 +2,7 @@
 "use client";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { WritingAssistantClient } from "@/components/learn/WritingAssistantClient";
+import WritingModuleClient from "@/components/learn/WritingModuleClient";
 import { useUserData } from "@/contexts/UserDataContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -81,7 +81,7 @@ export default function WritingPage() {
 
   return (
     <AppShell>
-      <WritingAssistantClient />
+      <WritingModuleClient />
     </AppShell>
   );
 }

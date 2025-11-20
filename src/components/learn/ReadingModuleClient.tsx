@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +61,7 @@ function parseTopicAndGetLink(
   return { href };
 }
 
-const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
 function goToNextSection(
   currentSection: string,
@@ -271,7 +270,7 @@ export default function ReadingModuleClient() {
             <div className="text-base mb-4">{material.comprehensionQuestions[currentQuestion].question}</div>
             {material.comprehensionQuestions[currentQuestion].options && material.comprehensionQuestions[currentQuestion].options.length > 0 ? (
               <div className="flex flex-col gap-2 mb-4">
-                {material.comprehensionQuestions[currentQuestion].options.map((opt, idx) => (
+                {material.comprehensionQuestions[currentQuestion].options!.map((opt, idx) => (
                   <Button
                     key={idx}
                     variant={userAnswer === opt ? 'default' : 'outline'}

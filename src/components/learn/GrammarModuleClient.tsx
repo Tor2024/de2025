@@ -77,7 +77,7 @@ interface GrammarModuleClientProps {
 }
 
 // Универсальный массив разделов
-const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
 function goToNextSection(
   currentSection: string,

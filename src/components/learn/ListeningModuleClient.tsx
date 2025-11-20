@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +73,7 @@ const mapTargetLanguageToBcp47: Record<string, string> = {
   // Добавьте другие языки по необходимости
 };
 
-const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing'];
+const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
 function goToNextSection(
   currentSection: string,
