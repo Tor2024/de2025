@@ -235,7 +235,7 @@ export function OnboardingFlow() {
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button className="w-full" onClick={() => router.push('/dashboard')}>
+            <Button className="w-full" onClick={() => router.replace('/dashboard')}>
               {currentTranslations.startLearningButton || baseEnTranslations.startLearningButton}
             </Button>
           </CardFooter>
@@ -392,3 +392,5 @@ export function OnboardingFlow() {
     </div>
   );
 }
+
+    

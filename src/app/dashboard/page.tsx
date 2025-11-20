@@ -160,7 +160,14 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const roadmapDisplayRef = useRef<HTMLDivElement>(null);
 
-  const currentLang = isUserDataLoading ? 'en' : (userData.settings?.interfaceLanguage || 'en');
+  useEffect(() => {
+    if (!isUserDataLoading && !userData.settings) {
+      router.replace('/');
+    }
+  }, [isUserDataLoading, userData.settings, router]);
+
+
+  const currentLang = isUserDataLoading || !userData.settings ? 'en' : (userData.settings.interfaceLanguage);
   const t = useCallback((key: string, defaultText?: string, params?: Record<string, string>): string => {
     const langTranslations = pageTranslations[currentLang as keyof typeof pageTranslations];
     let textToReturn = defaultText || key;
@@ -182,31 +189,23 @@ export default function DashboardPage() {
     return textToReturn;
   }, [currentLang]);
 
-
-  useEffect(() => {
-    if (userData.settings === null && !isUserDataLoading) {
-      router.replace('/');
-    }
-  }, [userData, isUserDataLoading, router]); 
-
-
   if (isUserDataLoading) {
     return (
       <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.loadingUserData : baseEnTranslations.loadingUserData}</p>
+          <p className="ml-4">{t('loadingUserData')}</p>
         </div>
       </AppShell>
     );
   }
 
-  if (userData.settings === null) { 
+  if (!userData.settings) {
     return (
        <AppShell>
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size={48} />
-          <p className="ml-4">{currentLang === 'ru' ? baseRuTranslations.redirecting : baseEnTranslations.redirecting}</p>
+          <p className="ml-4">{t('redirecting')}</p>
         </div>
       </AppShell>
     );
@@ -355,3 +354,5 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
+
+    
