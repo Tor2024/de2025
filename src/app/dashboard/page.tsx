@@ -9,6 +9,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { RoadmapDisplay } from '@/components/dashboard/RoadmapDisplay';
 import { GoalTracker } from '@/components/dashboard/GoalTracker';
 import { ModuleLinkCard } from '@/components/dashboard/ModuleLinkCard';
+import { CreateIndividualLesson } from '@/components/dashboard/CreateIndividualLesson';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { LayoutGrid, BarChart3, Settings, ArrowRight, Languages, GraduationCap, Flag, Archive } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -264,6 +265,7 @@ export default function DashboardPage() {
               completedLessonsCount={completedLessons}
               totalLessonsCount={totalLessons}
             />
+            <CreateIndividualLesson />
           </div>
         </div>
 
@@ -354,5 +356,3 @@ export default function DashboardPage() {
     </AppShell>
   );
 }
-
-    

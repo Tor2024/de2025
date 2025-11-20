@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useCallback } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord } from '@/lib/types';
+import type { UserData, UserSettings, UserProgress, LearningRoadmap, ErrorRecord, VocabularyWord, UserLearnedWord, Lesson } from '@/lib/types';
 import { initialUserProgress, MAX_LEARNING_STAGE, learningStageIntervals } from '@/lib/types';
 
 interface UserDataContextType {
@@ -19,6 +19,7 @@ interface UserDataContextType {
   clearErrorArchive: () => void;
   processWordRepetition: (wordData: VocabularyWord, targetLanguage: UserSettings['targetLanguage'], knewIt: boolean) => void;
   recordPracticeSetCompletion: () => void;
+  addIndividualLesson: (lesson: Lesson) => void;
   isLoading: boolean;
 }
 
@@ -157,6 +158,19 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     updateProgress({ practiceSetsCompleted: (userData.progress.practiceSetsCompleted || 0) + 1 });
   }, [updateProgress, userData.progress.practiceSetsCompleted]);
 
+  const addIndividualLesson = useCallback((lesson: Lesson) => {
+    setUserData(prev => {
+      const individualLessons = prev.progress.individualLessons || [];
+      return {
+        ...prev,
+        progress: {
+          ...prev.progress,
+          individualLessons: [...individualLessons, lesson],
+        }
+      };
+    });
+  }, [setUserData]);
+
   const contextValue: UserDataContextType = {
     userData,
     setUserData,
@@ -169,6 +183,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     clearErrorArchive,
     processWordRepetition,
     recordPracticeSetCompletion,
+    addIndividualLesson,
     isLoading,
   };
 

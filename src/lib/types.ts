@@ -67,6 +67,7 @@ export interface UserLearnedWord extends VocabularyWord {
 
 export interface UserProgress {
   learningRoadmap?: LearningRoadmap;
+  individualLessons?: Lesson[];
   errorArchive: ErrorRecord[];
   completedLessonIds: string[]; // IDs of lessons from LearningRoadmap
   learnedWords: UserLearnedWord[]; // For SRS
@@ -79,6 +80,7 @@ export interface UserProgress {
 export const initialUserProgress: UserProgress = {
   errorArchive: [],
   learningRoadmap: undefined,
+  individualLessons: [],
   completedLessonIds: [],
   learnedWords: [],
   practiceSetsCompleted: 0,
