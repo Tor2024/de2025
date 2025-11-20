@@ -25,7 +25,7 @@ const keywordsToModules = [
   { keywords: ["аудирование:", "listening:"], path: "/learn/listening" },
   { keywords: ["говорение:", "практика говорения:", "speaking:", "speech practice:"], path: "/learn/speaking" },
   { keywords: ["письмо:", "помощь в письме:", "writing:", "writing assistance:"], path: "/learn/writing" },
-  { keywords: ["практика слов:", "упражнения:", "word practice:"], path: "/learn/practice" },
+  { keywords: ["практика слов:", "упражнения:", "word practice:", "exercises:"], path: "/learn/practice" },
 ];
 function parseTopicAndGetLink(
   topicLine: string,
@@ -101,7 +101,7 @@ const InteractiveText = ({ text, vocabulary }: { text: string; vocabulary: { wor
   const words = text.split(/(\s+|[.,!?;:"])/);
 
   return (
-    <p className="text-base mb-4 whitespace-pre-line leading-relaxed">
+    <div className="text-base mb-4 whitespace-pre-line leading-relaxed">
       <TooltipProvider>
         {words.map((word, index) => {
           const cleanWord = word.replace(/[.,!?;:"]/, '').toLowerCase();
@@ -113,7 +113,7 @@ const InteractiveText = ({ text, vocabulary }: { text: string; vocabulary: { wor
                   <span className="underline decoration-dotted cursor-pointer decoration-primary">{word}</span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{translation}</p>
+                  <span>{translation}</span>
                 </TooltipContent>
               </Tooltip>
             );
@@ -121,7 +121,7 @@ const InteractiveText = ({ text, vocabulary }: { text: string; vocabulary: { wor
           return <span key={index}>{word}</span>;
         })}
       </TooltipProvider>
-    </p>
+    </div>
   );
 };
 
