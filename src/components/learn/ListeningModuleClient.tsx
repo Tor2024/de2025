@@ -8,9 +8,9 @@ import { Volume2, XCircle, RefreshCw } from 'lucide-react';
 import type { GenerateListeningMaterialOutput } from '@/ai/flows/generate-listening-material-flow';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
-import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
+import { MultiVoiceAudioPlayer } from '@/components/ui/MultiVoiceAudioPlayer';
 import type { TargetLanguage as AppTargetLanguage } from '@/lib/types';
-import { lessonTypes } from '@/config/lessonTypes';
+import { lessonTypes, mapTargetLanguageToBcp47 } from '@/config/lessonTypes';
 
 
 interface ResultItem {
@@ -61,17 +61,6 @@ function parseTopicAndGetLink(
   }
   return { href };
 }
-
-// Добавляю утилиту для сопоставления языков TTS
-const mapTargetLanguageToBcp47: Record<string, string> = {
-  German: 'de-DE',
-  English: 'en-US',
-  French: 'fr-FR',
-  Spanish: 'es-ES',
-  Italian: 'it-IT',
-  Russian: 'ru-RU',
-  // Добавьте другие языки по необходимости
-};
 
 const lessonSections = ['grammar', 'vocabulary', 'repetition', 'reading', 'listening', 'writing', 'practice'];
 
@@ -229,9 +218,10 @@ export default function ListeningModuleClient() {
         <CardHeader>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <CardTitle style={{ marginBottom: 0 }}>{material.title || 'Скрипт для аудирования'}</CardTitle>
-              <PlayAudioButton
-                text={material.script}
-                lang={userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage as AppTargetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage as AppTargetLanguage] : 'de-DE'}
+              <MultiVoiceAudioPlayer
+                script={material.script}
+                targetLang={userData?.settings?.targetLanguage as AppTargetLanguage}
+                interfaceLang={userData?.settings?.interfaceLanguage}
                 tooltipPlay="Прослушать"
                 tooltipStop="Остановить"
                 className="ml-3"

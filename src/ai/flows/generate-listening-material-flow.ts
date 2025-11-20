@@ -35,7 +35,7 @@ const ComprehensionQuestionSchema = z.object({
 const GenerateListeningMaterialOutputSchema = z.object({
   title: z.string().optional().describe('A suitable title for the listening material, in the targetLanguage.'),
   scenario: z.string().optional().describe('A brief description of the listening scenario (e.g., "A conversation at a train station"), in the interfaceLanguage.'),
-  script: z.string().describe('The generated listening script (dialogue or monologue) in the targetLanguage, adapted to the proficiencyLevel.'),
+  script: z.string().describe('The generated listening script in the targetLanguage, adapted to the proficiencyLevel. If it\'s a dialogue, it MUST be formatted with speaker labels like "Speaker 1:", "Speaker 2:", etc., on separate lines.'),
   comprehensionQuestions: z.array(ComprehensionQuestionSchema).min(2).max(4).describe('An array of 2-4 multiple-choice comprehension questions about the script, with questions and options in the interfaceLanguage.'),
 });
 export type GenerateListeningMaterialOutput = z.infer<typeof GenerateListeningMaterialOutputSchema>;
@@ -65,6 +65,7 @@ User Profile:
 CRITICAL INSTRUCTIONS:
 1.  **Listening Script:**
     *   Create a short, coherent, and engaging monologue or dialogue in the {{{targetLanguage}}}.
+    *   **If you generate a dialogue, you MUST format it with speaker labels.** Each speaker's line must start on a new line with a label like "Speaker 1:", "Speaker 2:", "Mann:", "Frau:", "Person A:", etc. This is crucial for multi-voice playback.
     *   The script's length, grammar, and vocabulary MUST be appropriate for the user's {{{proficiencyLevel}}}.
     *   The script MUST be directly related to the specified {{{topic}}}.
     *   If 'userPastErrors' is provided, subtly incorporate correct examples of the problematic grammar or vocabulary into the script to provide passive reinforcement.
