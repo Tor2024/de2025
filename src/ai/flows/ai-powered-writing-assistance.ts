@@ -20,7 +20,7 @@ const AIPoweredWritingAssistanceInputSchema = z.object({
   prompt: z.string().describe('The writing prompt or topic.'),
   text: z.string().describe('The user-generated text to be evaluated.'),
   interfaceLanguage: InterfaceLanguageSchema.describe('The ISO 639-1 code of the language for explanations and feedback (e.g., en, ru). ALL FEEDBACK MUST BE IN THIS LANGUAGE.'),
-  writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Formal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
+  writingTaskType: z.enum(writingTaskTypeValues).optional().describe('The specific type of writing task (e.g., "Informal Letter/Email", "Essay"). If provided, feedback should explicitly consider the conventions of this type.'),
   proficiencyLevel: z.enum(appProficiencyLevels).describe('The proficiency level of the user (A1-A2, B1-B2, C1-C2). This should guide the complexity of feedback and suggestions.'),
   goals: z.array(z.string()).describe('User learning goals.'),
   interests: z.array(z.string()).describe('User interests.'),
@@ -164,18 +164,18 @@ CRITICAL: When providing feedback, you MUST pay close attention to the conventio
 {{/if}}
 
 Your tasks:
-1.  **Detailed Feedback (`feedback` field)**: Provide detailed, structured, and encouraging feedback. This feedback MUST be in the {{{interfaceLanguage}}}. Structure it like this:
+1.  **Detailed Feedback (\`feedback\` field)**: Provide detailed, structured, and encouraging feedback. This feedback MUST be in the {{{interfaceLanguage}}}. Structure it like this:
     *   **Что получилось хорошо (What went well):** Start by highlighting 1-2 specific strengths of the text (e.g., good vocabulary use, clear structure, correct use of a complex tense). Be specific.
     *   **Над чем можно поработать (Areas for improvement):** Gently point out 2-3 main areas for improvement. Don't just list errors, but explain the *impact* (e.g., "Неправильный порядок слов здесь может запутать читателя" or "Использование более точного синонима сделает вашу мысль яснее").
     *   **Итог и совет (Summary and advice):** Briefly summarize the feedback and give a final encouraging piece of advice for the future.
-2.  **Corrected Text (`markedCorrectedText` field)**: Provide a corrected version of the user's text.
+2.  **Corrected Text (\`markedCorrectedText\` field)**: Provide a corrected version of the user's text.
     *   Use ONLY the HTML tags \`<ins>inserted/corrected text</ins>\` for additions/changes and \`<del>deleted text</del>\` for deletions.
     *   Example: I <del>goed</del><ins>went</ins> to the park.
     *   The corrections should be appropriate for the user's {{{proficiencyLevel}}}.
-3.  **Error Categories (`errorCategories` field)**: For each significant error, create an entry in this array.
-    *   `category`: General type like "Grammar", "Vocabulary", "Style".
-    *   `specificError`: Specifics like "Incorrect verb tense", "Word choice".
-    *   `comment`: This is CRITICAL. Provide a **detailed but easy-to-understand explanation** of the error. Explain the rule, show the user's incorrect version and the corrected version side-by-side, and give a clear tip on how to avoid it. Example: "Ошибка: Вы написали 'I goed'. Правило: Глагол 'go' — неправильный, его форма в Past Simple — 'went'. Совет: Запомните основные неправильные глаголы, например, go-went-gone."
+3.  **Error Categories (\`errorCategories\` field)**: For each significant error, create an entry in this array.
+    *   \`category\`: General type like "Grammar", "Vocabulary", "Style".
+    *   \`specificError\`: Specifics like "Incorrect verb tense", "Word choice".
+    *   \`comment\`: This is CRITICAL. Provide a **detailed but easy-to-understand explanation** of the error. Explain the rule, show the user's incorrect version and the corrected version side-by-side, and give a clear tip on how to avoid it. Example: "Ошибка: Вы написали 'I goed'. Правило: Глагол 'go' — неправильный, его форма в Past Simple — 'went'. Совет: Запомните основные неправильные глаголы, например, go-went-gone."
 
 Output the feedback, the marked corrected text, and the error categories as a JSON object matching the defined output schema.
   `,
