@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -113,7 +114,7 @@ const baseRuTranslations: Record<string, string> = {
   toastSuccessDescriptionTemplate: "Список слов для темы \"{topic}\" готов.",
   toastErrorTitle: "Ошибка",
   toastErrorDescription: "Не удалось создать список слов. Пожалуйста, попробуйте снова.",
-  onboardingMissing: "Пожалуйста, сначала завершите онбординг, чтобы установить языки и уровень.",
+  onboardingMissing: "Пожалуйста, сначала завершите онбординг.",
   loading: "Загрузка...",
   noExampleSentence: "Пример предложения не предоставлен.",
   showDetailsButton: "Показать детали",
@@ -355,12 +356,12 @@ export function VocabularyModuleClient() {
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
       const pastErrors = getPastErrorsAsString();
       const flowInput: GenerateVocabularyInput = {
-        interfaceLanguage: 'ru',
-        targetLanguage: 'German',
+        interfaceLanguage: userData.settings.interfaceLanguage as AppInterfaceLanguage,
+        targetLanguage: userData.settings.targetLanguage as AppTargetLanguage,
         proficiencyLevel: safeProficiencyLevel,
         topic: formData.topic,
-        goals: [],
-        interests: [],
+        goals: Array.isArray(userData.settings.goal) ? userData.settings.goal : (userData.settings.goal ? [userData.settings.goal] : []),
+        interests: userData.settings.interests || [],
         userPastErrors: pastErrors,
       };
 

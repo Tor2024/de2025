@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,8 @@ import type { GenerateListeningMaterialOutput } from '@/ai/flows/generate-listen
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
+import type { TargetLanguage as AppTargetLanguage } from '@/lib/types';
+
 
 interface ResultItem {
   correct: boolean;
@@ -111,6 +114,16 @@ export default function ListeningModuleClient() {
   const [nextError, setNextError] = useState('');
   const [topicInput, setTopicInput] = useState<string>("");
 
+  const getPastErrorsAsString = useCallback(() => {
+    if (!userData.progress?.errorArchive || userData.progress.errorArchive.length === 0) {
+        return "No past errors recorded.";
+    }
+    return userData.progress.errorArchive
+        .slice(-10) // Take last 10 errors to keep prompt concise
+        .map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`)
+        .join('\n');
+  }, [userData.progress?.errorArchive]);
+
   const handleGetMaterial = useCallback(async () => {
     setIsLoading(true);
     setError('');
@@ -123,6 +136,7 @@ export default function ListeningModuleClient() {
     try {
       if (!userData.settings) throw new Error('Нет настроек пользователя');
       const safeProficiencyLevel = (userData.settings.proficiencyLevel as 'A1-A2' | 'B1-B2' | 'C1-C2') || 'A1-A2';
+      const pastErrors = getPastErrorsAsString();
       const response = await fetch('/api/ai/generate-listening-material', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,6 +147,7 @@ export default function ListeningModuleClient() {
           topic: topicInput || topicParam || 'Повседневная ситуация',
           goals: [],
           interests: [],
+          userPastErrors: pastErrors,
         }),
       });
       if (!response.ok) throw new Error('Ошибка генерации аудиоматериала');
@@ -143,7 +158,7 @@ export default function ListeningModuleClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [userData.settings, topicInput, topicParam]);
+  }, [userData.settings, topicInput, topicParam, getPastErrorsAsString]);
 
   // useEffect для автозагрузки темы из topicParam
   useEffect(() => {
@@ -262,7 +277,7 @@ export default function ListeningModuleClient() {
               <CardTitle style={{ marginBottom: 0 }}>{material.title || 'Скрипт для аудирования'}</CardTitle>
               <PlayAudioButton
                 text={material.script}
-                lang={userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage] : 'de-DE'}
+                lang={userData?.settings?.targetLanguage && mapTargetLanguageToBcp47[userData.settings.targetLanguage as AppTargetLanguage] ? mapTargetLanguageToBcp47[userData.settings.targetLanguage as AppTargetLanguage] : 'de-DE'}
                 tooltipPlay="Прослушать"
                 tooltipStop="Остановить"
                 className="ml-3"

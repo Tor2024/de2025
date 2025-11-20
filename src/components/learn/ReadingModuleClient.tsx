@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,6 +9,8 @@ import type { GenerateReadingMaterialOutput } from '@/ai/flows/generate-reading-
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLessonRecommendation } from '@/ai/flows/get-lesson-recommendation-flow';
 import { PlayAudioButton } from '@/components/ui/PlayAudioButton';
+import type { InterfaceLanguage as AppInterfaceLanguage, TargetLanguage as AppTargetLanguage } from '@/lib/types';
+
 
 interface ResultItem {
   correct: boolean;
@@ -98,6 +101,16 @@ export default function ReadingModuleClient() {
   const [nextError, setNextError] = useState('');
   const [topic, setTopic] = useState<string>("");
 
+  const getPastErrorsAsString = useCallback(() => {
+    if (!userData.progress?.errorArchive || userData.progress.errorArchive.length === 0) {
+        return "No past errors recorded.";
+    }
+    return userData.progress.errorArchive
+        .slice(-10) // Take last 10 errors to keep prompt concise
+        .map(e => `Module: ${e.module}, Context: ${e.context || 'N/A'}, User attempt: ${e.userAttempt}, Correct: ${e.correctAnswer || 'N/A'}`)
+        .join('\n');
+  }, [userData.progress?.errorArchive]);
+
   // useEffect для автозагрузки темы — всегда на верхнем уровне
   useEffect(() => {
     if (topicParam && !material && !isLoading) {
@@ -113,6 +126,7 @@ export default function ReadingModuleClient() {
         setIsAnswered(false);
         try {
           if (!userData.settings) throw new Error('Нет настроек пользователя');
+          const pastErrors = getPastErrorsAsString();
           const result = await fetch('/api/ai/generate-reading-material', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -123,6 +137,7 @@ export default function ReadingModuleClient() {
               topic: topicParam,
               goals: [],
               interests: [],
+              userPastErrors: pastErrors,
             }),
           });
           if (!result.ok) throw new Error('Ошибка генерации текста для чтения');
@@ -135,7 +150,7 @@ export default function ReadingModuleClient() {
         }
       })();
     }
-  }, [topicParam, material, isLoading, userData.settings]);
+  }, [topicParam, material, isLoading, userData.settings, getPastErrorsAsString]);
 
   // useEffect для автоматического перехода после успешного завершения
   useEffect(() => {
@@ -160,6 +175,7 @@ export default function ReadingModuleClient() {
     setIsAnswered(false);
     try {
       if (!userData.settings) throw new Error('Нет настроек пользователя');
+      const pastErrors = getPastErrorsAsString();
       const response = await fetch('/api/ai/generate-reading-material', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,6 +186,7 @@ export default function ReadingModuleClient() {
           topic: topic || topicParam || 'Повседневная ситуация',
           goals: [],
           interests: [],
+          userPastErrors: pastErrors,
         }),
       });
       if (!response.ok) throw new Error('Ошибка генерации текста для чтения');
